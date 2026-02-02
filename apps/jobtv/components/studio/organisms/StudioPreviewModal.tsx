@@ -55,9 +55,9 @@ export default function StudioPreviewModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black flex flex-col animate-in fade-in duration-300">
+    <div className="fixed inset-0 z-[100] bg-black flex flex-col animate-in fade-in duration-300 h-full">
       {/* プレビューヘッダー */}
-      <div className="bg-background text-foreground border-b border-gray-800 h-16 md:h-18 flex items-center flex-shrink-0">
+      <div className="bg-background text-foreground border-b border-gray-800 h-16 md:h-18 flex items-center flex-shrink-0 pt-[env(safe-area-inset-top)]">
         <div className="container mx-auto px-4 md:px-6 flex items-center justify-between">
           <div className="flex items-center gap-6">
             <Logo disableLink />
@@ -104,14 +104,14 @@ export default function StudioPreviewModal({
       {/* プレビューエリア */}
       <div className="flex-1 overflow-hidden bg-gray-950 flex justify-center p-4 md:p-8">
         <div
-          className={`bg-gray-900 transition-all duration-500 shadow-2xl overflow-hidden ${
+          className={`bg-gray-800 transition-all duration-500 shadow-2xl overflow-hidden ${
             device === "mobile"
-              ? "w-[375px] h-full border-[12px] border-gray-800 rounded-[3.5rem] relative"
+              ? "w-[390px] h-[844px] border-[12px] border-gray-900 rounded-[3.5rem] relative py-10"
               : "w-full h-full"
           }`}
         >
           {device === "mobile" && (
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-36 h-7 bg-gray-800 rounded-b-3xl z-50 flex items-center justify-center">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-36 h-7 bg-gray-900 rounded-b-3xl z-50 flex items-center justify-center">
               <div className="w-12 h-1.5 bg-gray-700 rounded-full" />
             </div>
           )}

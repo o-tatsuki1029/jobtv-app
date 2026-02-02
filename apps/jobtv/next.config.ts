@@ -4,7 +4,11 @@ import { ALLOWED_IMAGE_HOSTS } from "./constants/site";
 const nextConfig: NextConfig = {
   /* config options here */
   experimental: {
-    turbopackUseSystemTlsCerts: true
+    turbopackUseSystemTlsCerts: true,
+    serverActions: {
+      // 動画ファイルアップロードに対応するため、ボディサイズ上限を50MBに設定
+      bodySizeLimit: "50mb"
+    }
   },
   images: {
     remotePatterns: ALLOWED_IMAGE_HOSTS.map((hostname) => ({

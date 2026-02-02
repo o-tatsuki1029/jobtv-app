@@ -17,7 +17,8 @@
     "./actions/auth": "./actions/auth-actions.ts",
     "./utils/dev-config": "./utils/dev-config.ts",
     "./utils/cn": "./utils/cn.ts",
-    "./utils/validation": "./utils/validation.ts"
+    "./utils/validation": "./utils/validation.ts",
+    "./icons": "./icons/index.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.8.0",
@@ -29,5 +30,9 @@
   "peerDependencies": {
     "react": "^19.2.3",
     "react-dom": "^19.2.3"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.3",
+    "@types/react-dom": "^19.2.3"
   }
 }

@@ -321,25 +321,85 @@ export type Database = {
       }
       companies: {
         Row: {
+          address: string | null
+          benefits: string[] | null
+          capital: string | null
+          cover_image_url: string | null
           created_at: string
+          description: string | null
+          documentary_videos: Json | null
+          employees: string | null
+          established: string | null
           id: string
+          industry: string | null
+          location: string | null
+          logo_url: string | null
+          main_video_url: string | null
           name: string
           notes: string | null
+          representative: string | null
+          short_videos: Json | null
+          sns_instagram_url: string | null
+          sns_tiktok_url: string | null
+          sns_x_url: string | null
+          sns_youtube_url: string | null
+          tagline: string | null
           updated_at: string
+          website: string | null
         }
         Insert: {
+          address?: string | null
+          benefits?: string[] | null
+          capital?: string | null
+          cover_image_url?: string | null
           created_at?: string
+          description?: string | null
+          documentary_videos?: Json | null
+          employees?: string | null
+          established?: string | null
           id?: string
+          industry?: string | null
+          location?: string | null
+          logo_url?: string | null
+          main_video_url?: string | null
           name: string
           notes?: string | null
+          representative?: string | null
+          short_videos?: Json | null
+          sns_instagram_url?: string | null
+          sns_tiktok_url?: string | null
+          sns_x_url?: string | null
+          sns_youtube_url?: string | null
+          tagline?: string | null
           updated_at?: string
+          website?: string | null
         }
         Update: {
+          address?: string | null
+          benefits?: string[] | null
+          capital?: string | null
+          cover_image_url?: string | null
           created_at?: string
+          description?: string | null
+          documentary_videos?: Json | null
+          employees?: string | null
+          established?: string | null
           id?: string
+          industry?: string | null
+          location?: string | null
+          logo_url?: string | null
+          main_video_url?: string | null
           name?: string
           notes?: string | null
+          representative?: string | null
+          short_videos?: Json | null
+          sns_instagram_url?: string | null
+          sns_tiktok_url?: string | null
+          sns_x_url?: string | null
+          sns_youtube_url?: string | null
+          tagline?: string | null
           updated_at?: string
+          website?: string | null
         }
         Relationships: []
       }

@@ -427,56 +427,54 @@ export default function Home() {
   ];
 
   return (
-    <div className="min-h-screen bg-black">
-      <div className="pt-16 md:pt-18">
-        <HeroSection
-          title={heroProgram.title}
-          description={heroProgram.description}
-          thumbnail={heroProgram.thumbnail}
-          videoUrl={heroProgram.videoUrl}
-          channel={heroProgram.channel}
-          viewers={heroProgram.viewers}
-        />
-        <div className="bg-gray-900">
-          <div className="pt-2 pb-0">
-            <BannerList banners={banners} />
-          </div>
+    <div className="min-h-screen">
+      <HeroSection
+        title={heroProgram.title}
+        description={heroProgram.description}
+        thumbnail={heroProgram.thumbnail}
+        videoUrl={heroProgram.videoUrl}
+        channel={heroProgram.channel}
+        viewers={heroProgram.viewers}
+      />
+      <div className="bg-gray-900">
+        <div className="pt-2 pb-0">
+          <BannerList banners={banners} />
+        </div>
 
-          {/* Section Navigation */}
-          <div className="container mx-auto px-4">
-            <div className="flex items-center gap-2 md:gap-3 flex-wrap">
-              {sections.map((section) => (
-                <button
-                  key={section.id}
-                  onClick={() => handleScrollToSection(section.id)}
-                  className="px-4 py-2 md:px-6 md:py-3 font-semibold text-xs md:text-sm lg:text-base transition-all text-white bg-gray-800 hover:bg-gray-700 rounded-lg border border-gray-700 hover:border-gray-600 shadow-sm hover:shadow-md"
-                >
-                  {section.label}
-                </button>
-              ))}
-            </div>
+        {/* Section Navigation */}
+        <div className="container mx-auto px-4">
+          <div className="flex items-center gap-2 md:gap-3 flex-wrap">
+            {sections.map((section) => (
+              <button
+                key={section.id}
+                onClick={() => handleScrollToSection(section.id)}
+                className="px-4 py-2 md:px-6 md:py-3 font-semibold text-xs md:text-sm lg:text-base transition-all text-white bg-gray-800 hover:bg-gray-700 rounded-lg border border-gray-700 hover:border-gray-600 shadow-sm hover:shadow-md"
+              >
+                {section.label}
+              </button>
+            ))}
           </div>
+        </div>
 
-          {/* Section Content */}
-          <div id="short" className="scroll-mt-20 py-8">
-            <ShortVideoSection title="⚡ 就活Shorts" videos={shortVideos} />
-          </div>
-          <AccountList accounts={accounts} />
-          <div id="documentary" className="bg-gray-800/70 py-8 scroll-mt-20 border-y border-gray-700/50">
-            <ProgramSection title="📹 就活ドキュメンタリー" programs={documentaryPrograms} largeCards={true} />
-          </div>
-          <div id="company" className="scroll-mt-20 py-4">
-            <ProgramSection title="🏢 企業説明A" programs={companyPrograms} vertical={true} />
-          </div>
-          <div id="company2" className="scroll-mt-20 py-4">
-            <ProgramSection title="🏢 企業説明B" programs={companyPrograms} vertical={true} />
-          </div>
-          <div id="company3" className="scroll-mt-20 py-4">
-            <ProgramSection title="🏢 企業説明C" programs={companyPrograms} vertical={true} />
-          </div>
-          <div id="company4" className="scroll-mt-20 py-4">
-            <ProgramSection title="🏢 企業説明D" programs={companyPrograms} vertical={true} />
-          </div>
+        {/* Section Content */}
+        <div id="short" className="scroll-mt-20 py-8">
+          <ShortVideoSection title="⚡ 就活Shorts" videos={shortVideos} />
+        </div>
+        <AccountList accounts={accounts} />
+        <div id="documentary" className="bg-gray-800/70 py-8 scroll-mt-20 border-y border-gray-700/50">
+          <ProgramSection title="📹 就活ドキュメンタリー" programs={documentaryPrograms} largeCards={true} />
+        </div>
+        <div id="company" className="scroll-mt-20 py-4">
+          <ProgramSection title="🏢 企業説明A" programs={companyPrograms} vertical={true} />
+        </div>
+        <div id="company2" className="scroll-mt-20 py-4">
+          <ProgramSection title="🏢 企業説明B" programs={companyPrograms} vertical={true} />
+        </div>
+        <div id="company3" className="scroll-mt-20 py-4">
+          <ProgramSection title="🏢 企業説明C" programs={companyPrograms} vertical={true} />
+        </div>
+        <div id="company4" className="scroll-mt-20 py-4">
+          <ProgramSection title="🏢 企業説明D" programs={companyPrograms} vertical={true} />
         </div>
       </div>
     </div>

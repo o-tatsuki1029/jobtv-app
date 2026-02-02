@@ -1,8 +1,8 @@
-"use client";
+import CompanyProfileView, { dbToCompanyData } from "@/components/company";
+import { getCompanyProfile } from "@/lib/actions/company-profile-actions";
+import { notFound } from "next/navigation";
 
-import CompanyProfileView from "@/components/CompanyProfileView";
-
-// モックデータ
+// モックデータ（フォールバック用）
 const mockCompany = {
   id: "uid",
   name: "サンプル株式会社",
@@ -53,34 +53,52 @@ const mockCompany = {
     {
       id: "s1",
       title: "六本木オフィスの絶景ラウンジをご紹介！",
-      thumbnail: "https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=400&h=711&fit=crop",
-      channel: "サンプル株式会社公式",
-      likes: 2500,
-      duration: "0:30"
+      video: "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+      thumbnail: "https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=400&h=711&fit=crop"
     },
     {
       id: "s2",
       title: "【30秒】最新AIモデルのデモ動画",
-      thumbnail: "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=400&h=711&fit=crop",
-      channel: "Tech Snap",
-      likes: 3800,
-      duration: "0:45"
+      video: "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+      thumbnail: "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=400&h=711&fit=crop"
     },
     {
       id: "s3",
       title: "フリードリンク・スナックコーナーが充実しすぎ！？",
-      thumbnail: "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=400&h=711&fit=crop",
-      channel: "Inside Sample",
-      likes: 4200,
-      duration: "0:20"
+      video: "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+      thumbnail: "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=400&h=711&fit=crop"
     },
     {
       id: "s4",
       title: "社員に聞いた！入社して一番驚いたことは？",
-      thumbnail: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=400&h=711&fit=crop",
-      channel: "Work Style",
-      likes: 1900,
-      duration: "0:55"
+      video: "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+      thumbnail: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=400&h=711&fit=crop"
+    }
+  ],
+  documentaryVideos: [
+    {
+      id: "d1",
+      title: "サンプル株式会社の歩み：創業から現在まで",
+      video: "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+      thumbnail: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1200&h=675&fit=crop"
+    },
+    {
+      id: "d2",
+      title: "エンジニアチームの日常：開発現場のリアル",
+      video: "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+      thumbnail: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1200&h=675&fit=crop"
+    },
+    {
+      id: "d3",
+      title: "社員インタビュー：多様なバックグラウンドを持つメンバーたち",
+      video: "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+      thumbnail: "https://images.unsplash.com/photo-1497366216548-37526070297c?w=1200&h=675&fit=crop"
+    },
+    {
+      id: "d4",
+      title: "オフィスツアー：六本木ヒルズから見る東京の景色",
+      video: "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
+      thumbnail: "https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=1200&h=675&fit=crop"
     }
   ],
   benefits: [
@@ -95,23 +113,20 @@ const mockCompany = {
     {
       id: "j1",
       title: "機械学習エンジニア（LLM研究開発）",
-      salary: "900万円〜1,500万円",
       location: "東京都港区（リモート可）",
-      type: "正社員"
+      graduationYear: "2028年卒"
     },
     {
       id: "j2",
       title: "シニアプロダクトマネージャー",
-      salary: "800万円〜1,300万円",
       location: "東京都港区（ハイブリッド）",
-      type: "正社員"
+      graduationYear: "2028年卒"
     },
     {
       id: "j3",
       title: "フロントエンドエンジニア (React/Next.js)",
-      salary: "600万円〜1,000万円",
       location: "フルリモート可",
-      type: "正社員"
+      graduationYear: "2028年卒"
     }
   ],
   events: [
@@ -142,13 +157,30 @@ const mockCompany = {
 };
 
 interface CompanyDetailPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
-export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
-  const company = mockCompany; // 実際の実装では、params.idに基づいてデータを取得
+export default async function CompanyDetailPage({ params }: CompanyDetailPageProps) {
+  const { id } = await params;
+
+  // company/uidの場合はモックデータを表示
+  if (id === "uid") {
+    return <CompanyProfileView company={mockCompany} />;
+  }
+
+  // データベースから企業プロフィールを取得
+  const result = await getCompanyProfile(id);
+
+  if (result.error || !result.data) {
+    // エラー時またはデータがない場合は404を返す
+    console.error("Failed to fetch company profile:", result.error);
+    notFound();
+  }
+
+  // データベースから取得したデータを変換
+  const company = dbToCompanyData(result.data);
 
   return <CompanyProfileView company={company} />;
 }

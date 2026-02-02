@@ -75,6 +75,7 @@ export const viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
+  viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: THEME_COLOR.light },
     { media: "(prefers-color-scheme: dark)", color: THEME_COLOR.dark }
@@ -87,12 +88,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ja" className="h-full overflow-x-hidden overflow-y-auto" suppressHydrationWarning>
+    <html lang="ja" className="h-full overflow-x-clip" suppressHydrationWarning>
       <head>
         <JsonLd />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-full bg-background text-foreground overflow-x-hidden`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-full bg-background text-foreground overflow-x-clip`}
       >
         {children}
       </body>

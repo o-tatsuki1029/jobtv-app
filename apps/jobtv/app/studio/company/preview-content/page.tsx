@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import CompanyProfileView, { CompanyData } from "@/components/CompanyProfileView";
+import CompanyProfileView, { CompanyData } from "@/components/company";
 
 export default function PreviewContentPage() {
   const [company, setCompany] = useState<CompanyData | null>(null);
