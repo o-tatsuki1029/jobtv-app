@@ -88,7 +88,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ja" className="h-full overflow-x-clip" suppressHydrationWarning>
+    <html lang="ja" className="no-js h-full overflow-x-clip" suppressHydrationWarning>
       <head>
         <JsonLd />
       </head>

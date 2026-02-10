@@ -58,21 +58,21 @@ export default function ProgramSection({
           )}
           <HorizontalScrollContainer ignoreParentPadding={true}>
             <div className="flex gap-4 min-w-max px-4 pb-6">
-              {programs.map((program) => (
-                <div key={program.id} className="w-[120px] sm:w-[140px] md:w-[160px] flex-shrink-0">
-                  <ProgramCard
-                    title={program.title}
-                    thumbnail={program.thumbnail}
-                    channel={program.channel}
-                    time={program.time}
-                    viewers={program.viewers}
-                    isLive={program.isLive}
-                    likes={program.likes}
-                    vertical={vertical}
-                  />
-                </div>
-              ))}
-            </div>
+                {programs.map((program) => (
+                  <div key={program.id} className="w-[120px] sm:w-[140px] md:w-[160px] flex-shrink-0">
+                    <ProgramCard
+                      title={program.title}
+                      thumbnail={program.thumbnail}
+                      channel={program.channel}
+                      time={program.time}
+                      viewers={program.viewers}
+                      isLive={program.isLive}
+                      likes={program.likes}
+                      vertical={vertical}
+                    />
+                  </div>
+                ))}
+              </div>
           </HorizontalScrollContainer>
         </div>
       </section>

@@ -48,18 +48,18 @@ export default function ShortVideoSection({ title, videos, showMore = true }: Sh
         )}
         <HorizontalScrollContainer ignoreParentPadding={true}>
           <div className="flex gap-5 min-w-max px-4 pb-6">
-            {videos.map((video) => (
-              <div key={video.id} className="w-[160px] sm:w-[180px] md:w-[200px] flex-shrink-0">
-                <ShortVideoCard
-                  title={video.title}
-                  thumbnail={video.thumbnail}
-                  channel={video.channel}
-                  likes={video.likes}
-                  duration={video.duration}
-                />
-              </div>
-            ))}
-          </div>
+              {videos.map((video) => (
+                <div key={video.id} className="w-[160px] sm:w-[180px] md:w-[200px] flex-shrink-0">
+                  <ShortVideoCard
+                    title={video.title}
+                    thumbnail={video.thumbnail}
+                    channel={video.channel}
+                    likes={video.likes}
+                    duration={video.duration}
+                  />
+                </div>
+              ))}
+            </div>
         </HorizontalScrollContainer>
       </div>
     </section>

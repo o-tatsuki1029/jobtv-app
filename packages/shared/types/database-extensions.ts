@@ -53,3 +53,4 @@ export interface InterviewNoteWithRelations extends CAInterview {
 // 後方互換性のためのエイリアス
 export type InterviewNote = CAInterview;
 
+

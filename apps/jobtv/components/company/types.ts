@@ -14,10 +14,13 @@ export interface CompanyData {
   employees: string;
   location: string;
   address: string;
+  addressLine1: string;
+  addressLine2: string;
   representative: string;
-  capital: string;
+  capital?: string;
   established: string;
   website: string;
+  companyInfo: string;
   snsUrls?: {
     x?: string;
     instagram?: string;
@@ -55,6 +58,8 @@ export interface CompanyProfileFormData {
   employees?: string;
   location?: string;
   address?: string;
+  address_line1?: string;
+  address_line2?: string;
   representative?: string;
   capital?: string;
   established?: string;
@@ -92,8 +97,9 @@ export function dbToCompanyData(
     employees?: string | null;
     location?: string | null;
     address?: string | null;
+    address_line1?: string | null;
+    address_line2?: string | null;
     representative?: string | null;
-    capital?: string | null;
     established?: string | null;
     website?: string | null;
     sns_x_url?: string | null;
@@ -144,10 +150,12 @@ export function dbToCompanyData(
     employees: dbCompany.employees || "",
     location: dbCompany.location || "",
     address: dbCompany.address || "",
+    addressLine1: (dbCompany as any).address_line1 || "",
+    addressLine2: (dbCompany as any).address_line2 || "",
     representative: dbCompany.representative || "",
-    capital: dbCompany.capital || "",
     established: dbCompany.established || "",
     website: dbCompany.website || "",
+    companyInfo: (dbCompany as any).company_info || "",
     snsUrls: {
       x: dbCompany.sns_x_url || undefined,
       instagram: dbCompany.sns_instagram_url || undefined,
@@ -164,7 +172,45 @@ export function dbToCompanyData(
 }
 
 /**
- * CompanyData型からデータベース型に変換
+ * CompanyData型からCompanyProfileFormData型に変換
+ */
+export function companyDataToFormData(companyData: Partial<CompanyData>): CompanyProfileFormData {
+  return {
+    description: companyData.description,
+    tagline: companyData.tagline,
+    logo_url: companyData.logo,
+    cover_image_url: companyData.coverImage,
+    main_video_url: companyData.mainVideo,
+    industry: companyData.industry,
+    employees: companyData.employees,
+    location: companyData.location,
+    address: companyData.address,
+    representative: companyData.representative,
+    capital: companyData.capital,
+    established: companyData.established,
+    website: companyData.website,
+    sns_x_url: companyData.snsUrls?.x,
+    sns_instagram_url: companyData.snsUrls?.instagram,
+    sns_tiktok_url: companyData.snsUrls?.tiktok,
+    sns_youtube_url: companyData.snsUrls?.youtube,
+    short_videos: companyData.shortVideos?.map((v) => ({
+      id: v.id,
+      title: v.title,
+      video_url: v.video,
+      thumbnail_url: v.thumbnail
+    })),
+    documentary_videos: companyData.documentaryVideos?.map((v) => ({
+      id: v.id,
+      title: v.title,
+      video_url: v.video,
+      thumbnail_url: v.thumbnail
+    })),
+    benefits: companyData.benefits?.filter((benefit) => benefit.trim() !== "")
+  };
+}
+
+/**
+ * CompanyData型からデータベース型に変換（非推奨: companyDataToFormDataを使用）
  */
 export function companyDataToDb(companyData: Partial<CompanyData>): Partial<CompanyRow> & {
   description?: string | null;
@@ -185,10 +231,6 @@ export function companyDataToDb(companyData: Partial<CompanyData>): Partial<Comp
   sns_tiktok_url?: string | null;
   sns_youtube_url?: string | null;
   benefits?: string[] | null;
-  message_title?: string | null;
-  message_content?: string | null;
-  message_image_url?: string | null;
-  message_author?: string | null;
 } {
   return {
     name: companyData.name,

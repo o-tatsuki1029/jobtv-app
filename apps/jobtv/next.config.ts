@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
     turbopackUseSystemTlsCerts: true,
     serverActions: {
       // 動画ファイルアップロードに対応するため、ボディサイズ上限を50MBに設定
-      bodySizeLimit: "50mb"
+      bodySizeLimit: 50 * 1024 * 1024 // 50MB in bytes
     }
   },
   images: {

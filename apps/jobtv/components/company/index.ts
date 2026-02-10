@@ -12,4 +12,4 @@ export { default as CompanySidebar } from "./CompanySidebar";
 export { default as CompanyStickyButton } from "./CompanyStickyButton";
 export { default as CompanySnsIcons } from "./CompanySnsIcons";
 export type { CompanyData, CompanyProfileFormData } from "./types";
-export { dbToCompanyData, companyDataToDb } from "./types";
+export { dbToCompanyData, companyDataToDb, companyDataToFormData } from "./types";

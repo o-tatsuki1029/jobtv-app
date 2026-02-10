@@ -1,14 +1,42 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { STUDIO_NAVIGATION } from "../constants";
 import StudioNavItem from "../molecules/StudioNavItem";
+import { getUserInfo } from "@/lib/actions/user-actions";
 
 export default function StudioSidebar() {
   const pathname = usePathname();
+  const [userName, setUserName] = useState<string | null>(null);
+  const [companyName, setCompanyName] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUserInfo = async () => {
+      try {
+        const result = await getUserInfo();
+        if (result.error) {
+          console.error("Failed to fetch user info:", result.error);
+          setUserName(null);
+          setCompanyName(null);
+        } else {
+          setUserName(result.userName);
+          setCompanyName(result.companyName);
+        }
+      } catch (error) {
+        console.error("Error fetching user info:", error);
+        setUserName(null);
+        setCompanyName(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUserInfo();
+  }, []);
 
   return (
     <aside className="hidden md:flex w-64 flex-col fixed inset-y-0 bg-black text-white">
@@ -33,7 +61,17 @@ export default function StudioSidebar() {
         ))}
       </nav>
 
-      <div className="p-4 border-t border-white/10">
+      <div className="p-4 border-t border-white/10 space-y-3">
+        {!isLoading && (companyName || userName) && (
+          <div className="px-4 py-2 space-y-1">
+            {companyName && (
+              <div className="text-sm font-bold text-white">{companyName}</div>
+            )}
+            {userName && (
+              <div className="text-xs font-medium text-gray-300">{userName}</div>
+            )}
+          </div>
+        )}
         <button className="flex items-center gap-3 w-full px-4 py-3 text-sm font-medium text-gray-400 hover:text-white transition-colors group">
           <LogOut className="w-5 h-5 transition-transform group-hover:-translate-x-1" />
           ログアウト

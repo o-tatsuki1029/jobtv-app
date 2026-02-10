@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@jobtv-app/shared": "workspace:*",
+    "@splidejs/react-splide": "^0.7.12",
+    "@splidejs/splide": "^4.1.4",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.90.1",
     "date-fns": "^4.1.0",

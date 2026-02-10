@@ -8,26 +8,28 @@ import StudioButton from "../atoms/StudioButton";
 
 interface StudioImageUploadProps {
   label: string;
-  companyId: string;
   type: "logo" | "cover" | "message" | "video";
   currentUrl?: string;
   onUploadComplete: (url: string) => void;
   onError?: (error: string) => void;
+  onUploadingChange?: (isUploading: boolean) => void;
   aspectRatio?: "square" | "wide" | "auto";
   helperText?: string;
 }
 
 export default function StudioImageUpload({
   label,
-  companyId,
   type,
   currentUrl,
   onUploadComplete,
   onError,
+  onUploadingChange,
   aspectRatio = "auto",
   helperText
 }: StudioImageUploadProps) {
-  const [previewUrl, setPreviewUrl] = useState<string | null>(currentUrl || null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(
+    currentUrl && currentUrl.trim() !== "" ? currentUrl : null
+  );
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isVideo, setIsVideo] = useState(false);
@@ -45,13 +47,14 @@ export default function StudioImageUpload({
 
       // アップロード開始
       setIsUploading(true);
+      onUploadingChange?.(true);
 
       try {
-        const result = await uploadCompanyAsset(file, companyId, type);
+        const result = await uploadCompanyAsset(file, type);
 
         if (result.error) {
           // エラー時はプレビューを元に戻す
-          setPreviewUrl(currentUrl || null);
+          setPreviewUrl(currentUrl && currentUrl.trim() !== "" ? currentUrl : null);
           onError?.(result.error);
         } else if (result.data) {
           // 成功時は新しいURLを設定
@@ -59,18 +62,25 @@ export default function StudioImageUpload({
           onUploadComplete(result.data);
         }
       } catch (error) {
-        setPreviewUrl(currentUrl || null);
+        setPreviewUrl(currentUrl && currentUrl.trim() !== "" ? currentUrl : null);
         onError?.(error instanceof Error ? error.message : "アップロードに失敗しました");
       } finally {
         setIsUploading(false);
+        onUploadingChange?.(false);
         // プレビュー用のURLをクリーンアップ
         if (preview && preview !== currentUrl) {
           URL.revokeObjectURL(preview);
         }
       }
     },
-    [companyId, type, currentUrl, onUploadComplete, onError]
+    [type, currentUrl, onUploadComplete, onError]
   );
+
+  // currentUrlが変更されたときにpreviewUrlを更新
+  useEffect(() => {
+    // 空文字列の場合はnullに変換、それ以外はそのまま使用
+    setPreviewUrl(currentUrl && currentUrl.trim() !== "" ? currentUrl : null);
+  }, [currentUrl]);
 
   // 初期化時にcurrentUrlが動画かどうかを判定
   useEffect(() => {
@@ -149,7 +159,7 @@ export default function StudioImageUpload({
         onClick={() => !isUploading && fileInputRef.current?.click()}
       >
         {previewUrl ? (
-          <div className="relative w-full h-full">
+          <div className={`relative w-full h-full ${type === "logo" ? "bg-white" : ""}`}>
             {isVideo ? (
               <video src={previewUrl} className="w-full h-full object-cover" controls={false} muted loop playsInline />
             ) : (
@@ -157,7 +167,7 @@ export default function StudioImageUpload({
                 src={previewUrl}
                 alt={label}
                 fill
-                className="object-cover"
+                className={type === "logo" ? "object-contain p-2" : "object-cover"}
                 unoptimized={previewUrl.startsWith("blob:")}
               />
             )}

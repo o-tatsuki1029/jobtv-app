@@ -322,8 +322,11 @@ export type Database = {
       companies: {
         Row: {
           address: string | null
+          address_line1: string | null
+          address_line2: string | null
           benefits: string[] | null
-          capital: string | null
+          company_info: string | null
+          company_videos: Json | null
           cover_image_url: string | null
           created_at: string
           description: string | null
@@ -349,8 +352,11 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
           benefits?: string[] | null
-          capital?: string | null
+          company_info?: string | null
+          company_videos?: Json | null
           cover_image_url?: string | null
           created_at?: string
           description?: string | null
@@ -376,8 +382,11 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
           benefits?: string[] | null
-          capital?: string | null
+          company_info?: string | null
+          company_videos?: Json | null
           cover_image_url?: string | null
           created_at?: string
           description?: string | null

@@ -51,3 +51,4 @@ export function createAdminClient() {
 // 後方互換性のためのエイリアス
 export const getAdminClient = createAdminClient;
 
+

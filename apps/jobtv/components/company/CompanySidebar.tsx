@@ -22,13 +22,8 @@ export default function CompanySidebar({ company }: CompanySidebarProps) {
 
       <div className="p-5 md:p-6 pt-0 -mt-8 md:-mt-10 relative z-10">
         <div className="flex flex-col items-start text-left">
-          <div className="relative w-16 h-16 md:w-20 md:h-20 mb-3 md:mb-4">
-            <Image
-              src={company.logo}
-              alt={company.name}
-              fill
-              className="object-cover rounded-lg border-4 border-gray-800 shadow-xl"
-            />
+          <div className="relative w-16 h-16 md:w-20 md:h-20 mb-3 md:mb-4 bg-white rounded-lg border-4 border-gray-800 shadow-xl">
+            <Image src={company.logo} alt={company.name} fill className="object-contain rounded-lg" />
           </div>
           <h1 className="text-lg md:text-xl font-bold mb-1">{company.name}</h1>
           <p className="text-gray-400 text-xs md:text-sm mb-5 md:mb-6">{company.industry}</p>

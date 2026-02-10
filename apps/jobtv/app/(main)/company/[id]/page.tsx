@@ -1,5 +1,5 @@
 import CompanyProfileView, { dbToCompanyData } from "@/components/company";
-import { getCompanyProfile } from "@/lib/actions/company-profile-actions";
+import { getCompanyProfileById } from "@/lib/actions/company-profile-actions";
 import { notFound } from "next/navigation";
 
 // モックデータ（フォールバック用）
@@ -15,10 +15,19 @@ const mockCompany = {
   employees: "120名（2025年12月時点）",
   location: "東京都港区",
   address: "東京都港区六本木 6-10-1 六本木ヒルズ森タワー 25F",
+  addressLine1: "東京都港区六本木 6-10-1",
+  addressLine2: "六本木ヒルズ森タワー 25F",
   representative: "佐々木 俊介",
   capital: "1億5,000万円",
   established: "2018年11月",
   website: "https://example.com/sample",
+  companyInfo: "AI・DXコンサルティングを手がけるスタートアップ企業",
+  snsUrls: {
+    x: "https://x.com/sample_company",
+    instagram: "https://www.instagram.com/sample_company/",
+    tiktok: "https://www.tiktok.com/@sample_company",
+    youtube: "https://www.youtube.com/@sample_company"
+  },
   programs: [
     {
       id: "1",
@@ -171,7 +180,7 @@ export default async function CompanyDetailPage({ params }: CompanyDetailPagePro
   }
 
   // データベースから企業プロフィールを取得
-  const result = await getCompanyProfile(id);
+  const result = await getCompanyProfileById(id);
 
   if (result.error || !result.data) {
     // エラー時またはデータがない場合は404を返す

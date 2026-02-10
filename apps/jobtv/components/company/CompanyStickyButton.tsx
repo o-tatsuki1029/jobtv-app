@@ -39,8 +39,8 @@ export default function CompanyStickyButton({ company }: CompanyStickyButtonProp
         <div className="container mx-auto px-4 py-3 md:py-4">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
-              <div className="relative w-10 h-10 md:w-12 md:h-12 flex-shrink-0">
-                <Image src={company.logo} alt={company.name} fill className="object-contain rounded" />
+              <div className="relative w-10 h-10 md:w-12 md:h-12 flex-shrink-0 bg-white rounded">
+                <Image src={company.logo} alt={company.name} fill className="object-contain rounded p-1" />
               </div>
               <div className="min-w-0 flex-1">
                 <h3 className="text-sm md:text-base font-bold text-white truncate">{company.name}</h3>

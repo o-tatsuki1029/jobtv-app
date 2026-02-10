@@ -15,6 +15,7 @@
     "./auth/client": "./auth/client.ts",
     "./actions": "./actions/index.ts",
     "./actions/auth": "./actions/auth-actions.ts",
+    "./actions/company-utils": "./actions/company-utils.ts",
     "./utils/dev-config": "./utils/dev-config.ts",
     "./utils/cn": "./utils/cn.ts",
     "./utils/validation": "./utils/validation.ts",
