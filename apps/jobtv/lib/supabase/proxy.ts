@@ -36,7 +36,7 @@ export async function updateSession(request: NextRequest) {
   const user = data.user;
 
   // 公開ルートの定義
-  const publicRoutes = ["/auth", "/company", "/api/auth"];
+  const publicRoutes = ["/auth", "/company", "/api/auth", "/lp"];
   const isPublicRoute =
     publicRoutes.some((route) => request.nextUrl.pathname.startsWith(route)) || request.nextUrl.pathname === "/";
 
