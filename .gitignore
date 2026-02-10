@@ -60,3 +60,7 @@ supabase/.temp
 supabase/functions/
 supabase/seed.sql
 
+# Video files (original backups and compression scripts)
+apps/jobtv/public/lp/images/*-original.mp4
+apps/jobtv/public/lp/images/compress-videos.sh
+
