@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { getCharCountText, getCharCountClassName } from "@jobtv-app/shared/utils/char-count";
 import StudioLabel from "../atoms/StudioLabel";
 import StudioInput from "../atoms/StudioInput";
 import StudioTextarea from "../atoms/StudioTextarea";
@@ -16,6 +17,9 @@ interface StudioFormFieldProps {
   rows?: number;
   error?: string;
   helperText?: string;
+  maxLength?: number;
+  showCharCount?: boolean;
+  disabled?: boolean;
 }
 
 export default function StudioFormField({
@@ -28,8 +32,15 @@ export default function StudioFormField({
   placeholder,
   rows = 5,
   error,
-  helperText
+  helperText,
+  maxLength,
+  showCharCount = false,
+  disabled = false
 }: StudioFormFieldProps) {
+  const currentLength = value?.length || 0;
+  const charCountText = showCharCount ? getCharCountText(currentLength, maxLength) : null;
+  const charCountClassName = showCharCount ? getCharCountClassName(currentLength, maxLength) : "";
+
   return (
     <div className="space-y-2">
       <StudioLabel htmlFor={name} required={required}>
@@ -45,6 +56,7 @@ export default function StudioFormField({
           placeholder={placeholder}
           rows={rows}
           error={!!error}
+          disabled={disabled}
         />
       ) : (
         <StudioInput
@@ -55,14 +67,24 @@ export default function StudioFormField({
           onChange={onChange}
           placeholder={placeholder}
           error={!!error}
+          disabled={disabled}
         />
       )}
 
-      {error ? (
-        <p className="text-[10px] text-red-500 font-bold">{error}</p>
-      ) : helperText ? (
-        <p className="text-[10px] text-gray-400 text-right">{helperText}</p>
-      ) : null}
+      <div className="flex items-center justify-between">
+        {error ? (
+          <p className="text-[10px] text-red-500 font-bold">{error}</p>
+        ) : helperText ? (
+          <p className="text-[10px] text-gray-400">{helperText}</p>
+        ) : (
+          <div />
+        )}
+        {charCountText && (
+          <p className={`text-[10px] font-bold ${charCountClassName}`}>
+            {charCountText}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

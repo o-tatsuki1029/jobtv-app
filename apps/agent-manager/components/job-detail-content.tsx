@@ -1,9 +1,11 @@
-import { getJob } from "@/lib/actions/job-actions";
+import { getJob, approveJob, rejectJob } from "@/lib/actions/job-actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { JobApplicationsContent } from "@/components/job-applications-content";
+import { JobStatusActions } from "@/components/job-status-actions";
 
 interface JobDetailContentProps {
   jobId: string;
@@ -30,16 +32,33 @@ export async function JobDetailContent({ jobId }: JobDetailContentProps) {
 
       <Card>
         <CardHeader>
-          <CardTitle>求人情報</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>求人情報</CardTitle>
+            {job.status === "pending" && <JobStatusActions jobId={job.id} />}
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <p className="text-sm font-medium text-muted-foreground">説明</p>
-            <p className="mt-1">{job.description || "未設定"}</p>
+            <p className="text-sm font-medium text-muted-foreground">ステータス</p>
+            <div className="mt-1">
+              <Badge
+                variant={
+                  job.status === "active" ? "default" : job.status === "closed" ? "secondary" : "outline"
+                }
+              >
+                {job.status === "active"
+                  ? "募集中"
+                  : job.status === "closed"
+                    ? "募集終了"
+                    : job.status === "pending"
+                      ? "審査中"
+                      : job.status}
+              </Badge>
+            </div>
           </div>
           <div>
-            <p className="text-sm font-medium text-muted-foreground">ステータス</p>
-            <p className="mt-1">{job.status}</p>
+            <p className="text-sm font-medium text-muted-foreground">説明</p>
+            <p className="mt-1">{job.description || "未設定"}</p>
           </div>
           <div>
             <p className="text-sm font-medium text-muted-foreground">卒業年</p>

@@ -21,6 +21,7 @@ export interface CompanyData {
   established: string;
   website: string;
   companyInfo: string;
+  status?: "pending" | "active" | "closed";
   snsUrls?: {
     x?: string;
     instagram?: string;
@@ -85,14 +86,25 @@ export interface CompanyProfileFormData {
 
 /**
  * データベース型からCompanyData型に変換
+ * companiesテーブルとcompany_pages_draftテーブル（またはcompany_pagesテーブル）のデータをマージ
  */
 export function dbToCompanyData(
   dbCompany: CompanyRow & {
+    // company_pages_draftテーブル（またはcompany_pagesテーブル）の項目（オプショナル）
     description?: string | null;
     tagline?: string | null;
-    logo_url?: string | null;
     cover_image_url?: string | null;
     main_video_url?: string | null;
+    sns_x_url?: string | null;
+    sns_instagram_url?: string | null;
+    sns_tiktok_url?: string | null;
+    sns_youtube_url?: string | null;
+    short_videos?: any;
+    documentary_videos?: any;
+    company_videos?: any;
+    benefits?: string[] | null;
+    // companiesテーブルの項目
+    logo_url?: string | null;
     industry?: string | null;
     employees?: string | null;
     location?: string | null;
@@ -102,13 +114,17 @@ export function dbToCompanyData(
     representative?: string | null;
     established?: string | null;
     website?: string | null;
-    sns_x_url?: string | null;
-    sns_instagram_url?: string | null;
-    sns_tiktok_url?: string | null;
-    sns_youtube_url?: string | null;
-    short_videos?: any;
-    documentary_videos?: any;
-    benefits?: string[] | null;
+    job_postings?: Array<{
+      id: string;
+      title: string;
+      location?: string | null;
+      graduation_year: number;
+      employment_type?: string | null;
+      salary?: string | null;
+      prefecture?: string | null;
+      location_detail?: string | null;
+      cover_image_url?: string | null;
+    }>;
   }
 ): CompanyData {
   // JSONBから配列に変換
@@ -156,6 +172,7 @@ export function dbToCompanyData(
     established: dbCompany.established || "",
     website: dbCompany.website || "",
     companyInfo: (dbCompany as any).company_info || "",
+    status: (dbCompany as any).status || "pending",
     snsUrls: {
       x: dbCompany.sns_x_url || undefined,
       instagram: dbCompany.sns_instagram_url || undefined,
@@ -166,8 +183,57 @@ export function dbToCompanyData(
     programs: [],
     shortVideos: parseVideos(dbCompany.short_videos),
     documentaryVideos: parseVideos(dbCompany.documentary_videos),
-    jobs: [],
+    jobs: (dbCompany.job_postings || []).map((job) => {
+      // 都道府県と詳細を組み合わせてlocationを作成
+      const locationText = [job.prefecture, job.location_detail]
+        .filter(Boolean)
+        .join(job.prefecture && job.location_detail ? " " : "");
+      return {
+        id: job.id,
+        title: job.title,
+        location: locationText || "",
+        graduationYear: `${job.graduation_year}年卒`,
+        coverImage: job.cover_image_url || undefined
+      };
+    }),
     events: []
+  };
+}
+
+/**
+ * このページで編集可能な項目のみをフォームデータに変換
+ * UIに表示されている項目のみを保存対象とする（company_pagesテーブル用）
+ */
+export function companyDataToFormDataForPage(
+  companyData: Partial<CompanyData>,
+  snsUrls: CompanyData["snsUrls"]
+): CompanyProfileFormData {
+  return {
+    // UIに表示されている項目のみ（company_pagesテーブル用）
+    description: companyData.description,
+    tagline: companyData.tagline,
+    cover_image_url: companyData.coverImage,
+    main_video_url: companyData.mainVideo,
+    sns_x_url: snsUrls?.x,
+    sns_instagram_url: snsUrls?.instagram,
+    sns_tiktok_url: snsUrls?.tiktok,
+    sns_youtube_url: snsUrls?.youtube,
+    short_videos: companyData.shortVideos?.map((v) => ({
+      id: v.id,
+      title: v.title,
+      video_url: v.video,
+      thumbnail_url: v.thumbnail
+    })),
+    documentary_videos: companyData.documentaryVideos?.map((v) => ({
+      id: v.id,
+      title: v.title,
+      video_url: v.video,
+      thumbnail_url: v.thumbnail
+    })),
+    benefits: companyData.benefits?.filter((benefit) => benefit.trim() !== "")
+    // 以下の項目は意図的に除外（companiesテーブルで管理されるため）
+    // logo_url, industry, employees, location, address,
+    // representative, capital, established, website
   };
 }
 

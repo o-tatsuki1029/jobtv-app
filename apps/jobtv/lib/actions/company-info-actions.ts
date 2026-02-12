@@ -14,7 +14,6 @@ type CompanyUpdate = TablesUpdate<"companies">;
  */
 export interface CompanyInfoFormData {
   logo_url?: string;
-  cover_image_url?: string;
   representative?: string;
   established?: string;
   employees?: string;
@@ -51,7 +50,7 @@ export async function saveCompanyInfo(formData: CompanyInfoFormData): Promise<{
     const updateData: CompanyUpdate = {};
 
     if (formData.logo_url !== undefined) updateData.logo_url = formData.logo_url || null;
-    if (formData.cover_image_url !== undefined) updateData.cover_image_url = formData.cover_image_url || null;
+    // cover_image_urlはcompany_pagesテーブルに移動したため、ここでは更新しない
     if (formData.representative !== undefined) updateData.representative = formData.representative || null;
     if (formData.established !== undefined) updateData.established = formData.established || null;
     if (formData.employees !== undefined) updateData.employees = formData.employees || null;

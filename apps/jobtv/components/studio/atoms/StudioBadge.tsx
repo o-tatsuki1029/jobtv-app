@@ -9,7 +9,7 @@ interface StudioBadgeProps {
 }
 
 export default function StudioBadge({ children, variant = "neutral", icon }: StudioBadgeProps) {
-  const baseStyles = "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border";
+  const baseStyles = "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold border";
 
   const variants = {
     success: "bg-green-50 text-green-700 border-green-100",

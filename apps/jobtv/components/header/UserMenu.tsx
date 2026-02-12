@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import MenuToggleButton from "./MenuToggleButton";
-import { signOut } from "@/lib/actions/auth-actions";
+import { createClient } from "@/lib/supabase/client";
 
 interface UserMenuProps {
   userName?: string;
@@ -11,7 +12,9 @@ interface UserMenuProps {
 }
 
 export default function UserMenu({ userName = "ユーザー", userAvatar }: UserMenuProps) {
+  const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const menuItems = [
@@ -96,10 +99,33 @@ export default function UserMenu({ userName = "ユーザー", userAvatar }: User
               </a>
             ))}
             <button
-              onClick={() => signOut()}
-              className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-700 transition-colors border-t border-gray-700 mt-1"
+              onClick={async () => {
+                if (isLoggingOut) return;
+                setIsLoggingOut(true);
+                setIsMenuOpen(false);
+                try {
+                  const supabase = createClient();
+                  const { error } = await supabase.auth.signOut();
+                  
+                  if (error) {
+                    console.error("Logout error:", error);
+                    alert("ログアウトに失敗しました");
+                    setIsLoggingOut(false);
+                    return;
+                  }
+                  
+                  router.push("/login");
+                  router.refresh();
+                } catch (error) {
+                  console.error("Logout error:", error);
+                  alert("ログアウトに失敗しました");
+                  setIsLoggingOut(false);
+                }
+              }}
+              disabled={isLoggingOut}
+              className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-700 transition-colors border-t border-gray-700 mt-1 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              ログアウト
+              {isLoggingOut ? "ログアウト中..." : "ログアウト"}
             </button>
           </nav>
         </div>

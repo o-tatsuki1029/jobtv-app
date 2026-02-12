@@ -48,7 +48,7 @@ export async function signIn(formData: FormData) {
 export async function signOut() {
   await baseSignOut();
   revalidatePath("/", "layout");
-  redirect("/");
+  redirect("/login");
 }
 
 /**

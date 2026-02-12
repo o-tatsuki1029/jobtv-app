@@ -19,6 +19,7 @@
     "./utils/dev-config": "./utils/dev-config.ts",
     "./utils/cn": "./utils/cn.ts",
     "./utils/validation": "./utils/validation.ts",
+    "./utils/char-count": "./utils/char-count.ts",
     "./icons": "./icons/index.ts"
   },
   "dependencies": {

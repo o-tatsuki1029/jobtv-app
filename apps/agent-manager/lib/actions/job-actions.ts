@@ -102,8 +102,7 @@ export async function getJobApplications(jobId: string) {
         last_name,
         first_name,
         last_name_kana,
-        first_name_kana,
-        full_name
+        first_name_kana
       )
     `
     )
@@ -179,8 +178,7 @@ export async function getMultipleJobApplications(jobIds: string[]) {
         last_name,
         first_name,
         last_name_kana,
-        first_name_kana,
-        full_name
+        first_name_kana
       ),
       job_postings (
         id,
@@ -198,4 +196,39 @@ export async function getMultipleJobApplications(jobIds: string[]) {
   }
 
   return { data: data || [], error: null };
+}
+
+/**
+ * 求人のステータスを更新（審査承認・却下）
+ */
+export async function updateJobStatus(id: string, status: "active" | "closed" | "pending") {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("job_postings")
+    .update({ status })
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Update job status error:", error);
+    return { data: null, error: error.message };
+  }
+
+  return { data, error: null };
+}
+
+/**
+ * 求人を承認（pending → active）
+ */
+export async function approveJob(id: string) {
+  return updateJobStatus(id, "active");
+}
+
+/**
+ * 求人を却下（pending → closed）
+ */
+export async function rejectJob(id: string) {
+  return updateJobStatus(id, "closed");
 }

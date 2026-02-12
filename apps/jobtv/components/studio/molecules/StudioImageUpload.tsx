@@ -15,6 +15,8 @@ interface StudioImageUploadProps {
   onUploadingChange?: (isUploading: boolean) => void;
   aspectRatio?: "square" | "wide" | "auto";
   helperText?: string;
+  customUploadFunction?: (file: File) => Promise<{ data: string | null; error: string | null }>;
+  disabled?: boolean;
 }
 
 export default function StudioImageUpload({
@@ -25,7 +27,9 @@ export default function StudioImageUpload({
   onError,
   onUploadingChange,
   aspectRatio = "auto",
-  helperText
+  helperText,
+  customUploadFunction,
+  disabled = false
 }: StudioImageUploadProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(
     currentUrl && currentUrl.trim() !== "" ? currentUrl : null
@@ -50,7 +54,9 @@ export default function StudioImageUpload({
       onUploadingChange?.(true);
 
       try {
-        const result = await uploadCompanyAsset(file, type);
+        const result = customUploadFunction
+          ? await customUploadFunction(file)
+          : await uploadCompanyAsset(file, type);
 
         if (result.error) {
           // エラー時はプレビューを元に戻す
@@ -148,15 +154,16 @@ export default function StudioImageUpload({
       <div
         className={`
           relative border-2 border-dashed rounded-xl overflow-hidden
-          transition-all cursor-pointer
-          ${isDragging ? "border-red-500 bg-red-50" : "border-gray-300 bg-gray-50"}
-          ${isUploading ? "opacity-50 pointer-events-none" : "hover:border-gray-400"}
+          transition-all
+          ${disabled || isUploading ? "opacity-50 pointer-events-none cursor-not-allowed" : "cursor-pointer"}
+          ${isDragging && !disabled ? "border-red-500 bg-red-50" : "border-gray-300 bg-gray-50"}
+          ${!disabled && !isUploading ? "hover:border-gray-400" : ""}
           ${getAspectRatioClass()}
         `}
-        onDrop={handleDrop}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onClick={() => !isUploading && fileInputRef.current?.click()}
+        onDrop={disabled ? undefined : handleDrop}
+        onDragOver={disabled ? undefined : handleDragOver}
+        onDragLeave={disabled ? undefined : handleDragLeave}
+        onClick={disabled || isUploading ? undefined : () => fileInputRef.current?.click()}
       >
         {previewUrl ? (
           <div className={`relative w-full h-full ${type === "logo" ? "bg-white" : ""}`}>
@@ -171,7 +178,7 @@ export default function StudioImageUpload({
                 unoptimized={previewUrl.startsWith("blob:")}
               />
             )}
-            {!isUploading && (
+            {!isUploading && !disabled && (
               <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                 <button
                   onClick={(e) => {

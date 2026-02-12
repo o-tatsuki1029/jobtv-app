@@ -1,6 +1,7 @@
 import CompanyProfileView, { dbToCompanyData } from "@/components/company";
 import { getCompanyProfileById } from "@/lib/actions/company-profile-actions";
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 
 // モックデータ（フォールバック用）
 const mockCompany = {
@@ -169,6 +170,105 @@ interface CompanyDetailPageProps {
   params: Promise<{
     id: string;
   }>;
+}
+
+/**
+ * 企業詳細ページのメタデータを生成
+ */
+export async function generateMetadata({ params }: CompanyDetailPageProps): Promise<Metadata> {
+  const { id } = await params;
+
+  // company/uidの場合はモックデータを使用
+  if (id === "uid") {
+    return {
+      title: `${mockCompany.name} | 企業情報`,
+      description: mockCompany.description.substring(0, 120) + "...",
+      openGraph: {
+        title: `${mockCompany.name} | JobTV`,
+        description: mockCompany.description.substring(0, 120) + "...",
+        type: "website",
+        images: [
+          {
+            url: mockCompany.coverImage,
+            width: 1200,
+            height: 630,
+            alt: mockCompany.name
+          }
+        ],
+        siteName: "JOBTV"
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: `${mockCompany.name} | JobTV`,
+        description: mockCompany.description.substring(0, 120) + "...",
+        images: [mockCompany.coverImage]
+      },
+      alternates: {
+        canonical: `/company/${id}`
+      }
+    };
+  }
+
+  // データベースから企業プロフィールを取得
+  const result = await getCompanyProfileById(id);
+
+  if (result.error || !result.data) {
+    return {
+      title: "企業が見つかりません",
+      description: "お探しの企業は見つかりませんでした。"
+    };
+  }
+
+  const company = dbToCompanyData(result.data);
+
+  // タイトルを生成
+  const title = `${company.name} | 企業情報`;
+
+  // 説明文を生成（企業の説明文から最初の120文字を取得）
+  const description = company.description
+    ? company.description.replace(/\n/g, " ").substring(0, 120) + (company.description.length > 120 ? "..." : "")
+    : `${company.name}の企業情報。${company.industry ? `業界: ${company.industry}` : ""} ${
+        company.location ? `所在地: ${company.location}` : ""
+      }`;
+
+  // OGP画像を決定（カバー画像 > ロゴ > デフォルト）
+  const ogImage = company.coverImage || company.logo || undefined;
+
+  // キーワードを生成
+  const keywords = [company.name, company.industry, company.location, "新卒採用", "就活", "企業情報", "JobTV"].filter(
+    Boolean
+  );
+
+  return {
+    title,
+    description,
+    keywords: keywords.join(", "),
+    openGraph: {
+      title,
+      description,
+      type: "website",
+      images: ogImage
+        ? [
+            {
+              url: ogImage,
+              width: 1200,
+              height: 630,
+              alt: company.name
+            }
+          ]
+        : undefined,
+      siteName: "JobTV"
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: ogImage ? [ogImage] : undefined
+    },
+    alternates: {
+      canonical: `/company/${id}`
+    }
+  };
 }
 
 export default async function CompanyDetailPage({ params }: CompanyDetailPageProps) {

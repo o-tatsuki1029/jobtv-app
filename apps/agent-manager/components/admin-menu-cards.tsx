@@ -15,6 +15,7 @@ import {
   UserCog,
   Briefcase,
   FileText,
+  Calendar,
 } from "lucide-react";
 
 interface MenuCard {
@@ -54,6 +55,12 @@ const menuCards: MenuCard[] = [
     description: "応募情報の確認・ステータス管理",
     href: "/admin/applications",
     icon: FileText,
+  },
+  {
+    title: "説明会管理",
+    description: "説明会情報の審査・管理",
+    href: "/admin/sessions",
+    icon: Calendar,
   },
   {
     title: "管理者管理",

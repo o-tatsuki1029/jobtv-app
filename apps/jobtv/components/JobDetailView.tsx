@@ -66,7 +66,9 @@ export default function JobDetailView({ job }: { job: JobData }) {
                 2日前
               </span>
             </div>
-            <h1 className="text-2xl md:text-4xl font-black mb-8 leading-tight">{job.title}</h1>
+            <h1 className="text-2xl md:text-4xl font-black mb-8 leading-tight text-white bg-black/40 backdrop-blur-sm px-4 py-3 rounded-lg inline-block">
+              {job.title}
+            </h1>
             <div className="flex flex-wrap gap-6 text-sm md:text-base">
               <div className="flex items-center gap-2 text-gray-300">
                 <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center border border-gray-700">

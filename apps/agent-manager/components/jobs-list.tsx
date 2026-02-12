@@ -11,11 +11,12 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Briefcase, Plus } from "lucide-react";
+import { Briefcase, Plus, Check, X } from "lucide-react";
 import Link from "next/link";
 import { JobForm } from "@/components/job-form";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { approveJob, rejectJob } from "@/lib/actions/job-actions";
 import type { Tables } from "@jobtv-app/shared/types";
 
 type JobPosting = Tables<"job_postings">;
@@ -32,11 +33,37 @@ interface JobsListProps {
 
 export function JobsList({ jobs }: JobsListProps) {
   const [open, setOpen] = useState(false);
+  const [processing, setProcessing] = useState<string | null>(null);
   const router = useRouter();
 
   const handleSuccess = () => {
     setOpen(false);
     router.refresh();
+  };
+
+  const handleApprove = async (jobId: string) => {
+    setProcessing(jobId);
+    const { error } = await approveJob(jobId);
+    if (error) {
+      alert(`承認に失敗しました: ${error}`);
+    } else {
+      router.refresh();
+    }
+    setProcessing(null);
+  };
+
+  const handleReject = async (jobId: string) => {
+    if (!confirm("この求人を却下しますか？")) {
+      return;
+    }
+    setProcessing(jobId);
+    const { error } = await rejectJob(jobId);
+    if (error) {
+      alert(`却下に失敗しました: ${error}`);
+    } else {
+      router.refresh();
+    }
+    setProcessing(null);
   };
 
   const getStatusBadgeVariant = (status: string) => {
@@ -56,6 +83,8 @@ export function JobsList({ jobs }: JobsListProps) {
         return "募集中";
       case "closed":
         return "募集終了";
+      case "pending":
+        return "審査中";
       default:
         return status;
     }
@@ -111,6 +140,28 @@ export function JobsList({ jobs }: JobsListProps) {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
+                    {job.status === "pending" && (
+                      <>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => handleApprove(job.id)}
+                          disabled={processing === job.id}
+                        >
+                          <Check className="mr-1 h-3 w-3" />
+                          承認
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleReject(job.id)}
+                          disabled={processing === job.id}
+                        >
+                          <X className="mr-1 h-3 w-3" />
+                          却下
+                        </Button>
+                      </>
+                    )}
                     <Button variant="outline" size="sm" asChild>
                       <Link href={`/admin/jobs/${job.id}`}>詳細</Link>
                     </Button>

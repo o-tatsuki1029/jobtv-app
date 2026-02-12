@@ -1,44 +1,10 @@
-import { useState, useEffect } from "react";
-import { getCompanyProfile, saveCompanyProfile } from "@/lib/actions/company-profile-actions";
-import { CompanyData, dbToCompanyData } from "@/components/company";
+import { useState, useEffect, useCallback } from "react";
+import { getCompanyProfileWithPage } from "@/lib/actions/company-profile-actions";
+import { saveCompanyPage } from "@/lib/actions/company-page-actions";
+import { CompanyData, dbToCompanyData, companyDataToFormDataForPage } from "@/components/company";
 import type { CompanyProfileFormData } from "@/components/company/types";
 import { extractSnsAccountNames, generateSnsUrls } from "@/utils/sns-url-utils";
-
-/**
- * このページで編集可能な項目のみをフォームデータに変換
- * UIに表示されている項目のみを保存対象とする
- */
-function companyDataToFormDataForPage(
-  companyData: Partial<CompanyData>,
-  snsUrls: CompanyData["snsUrls"]
-): CompanyProfileFormData {
-  return {
-    // UIに表示されている項目のみ
-    description: companyData.description,
-    tagline: companyData.tagline,
-    main_video_url: companyData.mainVideo,
-    sns_x_url: snsUrls?.x,
-    sns_instagram_url: snsUrls?.instagram,
-    sns_tiktok_url: snsUrls?.tiktok,
-    sns_youtube_url: snsUrls?.youtube,
-    short_videos: companyData.shortVideos?.map((v) => ({
-      id: v.id,
-      title: v.title,
-      video_url: v.video,
-      thumbnail_url: v.thumbnail
-    })),
-    documentary_videos: companyData.documentaryVideos?.map((v) => ({
-      id: v.id,
-      title: v.title,
-      video_url: v.video,
-      thumbnail_url: v.thumbnail
-    })),
-    benefits: companyData.benefits?.filter((benefit) => benefit.trim() !== "")
-    // 以下の項目は意図的に除外（UIに表示されていないため）
-    // logo_url, industry, employees, location, address,
-    // representative, capital, established, website
-  };
-}
+import * as formUtils from "@/utils/form-utils";
 
 const emptyCompanyData: CompanyData = {
   id: "",
@@ -75,6 +41,8 @@ export function useCompanyProfile() {
     youtube?: string;
   }>({});
   const [companyId, setCompanyId] = useState<string>("");
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [draftStatus, setDraftStatus] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle");
@@ -90,7 +58,9 @@ export function useCompanyProfile() {
     const fetchCompanyData = async () => {
       setIsLoading(true);
       try {
-        const result = await getCompanyProfile();
+        // companiesテーブルとcompany_pagesテーブルからデータを取得（共通関数を使用）
+        const result = await getCompanyProfileWithPage();
+
         if (result.error) {
           console.error("Failed to fetch company data:", result.error);
           // 管理者や権限エラーの場合は、エラーメッセージを設定
@@ -105,11 +75,15 @@ export function useCompanyProfile() {
           setCompany(companyData);
           setInitialCompany(companyData);
           setCompanyId(result.data.id);
+          setDraftId((result.data as any).draft_id || null);
+          setDraftStatus((result.data as any).draft_status || null);
           setSnsAccountNames(snsNames);
           setInitialSnsAccountNames(snsNames);
         } else {
           setCompany(emptyCompanyData);
           setCompanyId("");
+          setDraftId(null);
+          setDraftStatus(null);
         }
       } catch (error) {
         console.error("Error fetching company data:", error);
@@ -131,19 +105,24 @@ export function useCompanyProfile() {
       const snsUrls = generateSnsUrls(snsAccountNames);
       // このページで編集可能な項目のみをフォームデータに変換
       const formData = companyDataToFormDataForPage(company, snsUrls);
-      const result = await saveCompanyProfile(formData);
+      const result = await saveCompanyPage(formData);
 
       if (result.error) {
         setSaveStatus("error");
         setErrorMessage(result.error);
       } else {
         setSaveStatus("success");
-        if (result.data) {
-          const updatedCompanyData = dbToCompanyData(result.data);
+        // 保存後、再度データを取得して更新（共通関数を使用）
+        const refreshResult = await getCompanyProfileWithPage();
+
+        if (refreshResult.data) {
+          const updatedCompanyData = dbToCompanyData(refreshResult.data);
           const snsNames = extractSnsAccountNames(updatedCompanyData.snsUrls);
           setCompany(updatedCompanyData);
           setInitialCompany(updatedCompanyData);
-          setCompanyId(result.data.id);
+          setCompanyId(refreshResult.data.id);
+          setDraftId((refreshResult.data as any).draft_id || null);
+          setDraftStatus((refreshResult.data as any).draft_status || null);
           setSnsAccountNames(snsNames);
           setInitialSnsAccountNames(snsNames);
         }
@@ -158,19 +137,24 @@ export function useCompanyProfile() {
   };
 
   // 変更があるかどうかを判定
-  const hasChanges = () => {
+  const hasCompanyChanges = useCallback(() => {
     // 会社データの変更をチェック
     const companyFieldsToCompare: (keyof CompanyData)[] = [
       "description",
       "tagline",
-      "mainVideo"
+      "mainVideo",
+      "logo",
+      "coverImage",
+      "representative",
+      "established",
+      "employees",
+      "website",
+      "addressLine1",
+      "addressLine2",
+      "companyInfo"
     ];
 
-    const companyChanged = companyFieldsToCompare.some((field) => {
-      const currentValue = company[field] || "";
-      const initialValue = initialCompany[field] || "";
-      return currentValue !== initialValue;
-    });
+    const companyChanged = formUtils.hasFieldChanges(company, initialCompany, companyFieldsToCompare);
 
     // SNSアカウント名の変更をチェック
     const snsChanged =
@@ -180,20 +164,26 @@ export function useCompanyProfile() {
       snsAccountNames.youtube !== initialSnsAccountNames.youtube;
 
     // 動画の変更をチェック
-    const shortVideosChanged =
-      JSON.stringify(company.shortVideos) !== JSON.stringify(initialCompany.shortVideos);
-    const documentaryVideosChanged =
-      JSON.stringify(company.documentaryVideos) !== JSON.stringify(initialCompany.documentaryVideos);
+    const shortVideosChanged = formUtils.hasObjectChanges(
+      { shortVideos: company.shortVideos },
+      { shortVideos: initialCompany.shortVideos }
+    );
+    const documentaryVideosChanged = formUtils.hasObjectChanges(
+      { documentaryVideos: company.documentaryVideos },
+      { documentaryVideos: initialCompany.documentaryVideos }
+    );
 
     // 福利厚生の変更をチェック
-    const benefitsChanged = JSON.stringify(company.benefits) !== JSON.stringify(initialCompany.benefits);
+    const benefitsChanged = formUtils.hasObjectChanges({ benefits: company.benefits }, { benefits: initialCompany.benefits });
 
-    return companyChanged || snsChanged || shortVideosChanged || documentaryVideosChanged || benefitsChanged;
-  };
+    return formUtils.hasChanges(companyChanged, snsChanged, shortVideosChanged, documentaryVideosChanged, benefitsChanged);
+  }, [company, initialCompany, snsAccountNames, initialSnsAccountNames]);
 
   return {
     company,
     companyId,
+    draftId,
+    draftStatus,
     isLoading,
     isSaving,
     saveStatus,
@@ -204,6 +194,6 @@ export function useCompanyProfile() {
     handleSave,
     setErrorMessage,
     setSaveStatus,
-    hasChanges
+    hasChanges: hasCompanyChanges
   };
 }

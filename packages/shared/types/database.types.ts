@@ -324,29 +324,18 @@ export type Database = {
           address: string | null
           address_line1: string | null
           address_line2: string | null
-          benefits: string[] | null
           company_info: string | null
-          company_videos: Json | null
-          cover_image_url: string | null
           created_at: string
-          description: string | null
-          documentary_videos: Json | null
           employees: string | null
           established: string | null
           id: string
           industry: string | null
           location: string | null
           logo_url: string | null
-          main_video_url: string | null
           name: string
           notes: string | null
           representative: string | null
-          short_videos: Json | null
-          sns_instagram_url: string | null
-          sns_tiktok_url: string | null
-          sns_x_url: string | null
-          sns_youtube_url: string | null
-          tagline: string | null
+          status: Database["public"]["Enums"]["company_status"] | null
           updated_at: string
           website: string | null
         }
@@ -354,29 +343,18 @@ export type Database = {
           address?: string | null
           address_line1?: string | null
           address_line2?: string | null
-          benefits?: string[] | null
           company_info?: string | null
-          company_videos?: Json | null
-          cover_image_url?: string | null
           created_at?: string
-          description?: string | null
-          documentary_videos?: Json | null
           employees?: string | null
           established?: string | null
           id?: string
           industry?: string | null
           location?: string | null
           logo_url?: string | null
-          main_video_url?: string | null
           name: string
           notes?: string | null
           representative?: string | null
-          short_videos?: Json | null
-          sns_instagram_url?: string | null
-          sns_tiktok_url?: string | null
-          sns_x_url?: string | null
-          sns_youtube_url?: string | null
-          tagline?: string | null
+          status?: Database["public"]["Enums"]["company_status"] | null
           updated_at?: string
           website?: string | null
         }
@@ -384,23 +362,139 @@ export type Database = {
           address?: string | null
           address_line1?: string | null
           address_line2?: string | null
-          benefits?: string[] | null
           company_info?: string | null
-          company_videos?: Json | null
-          cover_image_url?: string | null
           created_at?: string
-          description?: string | null
-          documentary_videos?: Json | null
           employees?: string | null
           established?: string | null
           id?: string
           industry?: string | null
           location?: string | null
           logo_url?: string | null
-          main_video_url?: string | null
           name?: string
           notes?: string | null
           representative?: string | null
+          status?: Database["public"]["Enums"]["company_status"] | null
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
+      companies_draft: {
+        Row: {
+          address_line1: string | null
+          address_line2: string | null
+          approved_at: string | null
+          company_id: string
+          company_info: string | null
+          created_at: string
+          draft_status: string
+          employees: string | null
+          established: string | null
+          id: string
+          industry: string | null
+          location: string | null
+          logo_url: string | null
+          name: string
+          notes: string | null
+          production_company_id: string | null
+          rejected_at: string | null
+          representative: string | null
+          submitted_at: string | null
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
+          approved_at?: string | null
+          company_id: string
+          company_info?: string | null
+          created_at?: string
+          draft_status?: string
+          employees?: string | null
+          established?: string | null
+          id?: string
+          industry?: string | null
+          location?: string | null
+          logo_url?: string | null
+          name: string
+          notes?: string | null
+          production_company_id?: string | null
+          rejected_at?: string | null
+          representative?: string | null
+          submitted_at?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          address_line1?: string | null
+          address_line2?: string | null
+          approved_at?: string | null
+          company_id?: string
+          company_info?: string | null
+          created_at?: string
+          draft_status?: string
+          employees?: string | null
+          established?: string | null
+          id?: string
+          industry?: string | null
+          location?: string | null
+          logo_url?: string | null
+          name?: string
+          notes?: string | null
+          production_company_id?: string | null
+          rejected_at?: string | null
+          representative?: string | null
+          submitted_at?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "companies_draft_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "companies_draft_production_company_id_fkey"
+            columns: ["production_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_pages: {
+        Row: {
+          benefits: string[] | null
+          company_id: string
+          company_videos: Json | null
+          cover_image_url: string | null
+          created_at: string
+          description: string | null
+          documentary_videos: Json | null
+          id: string
+          main_video_url: string | null
+          short_videos: Json | null
+          sns_instagram_url: string | null
+          sns_tiktok_url: string | null
+          sns_x_url: string | null
+          sns_youtube_url: string | null
+          tagline: string | null
+          updated_at: string
+        }
+        Insert: {
+          benefits?: string[] | null
+          company_id: string
+          company_videos?: Json | null
+          cover_image_url?: string | null
+          created_at?: string
+          description?: string | null
+          documentary_videos?: Json | null
+          id?: string
+          main_video_url?: string | null
           short_videos?: Json | null
           sns_instagram_url?: string | null
           sns_tiktok_url?: string | null
@@ -408,9 +502,131 @@ export type Database = {
           sns_youtube_url?: string | null
           tagline?: string | null
           updated_at?: string
-          website?: string | null
         }
-        Relationships: []
+        Update: {
+          benefits?: string[] | null
+          company_id?: string
+          company_videos?: Json | null
+          cover_image_url?: string | null
+          created_at?: string
+          description?: string | null
+          documentary_videos?: Json | null
+          id?: string
+          main_video_url?: string | null
+          short_videos?: Json | null
+          sns_instagram_url?: string | null
+          sns_tiktok_url?: string | null
+          sns_x_url?: string | null
+          sns_youtube_url?: string | null
+          tagline?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_pages_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_pages_draft: {
+        Row: {
+          approved_at: string | null
+          benefits: string[] | null
+          company_id: string
+          company_videos: Json | null
+          cover_image_url: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          documentary_videos: Json | null
+          draft_status: Database["public"]["Enums"]["draft_status"]
+          id: string
+          main_video_url: string | null
+          production_page_id: string | null
+          rejected_at: string | null
+          short_videos: Json | null
+          sns_instagram_url: string | null
+          sns_tiktok_url: string | null
+          sns_x_url: string | null
+          sns_youtube_url: string | null
+          submitted_at: string | null
+          tagline: string | null
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          benefits?: string[] | null
+          company_id: string
+          company_videos?: Json | null
+          cover_image_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          documentary_videos?: Json | null
+          draft_status?: Database["public"]["Enums"]["draft_status"]
+          id?: string
+          main_video_url?: string | null
+          production_page_id?: string | null
+          rejected_at?: string | null
+          short_videos?: Json | null
+          sns_instagram_url?: string | null
+          sns_tiktok_url?: string | null
+          sns_x_url?: string | null
+          sns_youtube_url?: string | null
+          submitted_at?: string | null
+          tagline?: string | null
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          benefits?: string[] | null
+          company_id?: string
+          company_videos?: Json | null
+          cover_image_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          documentary_videos?: Json | null
+          draft_status?: Database["public"]["Enums"]["draft_status"]
+          id?: string
+          main_video_url?: string | null
+          production_page_id?: string | null
+          rejected_at?: string | null
+          short_videos?: Json | null
+          sns_instagram_url?: string | null
+          sns_tiktok_url?: string | null
+          sns_x_url?: string | null
+          sns_youtube_url?: string | null
+          submitted_at?: string | null
+          tagline?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_pages_draft_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_pages_draft_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_pages_draft_production_page_id_fkey"
+            columns: ["production_page_id"]
+            isOneToOne: false
+            referencedRelation: "company_pages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       event_companies: {
         Row: {
@@ -613,36 +829,60 @@ export type Database = {
       job_postings: {
         Row: {
           available_statuses: Database["public"]["Enums"]["application_status"][]
+          benefits: string | null
           company_id: string
+          cover_image_url: string | null
           created_at: string
           created_by: string
           description: string | null
+          employment_type: string | null
           graduation_year: number
           id: string
+          location: string | null
+          location_detail: string | null
+          prefecture: string | null
+          requirements: string | null
+          selection_process: string | null
           status: Database["public"]["Enums"]["job_status"]
           title: string
           updated_at: string
         }
         Insert: {
           available_statuses?: Database["public"]["Enums"]["application_status"][]
+          benefits?: string | null
           company_id: string
+          cover_image_url?: string | null
           created_at?: string
           created_by: string
           description?: string | null
+          employment_type?: string | null
           graduation_year: number
           id?: string
+          location?: string | null
+          location_detail?: string | null
+          prefecture?: string | null
+          requirements?: string | null
+          selection_process?: string | null
           status?: Database["public"]["Enums"]["job_status"]
           title: string
           updated_at?: string
         }
         Update: {
           available_statuses?: Database["public"]["Enums"]["application_status"][]
+          benefits?: string | null
           company_id?: string
+          cover_image_url?: string | null
           created_at?: string
           created_by?: string
           description?: string | null
+          employment_type?: string | null
           graduation_year?: number
           id?: string
+          location?: string | null
+          location_detail?: string | null
+          prefecture?: string | null
+          requirements?: string | null
+          selection_process?: string | null
           status?: Database["public"]["Enums"]["job_status"]
           title?: string
           updated_at?: string
@@ -653,6 +893,100 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_postings_draft: {
+        Row: {
+          approved_at: string | null
+          available_statuses: Database["public"]["Enums"]["application_status"][]
+          benefits: string | null
+          company_id: string
+          cover_image_url: string | null
+          created_at: string
+          created_by: string
+          description: string | null
+          draft_status: string
+          employment_type: string | null
+          graduation_year: number
+          id: string
+          location_detail: string | null
+          prefecture: string | null
+          production_job_id: string | null
+          rejected_at: string | null
+          requirements: string | null
+          selection_process: string | null
+          submitted_at: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          available_statuses?: Database["public"]["Enums"]["application_status"][]
+          benefits?: string | null
+          company_id: string
+          cover_image_url?: string | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          draft_status?: string
+          employment_type?: string | null
+          graduation_year: number
+          id?: string
+          location_detail?: string | null
+          prefecture?: string | null
+          production_job_id?: string | null
+          rejected_at?: string | null
+          requirements?: string | null
+          selection_process?: string | null
+          submitted_at?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          available_statuses?: Database["public"]["Enums"]["application_status"][]
+          benefits?: string | null
+          company_id?: string
+          cover_image_url?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          draft_status?: string
+          employment_type?: string | null
+          graduation_year?: number
+          id?: string
+          location_detail?: string | null
+          prefecture?: string | null
+          production_job_id?: string | null
+          rejected_at?: string | null
+          requirements?: string | null
+          selection_process?: string | null
+          submitted_at?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_postings_draft_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_postings_draft_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_postings_draft_production_job_id_fkey"
+            columns: ["production_job_id"]
+            isOneToOne: false
+            referencedRelation: "job_postings"
             referencedColumns: ["id"]
           },
         ]
@@ -1210,6 +1544,237 @@ export type Database = {
           },
         ]
       }
+      session_dates: {
+        Row: {
+          capacity: number | null
+          created_at: string
+          end_time: string
+          event_date: string
+          id: string
+          session_id: string
+          start_time: string
+          updated_at: string
+        }
+        Insert: {
+          capacity?: number | null
+          created_at?: string
+          end_time: string
+          event_date: string
+          id?: string
+          session_id: string
+          start_time: string
+          updated_at?: string
+        }
+        Update: {
+          capacity?: number | null
+          created_at?: string
+          end_time?: string
+          event_date?: string
+          id?: string
+          session_id?: string
+          start_time?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_dates_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      session_reservations: {
+        Row: {
+          attended: boolean
+          candidate_id: string
+          created_at: string
+          id: string
+          session_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attended?: boolean
+          candidate_id: string
+          created_at?: string
+          id?: string
+          session_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attended?: boolean
+          candidate_id?: string
+          created_at?: string
+          id?: string
+          session_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_reservations_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_reservations_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sessions: {
+        Row: {
+          capacity: number | null
+          company_id: string
+          cover_image_url: string | null
+          created_at: string
+          created_by: string
+          description: string
+          id: string
+          location_detail: string | null
+          location_type: string | null
+          status: Database["public"]["Enums"]["session_status"]
+          title: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          capacity?: number | null
+          company_id: string
+          cover_image_url?: string | null
+          created_at?: string
+          created_by: string
+          description: string
+          id?: string
+          location_detail?: string | null
+          location_type?: string | null
+          status?: Database["public"]["Enums"]["session_status"]
+          title: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          capacity?: number | null
+          company_id?: string
+          cover_image_url?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string
+          id?: string
+          location_detail?: string | null
+          location_type?: string | null
+          status?: Database["public"]["Enums"]["session_status"]
+          title?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sessions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sessions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sessions_draft: {
+        Row: {
+          approved_at: string | null
+          capacity: number | null
+          company_id: string
+          cover_image_url: string | null
+          created_at: string
+          created_by: string
+          description: string
+          draft_status: string
+          id: string
+          location_detail: string | null
+          location_type: string | null
+          production_session_id: string | null
+          rejected_at: string | null
+          submitted_at: string | null
+          title: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          capacity?: number | null
+          company_id: string
+          cover_image_url?: string | null
+          created_at?: string
+          created_by: string
+          description: string
+          draft_status?: string
+          id?: string
+          location_detail?: string | null
+          location_type?: string | null
+          production_session_id?: string | null
+          rejected_at?: string | null
+          submitted_at?: string | null
+          title: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          capacity?: number | null
+          company_id?: string
+          cover_image_url?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string
+          draft_status?: string
+          id?: string
+          location_detail?: string | null
+          location_type?: string | null
+          production_session_id?: string | null
+          rejected_at?: string | null
+          submitted_at?: string | null
+          title?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sessions_draft_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sessions_draft_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sessions_draft_production_session_id_fkey"
+            columns: ["production_session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -1238,7 +1803,10 @@ export type Database = {
         | "offer"
         | "rejected"
         | "withdrawn"
-      job_status: "active" | "closed"
+      company_status: "pending" | "active" | "closed"
+      draft_status: "draft" | "submitted" | "approved" | "rejected"
+      job_status: "pending" | "active" | "closed"
+      session_status: "pending" | "active" | "closed"
       user_role: "admin" | "recruiter"
     }
     CompositeTypes: {
@@ -1377,7 +1945,10 @@ export const Constants = {
         "rejected",
         "withdrawn",
       ],
-      job_status: ["active", "closed"],
+      company_status: ["pending", "active", "closed"],
+      draft_status: ["draft", "submitted", "approved", "rejected"],
+      job_status: ["pending", "active", "closed"],
+      session_status: ["pending", "active", "closed"],
       user_role: ["admin", "recruiter"],
     },
   },

@@ -2,22 +2,15 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import type { Tables, TablesUpdate } from "@jobtv-app/shared/types";
+import type { Tables, TablesInsert, TablesUpdate } from "@jobtv-app/shared/types";
 import type { CompanyProfileFormData } from "@/components/company/types";
 import { getUserCompanyId, checkCompanyEditPermission } from "@jobtv-app/shared/actions/company-utils";
+import { getCompanyPage, getCompanyPageDraft } from "./company-page-actions";
+import { getCompanyPageById } from "./company-page-actions";
 
 type CompanyRow = Tables<"companies">;
-type CompanyUpdate = TablesUpdate<"companies"> & {
-  tagline?: string | null;
-  sns_x_url?: string | null;
-  sns_instagram_url?: string | null;
-  sns_tiktok_url?: string | null;
-  sns_youtube_url?: string | null;
-  capital?: string | null;
-  short_videos?: any; // JSONBカラムはany型で受け取る
-  documentary_videos?: any; // JSONBカラムはany型で受け取る
-  company_videos?: any; // JSONBカラムはany型で受け取る
-};
+type CompanyUpdate = TablesUpdate<"companies">;
+export type CompanyDraftData = Partial<TablesInsert<"companies_draft">> & { id?: string };
 
 /**
  * 企業プロフィールを取得
@@ -53,25 +46,59 @@ export async function getCompanyProfile(): Promise<{
 }
 
 /**
- * 企業プロフィールを取得（公開ページ用）
- * 指定された企業IDを使用
+ * 企業プロフィールと企業ページ情報を同時に取得（ログイン中のユーザーの企業IDを使用）
+ * デフォルトでは本番テーブル（company_pages）の内容を表示し、編集可能なドラフトがある場合はドラフトの内容を優先
  */
-export async function getCompanyProfileById(id: string): Promise<{
-  data: CompanyRow | null;
+export async function getCompanyProfileWithPage(): Promise<{
+  data: (CompanyRow & { job_postings?: any[] }) | null;
   error: string | null;
 }> {
   try {
-    const supabase = await createClient();
-    const { data, error } = await supabase.from("companies").select("*").eq("id", id).single();
-
-    if (error) {
-      console.error("Get company profile by id error:", error);
-      return { data: null, error: error.message };
+    const companyResult = await getCompanyProfile();
+    if (companyResult.error) {
+      return { data: null, error: companyResult.error };
     }
 
-    return { data: data as CompanyRow, error: null };
+    const companyId = companyResult.data?.id;
+    if (!companyId) {
+      return { data: null, error: "企業IDが見つかりません" };
+    }
+
+    // まず本番テーブル（company_pages）からデータを取得（デフォルト）
+    const productionResult = await getCompanyPage();
+    if (productionResult.error) {
+      // 本番テーブルにデータがない場合はエラーを無視（新規作成可能なため）
+      console.error("Get company page error:", productionResult.error);
+    }
+
+    // 次にドラフトテーブルから編集可能なドラフト（draftまたはrejected）を取得
+    const draftResult = await getCompanyPageDraft();
+    if (draftResult.error) {
+      // ドラフト情報の取得エラーは無視（新規作成可能なため）
+      console.error("Get company page draft error:", draftResult.error);
+    }
+
+    // デフォルトは本番テーブルの内容を使用
+    let pageData = productionResult.data || {};
+
+    // 編集可能なドラフト（draftまたはrejected）がある場合は、ドラフトの内容を優先
+    if (draftResult.data && (draftResult.data.draft_status === "draft" || draftResult.data.draft_status === "rejected")) {
+      pageData = draftResult.data;
+    }
+
+    // companiesとページデータをマージ
+    const mergedData = {
+      ...(companyResult.data || {}),
+      ...pageData,
+      // ドラフト情報を追加
+      draft_id: draftResult.data?.id,
+      draft_status: draftResult.data?.draft_status,
+      production_page_id: draftResult.data?.production_page_id || productionResult.data?.id
+    };
+
+    return { data: mergedData as CompanyRow & { job_postings?: any[]; draft_id?: string; draft_status?: string; production_page_id?: string }, error: null };
   } catch (error) {
-    console.error("Get company profile by id error:", error);
+    console.error("Get company profile with page error:", error);
     return {
       data: null,
       error: error instanceof Error ? error.message : "企業プロフィールの取得に失敗しました"
@@ -80,96 +107,62 @@ export async function getCompanyProfileById(id: string): Promise<{
 }
 
 /**
- * 企業プロフィールを保存・更新
+ * 企業プロフィールを取得（公開ページ用）
+ * 指定された企業IDを使用
+ * 求人情報と企業ページ情報も一緒に取得
  */
-export async function saveCompanyProfile(formData: CompanyProfileFormData): Promise<{
-  data: CompanyRow | null;
+export async function getCompanyProfileById(id: string): Promise<{
+  data: (CompanyRow & { job_postings?: any[]; company_page?: any }) | null;
   error: string | null;
 }> {
   try {
-    const { companyId, error: companyIdError } = await getUserCompanyId();
-
-    if (companyIdError) {
-      return { data: null, error: companyIdError };
-    }
-
-    // 権限チェック
-    const permissionCheck = await checkCompanyEditPermission(companyId);
-    if (!permissionCheck.allowed) {
-      return { data: null, error: permissionCheck.error || "編集権限がありません" };
-    }
-
     const supabase = await createClient();
 
-    // 更新データを準備（undefinedの項目は更新しない）
-    const updateData: CompanyUpdate = {};
+    // 企業情報を取得
+    const { data: companyData, error: companyError } = await supabase
+      .from("companies")
+      .select("*")
+      .eq("id", id)
+      .single();
 
-    // UIに表示されている項目のみを更新対象とする
-    if (formData.description !== undefined) updateData.description = formData.description || null;
-    if (formData.tagline !== undefined) updateData.tagline = formData.tagline || null;
-    // cover_image_urlは/studio/company/infoページで管理するため、ここでは更新しない
-    if (formData.main_video_url !== undefined) updateData.main_video_url = formData.main_video_url || null;
-    if (formData.sns_x_url !== undefined) updateData.sns_x_url = formData.sns_x_url || null;
-    if (formData.sns_instagram_url !== undefined) updateData.sns_instagram_url = formData.sns_instagram_url || null;
-    if (formData.sns_tiktok_url !== undefined) updateData.sns_tiktok_url = formData.sns_tiktok_url || null;
-    if (formData.sns_youtube_url !== undefined) updateData.sns_youtube_url = formData.sns_youtube_url || null;
-    if (formData.short_videos !== undefined) {
-      updateData.short_videos = formData.short_videos ? (formData.short_videos as any) : null;
-    }
-    if (formData.documentary_videos !== undefined) {
-      updateData.documentary_videos = formData.documentary_videos ? (formData.documentary_videos as any) : null;
-    }
-    if (formData.benefits !== undefined) updateData.benefits = formData.benefits || null;
-
-    // 以下の項目はUIに表示されていないため、undefinedの場合は更新しない
-    // ただし、他のページ（例: company/info）から呼び出された場合は更新される
-    if (formData.logo_url !== undefined) updateData.logo_url = formData.logo_url || null;
-    if (formData.industry !== undefined) updateData.industry = formData.industry || null;
-    if (formData.employees !== undefined) updateData.employees = formData.employees || null;
-    if (formData.location !== undefined) updateData.location = formData.location || null;
-    if (formData.address !== undefined) updateData.address = formData.address || null;
-    if (formData.representative !== undefined) updateData.representative = formData.representative || null;
-    if (formData.capital !== undefined) updateData.capital = formData.capital || null;
-    if (formData.established !== undefined) updateData.established = formData.established || null;
-    if (formData.website !== undefined) updateData.website = formData.website || null;
-
-    // updated_atは常に更新
-    updateData.updated_at = new Date().toISOString();
-
-    console.log("Saving company profile with data:", {
-      companyId,
-      updateData: {
-        ...updateData,
-        short_videos: updateData.short_videos ? "JSONB data" : null,
-        documentary_videos: updateData.documentary_videos ? "JSONB data" : null
-      }
-    });
-
-    const { data, error } = await supabase.from("companies").update(updateData).eq("id", companyId).select().single();
-
-    if (error) {
-      console.error("Save company profile error:", error);
-      console.error("Error details:", {
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint
-      });
-      return { data: null, error: error.message };
+    if (companyError) {
+      console.error("Get company profile by id error:", companyError);
+      return { data: null, error: companyError.message };
     }
 
-    console.log("Successfully saved company profile:", data);
+    // 企業ページ情報を取得（getCompanyPageByIdを使用）
+    const pageResult = await getCompanyPageById(id);
+    if (pageResult.error) {
+      console.error("Get company page error:", pageResult.error);
+      // ページ情報の取得エラーは無視
+    }
 
-    // キャッシュを無効化
-    revalidatePath(`/company/${companyId}`);
-    revalidatePath("/studio/company");
+    // 求人情報を取得（status='active'のもののみ）
+    const { data: jobsData, error: jobsError } = await supabase
+      .from("job_postings")
+      .select("*")
+      .eq("company_id", id)
+      .eq("status", "active")
+      .order("created_at", { ascending: false });
 
-    return { data: data as CompanyRow, error: null };
+    if (jobsError) {
+      console.error("Get company jobs error:", jobsError);
+      // 求人の取得エラーは無視して企業情報のみ返す
+    }
+
+    // 企業データに求人情報とページ情報を追加
+    const result = {
+      ...companyData,
+      ...(pageResult.data || {}),
+      job_postings: jobsData || []
+    };
+
+    return { data: result as CompanyRow & { job_postings?: any[]; company_page?: any }, error: null };
   } catch (error) {
-    console.error("Save company profile error:", error);
+    console.error("Get company profile by id error:", error);
     return {
       data: null,
-      error: error instanceof Error ? error.message : "企業プロフィールの保存に失敗しました"
+      error: error instanceof Error ? error.message : "企業プロフィールの取得に失敗しました"
     };
   }
 }
@@ -244,71 +237,6 @@ export async function uploadCompanyAsset(
     return {
       data: null,
       error: error instanceof Error ? error.message : "ファイルのアップロードに失敗しました"
-    };
-  }
-}
-
-/**
- * 企業の動画ライブラリ（company_videos）を保存・更新
- */
-export async function saveCompanyVideos(formData: {
-  company_videos?: any;
-}): Promise<{
-  data: CompanyRow | null;
-  error: string | null;
-}> {
-  try {
-    const { companyId, error: companyIdError } = await getUserCompanyId();
-
-    if (companyIdError) {
-      return { data: null, error: companyIdError };
-    }
-
-    // 権限チェック
-    const permissionCheck = await checkCompanyEditPermission(companyId);
-    if (!permissionCheck.allowed) {
-      return { data: null, error: permissionCheck.error || "編集権限がありません" };
-    }
-
-    const supabase = await createClient();
-
-    // 更新データを準備
-    const updateData: CompanyUpdate = {};
-
-    if (formData.company_videos !== undefined) {
-      updateData.company_videos = formData.company_videos ? (formData.company_videos as any) : null;
-    }
-
-    // updated_atは常に更新
-    updateData.updated_at = new Date().toISOString();
-
-    console.log("Saving company videos with data:", {
-      companyId,
-      updateData: {
-        ...updateData,
-        company_videos: updateData.company_videos ? "JSONB data" : null
-      }
-    });
-
-    const { data, error } = await supabase.from("companies").update(updateData).eq("id", companyId).select().single();
-
-    if (error) {
-      console.error("Save company videos error:", error);
-      return { data: null, error: error.message };
-    }
-
-    console.log("Successfully saved company videos:", data);
-
-    // キャッシュを無効化
-    revalidatePath(`/company/${companyId}`);
-    revalidatePath("/studio/company");
-
-    return { data: data as CompanyRow, error: null };
-  } catch (error) {
-    console.error("Save company videos error:", error);
-    return {
-      data: null,
-      error: error instanceof Error ? error.message : "動画ライブラリの保存に失敗しました"
     };
   }
 }

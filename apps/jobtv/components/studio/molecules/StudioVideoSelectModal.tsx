@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { X, Plus, Edit2, Trash2, Video as VideoIcon, Check } from "lucide-react";
-import { getCompanyProfile, saveCompanyProfile, saveCompanyVideos } from "@/lib/actions/company-profile-actions";
+import { getCompanyProfileWithPage } from "@/lib/actions/company-profile-actions";
+import { getCompanyPage, saveCompanyPageVideos } from "@/lib/actions/company-page-actions";
 import { dbToCompanyData, companyDataToFormData } from "@/components/company";
 import type { CompanyData } from "@/components/company";
 import StudioButton from "../atoms/StudioButton";
@@ -92,7 +93,9 @@ export default function StudioVideoSelectModal({
   const fetchAllVideos = async () => {
     setIsLoading(true);
     try {
-      const result = await getCompanyProfile();
+      // companiesとcompany_pagesからデータを取得（共通関数を使用）
+      const result = await getCompanyProfileWithPage();
+
       if (result.error) {
         onError?.(result.error);
         setAllVideos([]);
@@ -166,13 +169,13 @@ export default function StudioVideoSelectModal({
 
       // データベースに保存（company_videosに保存）
       // 最新のcompany_videosを取得するために、再度データを取得
-      const latestResult = await getCompanyProfile();
-      if (latestResult.error) {
-        onError?.(latestResult.error);
+      const latestPageResult = await getCompanyPage();
+      if (latestPageResult.error) {
+        onError?.(latestPageResult.error);
         return;
       }
 
-      if (latestResult.data) {
+      if (latestPageResult.data) {
         const videoData = {
           id: editingVideo.id,
           title: editingVideo.title,
@@ -181,7 +184,7 @@ export default function StudioVideoSelectModal({
         };
 
         // 最新のcompany_videosを取得
-        const latestCompanyVideos = parseVideos((latestResult.data as any).company_videos || []);
+        const latestCompanyVideos = parseVideos((latestPageResult.data as any).company_videos || []);
 
         let updatedCompanyVideos: any[];
         if (isNew) {
@@ -197,16 +200,19 @@ export default function StudioVideoSelectModal({
           company_videos: updatedCompanyVideos
         };
 
-        const result = await saveCompanyVideos(formData);
+        const result = await saveCompanyPageVideos(formData);
         if (result.error) {
           onError?.(result.error);
         } else if (result.data) {
           // 保存成功後、最新データを取得
           const companyVideos = parseVideos((result.data as any).company_videos);
           setAllVideos(companyVideos);
-          // companyDataも更新
-          const updatedData = dbToCompanyData(result.data);
-          setCompanyData(updatedData);
+          // companyDataも更新（共通関数を使用）
+          const refreshResult = await getCompanyProfileWithPage();
+          if (refreshResult.data) {
+            const updatedData = dbToCompanyData(refreshResult.data);
+            setCompanyData(updatedData);
+          }
         }
       }
 
@@ -232,26 +238,31 @@ export default function StudioVideoSelectModal({
       setSelectedVideoIds(newSelected);
 
       // データベースから削除（company_videosから削除）
-      if (companyData) {
-        const currentCompanyVideos = parseVideos((companyData as any).company_videos || []);
+      const latestPageResult = await getCompanyPage();
+      if (latestPageResult.data) {
+        const currentCompanyVideos = parseVideos((latestPageResult.data as any).company_videos || []);
         const updatedCompanyVideos = currentCompanyVideos.filter((v: any) => v.id !== videoId);
 
         const formData: any = {
           company_videos: updatedCompanyVideos
         };
 
-        const result = await saveCompanyVideos(formData);
+        const result = await saveCompanyPageVideos(formData);
         if (result.error) {
           onError?.(result.error);
           // エラー時は元に戻す
-          const all = parseVideos((companyData as any).company_videos || []);
+          const all = parseVideos((latestPageResult.data as any).company_videos || []);
           setAllVideos(all);
         } else if (result.data) {
           // 保存成功後、最新データを取得
           const companyVideos = parseVideos((result.data as any).company_videos);
           setAllVideos(companyVideos);
-          // companyDataも更新
-          setCompanyData({ ...companyData, company_videos: companyVideos } as any);
+          // companyDataも更新（共通関数を使用）
+          const refreshResult = await getCompanyProfileWithPage();
+          if (refreshResult.data) {
+            const updatedData = dbToCompanyData(refreshResult.data);
+            setCompanyData(updatedData);
+          }
         }
       }
     } catch (error) {

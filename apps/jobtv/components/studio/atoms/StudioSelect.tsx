@@ -22,4 +22,3 @@ export default function StudioSelect({ error = false, className = "", ...props }
     </div>
   );
 }
-

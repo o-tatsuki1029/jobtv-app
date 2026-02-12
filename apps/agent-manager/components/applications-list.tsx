@@ -16,7 +16,8 @@ type ApplicationRow = Tables<"applications">;
 interface Application extends ApplicationRow {
   candidates?: {
     id: string;
-    full_name: string | null;
+    first_name: string;
+    last_name: string;
     email: string | null;
   } | null;
   job_postings?: {
@@ -51,7 +52,9 @@ export function ApplicationsList({ applications }: ApplicationsListProps) {
                   <div className="flex items-center gap-2 flex-wrap">
                     <User className="h-4 w-4 text-muted-foreground" />
                     <p className="font-medium">
-                      {application.candidates?.full_name || "不明"}
+                      {application.candidates
+                        ? `${application.candidates.last_name} ${application.candidates.first_name}`
+                        : "不明"}
                     </p>
                     <Badge
                       variant={getApplicationStatusBadgeVariant(

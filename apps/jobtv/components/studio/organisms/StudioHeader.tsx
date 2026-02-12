@@ -2,14 +2,42 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Menu, X, LogOut } from "lucide-react";
 import { STUDIO_NAVIGATION } from "../constants";
 import StudioNavItem from "../molecules/StudioNavItem";
+import { createClient } from "@/lib/supabase/client";
 
 export default function StudioHeader() {
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const pathname = usePathname();
+
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+    
+    setIsLoggingOut(true);
+    setIsOpen(false);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error("Logout error:", error);
+        alert("ログアウトに失敗しました");
+        setIsLoggingOut(false);
+        return;
+      }
+      
+      router.push("/login");
+      router.refresh();
+    } catch (error) {
+      console.error("Logout error:", error);
+      alert("ログアウトに失敗しました");
+      setIsLoggingOut(false);
+    }
+  };
 
   return (
     <>
@@ -41,9 +69,13 @@ export default function StudioHeader() {
                 variant="mobile"
               />
             ))}
-            <button className="flex items-center gap-3 w-full px-4 py-4 text-gray-400 font-medium border-t border-white/10 mt-4 transition-colors hover:text-white">
+            <button
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              className="flex items-center gap-3 w-full px-4 py-4 text-gray-400 font-medium border-t border-white/10 mt-4 transition-colors hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               <LogOut className="w-6 h-6" />
-              ログアウト
+              {isLoggingOut ? "ログアウト中..." : "ログアウト"}
             </button>
           </nav>
         </div>

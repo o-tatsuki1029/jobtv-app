@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import JobDetailView, { JobData } from "@/components/JobDetailView";
 import Header from "@/components/header/Header";
+import Footer from "@/components/Footer";
 
 export default function JobPreviewContentPage() {
   const [job, setJob] = useState<JobData | null>(null);
@@ -30,6 +31,7 @@ export default function JobPreviewContentPage() {
     <>
       <Header />
       <JobDetailView job={job} />
+      <Footer />
     </>
   );
 }

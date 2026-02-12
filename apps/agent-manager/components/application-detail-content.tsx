@@ -28,7 +28,8 @@ export async function ApplicationDetailContent({
       *,
       candidates (
         id,
-        full_name,
+        first_name,
+        last_name,
         email,
         phone
       ),
@@ -116,7 +117,9 @@ export async function ApplicationDetailContent({
                 <div className="flex items-center gap-2 mt-1">
                   <Users className="h-4 w-4 text-muted-foreground" />
                   <p className="text-sm font-medium">
-                    {application.candidates?.full_name || "不明"}
+                    {application.candidates
+                      ? `${application.candidates.last_name} ${application.candidates.first_name}`
+                      : "不明"}
                   </p>
                   <Button
                     variant="link"
