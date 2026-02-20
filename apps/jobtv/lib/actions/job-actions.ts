@@ -8,9 +8,9 @@ export type JobData = Partial<TablesInsert<"job_postings">> & { id?: string };
 export type JobDraftData = Partial<TablesInsert<"job_postings_draft">> & { id?: string };
 
 /**
- * 求人を作成
+ * 求人の公開/非公開を切り替え
  */
-export async function createJob(data: Omit<JobData, "id" | "created_by">) {
+export async function toggleJobStatus(productionJobId: string, newStatus: "active" | "closed") {
   const supabase = await createClient();
 
   // 現在のユーザーIDを取得
@@ -19,10 +19,7 @@ export async function createJob(data: Omit<JobData, "id" | "created_by">) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return {
-      data: null,
-      error: "ログインが必要です"
-    };
+    return { data: null, error: "ログインが必要です" };
   }
 
   // ユーザーのcompany_idを取得
@@ -33,74 +30,40 @@ export async function createJob(data: Omit<JobData, "id" | "created_by">) {
     .single();
 
   if (profileError || !profile?.company_id) {
-    return {
-      data: null,
-      error: "企業情報が見つかりません"
-    };
+    return { data: null, error: "企業情報が見つかりません" };
   }
 
-  const jobData: TablesInsert<"job_postings"> = {
-    ...data,
-    company_id: profile.company_id,
-    created_by: user.id,
-    // 新規作成時は常にpending（審査中）ステータス
-    status: "pending" as const
-  } as TablesInsert<"job_postings">;
+  // 本番レコードが自分の企業のものか確認
+  const { data: productionJob, error: jobError } = await supabase
+    .from("job_postings")
+    .select("company_id, status")
+    .eq("id", productionJobId)
+    .single();
 
-  const { data: result, error } = await supabase.from("job_postings").insert(jobData).select().single();
+  if (jobError || !productionJob) {
+    return { data: null, error: "求人が見つかりません" };
+  }
+
+  if (productionJob.company_id !== profile.company_id) {
+    return { data: null, error: "権限がありません" };
+  }
+
+  // 本番テーブルのstatusを変更
+  const { data, error } = await supabase
+    .from("job_postings")
+    .update({ status: newStatus })
+    .eq("id", productionJobId)
+    .select()
+    .maybeSingle();
 
   if (error) {
-    console.error("Create job error:", error);
+    console.error("Toggle job status error:", error);
     return { data: null, error: error.message };
   }
 
   revalidatePath("/studio/jobs");
-  return { data: result, error: null };
-}
-
-/**
- * 求人を更新
- */
-export async function updateJob(
-  id: string,
-  data: Partial<Omit<JobData, "id" | "created_by" | "company_id" | "status">>
-) {
-  const supabase = await createClient();
-
-  // statusは企業管理画面から変更不可（管理者のみ変更可能）
-  const { status, ...updateDataWithoutStatus } = data;
-
-  const updateData: TablesUpdate<"job_postings"> = {
-    ...updateDataWithoutStatus,
-    updated_at: new Date().toISOString()
-  } as TablesUpdate<"job_postings">;
-
-  const { data: result, error } = await supabase.from("job_postings").update(updateData).eq("id", id).select().single();
-
-  if (error) {
-    console.error("Update job error:", error);
-    return { data: null, error: error.message };
-  }
-
-  revalidatePath("/studio/jobs");
-  return { data: result, error: null };
-}
-
-/**
- * 求人を削除
- */
-export async function deleteJob(id: string) {
-  const supabase = await createClient();
-
-  const { error } = await supabase.from("job_postings").delete().eq("id", id);
-
-  if (error) {
-    console.error("Delete job error:", error);
-    return { error: error.message };
-  }
-
-  revalidatePath("/studio/jobs");
-  return { error: null };
+  revalidatePath(`/job/${productionJobId}`);
+  return { data, error: null };
 }
 
 /**
@@ -136,7 +99,7 @@ export async function getJobs() {
   }
 
   const { data, error } = await supabase
-    .from("job_postings")
+    .from("job_postings_draft")
     .select("*")
     .eq("company_id", profile.company_id)
     .order("created_at", { ascending: false });
@@ -182,89 +145,6 @@ export async function getJobApplicationCount(jobId: string) {
   }
 
   return { data: count || 0, error: null };
-}
-
-/**
- * 求人のカバー画像をSupabase Storageにアップロード
- */
-export async function uploadJobCoverImage(
-  file: File,
-  jobId?: string
-): Promise<{
-  data: string | null; // アップロードされたファイルのURL
-  error: string | null;
-}> {
-  try {
-    const supabase = await createClient();
-
-    // 現在のユーザーIDを取得
-    const {
-      data: { user }
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return { data: null, error: "ログインが必要です" };
-    }
-
-    // ユーザーのcompany_idを取得
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("company_id")
-      .eq("id", user.id)
-      .single();
-
-    if (profileError || !profile?.company_id) {
-      return { data: null, error: "企業情報が見つかりません" };
-    }
-
-    // ファイルサイズチェック（50MB以下）
-    const maxSize = 50 * 1024 * 1024; // 50MB
-    if (file.size > maxSize) {
-      return { data: null, error: "ファイルサイズは50MB以下である必要があります" };
-    }
-
-    // MIMEタイプチェック（画像のみ）
-    const allowedMimeTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-    if (!allowedMimeTypes.includes(file.type)) {
-      return {
-        data: null,
-        error: "サポートされていないファイル形式です。画像（JPEG, PNG, WebP, GIF）をアップロードしてください。"
-      };
-    }
-
-    // ファイル名を生成（companyId/jobs/jobId-or-temp/timestamp-originalname）
-    const timestamp = Date.now();
-    const fileExt = file.name.split(".").pop();
-    const fileName = jobId
-      ? `${profile.company_id}/jobs/${jobId}/${timestamp}.${fileExt}`
-      : `${profile.company_id}/jobs/temp/${timestamp}.${fileExt}`;
-
-    // ファイルをアップロード
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from("company-assets")
-      .upload(fileName, file, {
-        cacheControl: "3600",
-        upsert: false
-      });
-
-    if (uploadError) {
-      console.error("Upload job cover image error:", uploadError);
-      return { data: null, error: uploadError.message };
-    }
-
-    // 公開URLを取得
-    const {
-      data: { publicUrl }
-    } = supabase.storage.from("company-assets").getPublicUrl(fileName);
-
-    return { data: publicUrl, error: null };
-  } catch (error) {
-    console.error("Upload job cover image error:", error);
-    return {
-      data: null,
-      error: error instanceof Error ? error.message : "ファイルのアップロードに失敗しました"
-    };
-  }
 }
 
 /**
@@ -386,16 +266,21 @@ export async function updateJobDraft(
     return { data: null, error: fetchError.message };
   }
 
-  // submittedまたはapprovedの場合はdraftに戻す（編集可能にする）
+  // submitted、approved、rejectedの場合はdraftに戻す（編集可能にする）
   const updateData: TablesUpdate<"job_postings_draft"> = {
     ...data,
     updated_at: new Date().toISOString()
   } as TablesUpdate<"job_postings_draft">;
 
-  if (currentDraft?.draft_status === "submitted" || currentDraft?.draft_status === "approved") {
+  if (
+    currentDraft?.draft_status === "submitted" ||
+    currentDraft?.draft_status === "approved" ||
+    currentDraft?.draft_status === "rejected"
+  ) {
     (updateData as any).draft_status = "draft";
     (updateData as any).submitted_at = null;
     (updateData as any).approved_at = null;
+    (updateData as any).rejected_at = null;
   }
 
   const { data: result, error } = await supabase
@@ -449,18 +334,18 @@ export async function getJobDraft(id: string) {
   // 指定されたIDのdraftを取得
   const { data: draftById, error: draftByIdError } = await supabase
     .from("job_postings_draft")
-    .select("*")
+    .select("*, companies!company_id(name, logo_url)")
     .eq("id", id)
     .eq("company_id", profile.company_id)
     .single();
 
   if (draftByIdError || !draftById) {
-    // IDで見つからない場合、最新のdraftまたはrejectedを取得
+    // IDで見つからない場合、最新のdraftを取得
     const { data: latestDraft, error: latestDraftError } = await supabase
       .from("job_postings_draft")
-      .select("*")
+      .select("*, companies!company_id(name, logo_url)")
       .eq("company_id", profile.company_id)
-      .in("draft_status", ["draft", "rejected"])
+      .in("draft_status", ["draft", "submitted", "approved", "rejected"])
       .order("updated_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -474,27 +359,32 @@ export async function getJobDraft(id: string) {
       return { data: null, error: "下書きが見つかりません" };
     }
 
+    // production_job_idがある場合、本番テーブルからstatusを取得（トグルボタン用）
+    if (latestDraft.production_job_id) {
+      const { data: productionJob } = await supabase
+        .from("job_postings")
+        .select("status")
+        .eq("id", latestDraft.production_job_id)
+        .maybeSingle();
+
+      if (productionJob) {
+        (latestDraft as any).production_status = productionJob.status;
+      }
+    }
+
     return { data: latestDraft as JobDraftData, error: null };
   }
 
-  // 取得したdraftがsubmittedまたはapprovedの場合、最新のdraftまたはrejectedを取得
-  if (draftById.draft_status === "submitted" || draftById.draft_status === "approved") {
-    const { data: latestDraft, error: latestDraftError } = await supabase
-      .from("job_postings_draft")
-      .select("*")
-      .eq("company_id", profile.company_id)
-      .in("draft_status", ["draft", "rejected"])
-      .order("updated_at", { ascending: false })
-      .limit(1)
+  // production_job_idがある場合、本番テーブルからstatusを取得（トグルボタン用）
+  if (draftById.production_job_id) {
+    const { data: productionJob } = await supabase
+      .from("job_postings")
+      .select("status")
+      .eq("id", draftById.production_job_id)
       .maybeSingle();
 
-    if (latestDraftError) {
-      console.error("Get job draft error:", latestDraftError);
-      return { data: null, error: latestDraftError.message };
-    }
-
-    if (latestDraft) {
-      return { data: latestDraft as JobDraftData, error: null };
+    if (productionJob) {
+      (draftById as any).production_status = productionJob.status;
     }
   }
 
@@ -503,6 +393,7 @@ export async function getJobDraft(id: string) {
 
 /**
  * 求人draft一覧を取得（ログインユーザーの企業のdraftのみ）
+ * 本番テーブルのdisplay_orderでソート
  */
 export async function getJobDrafts() {
   const supabase = await createClient();
@@ -533,7 +424,8 @@ export async function getJobDrafts() {
     };
   }
 
-  const { data, error } = await supabase
+  // ドラフト一覧を取得
+  const { data: drafts, error } = await supabase
     .from("job_postings_draft")
     .select("*")
     .eq("company_id", profile.company_id)
@@ -544,13 +436,55 @@ export async function getJobDrafts() {
     return { data: null, error: error.message };
   }
 
-  return { data: data || [], error: null };
+  if (!drafts || drafts.length === 0) {
+    return { data: [], error: null };
+  }
+
+  // 本番IDを持つドラフトの本番テーブルからdisplay_orderを取得
+  const productionIds = drafts
+    .filter((d) => d.production_job_id)
+    .map((d) => d.production_job_id!);
+
+  let productionDisplayOrders: Record<string, number | null> = {};
+  if (productionIds.length > 0) {
+    const { data: productions } = await supabase
+      .from("job_postings")
+      .select("id, display_order")
+      .in("id", productionIds);
+
+    if (productions) {
+      for (const p of productions) {
+        productionDisplayOrders[p.id] = p.display_order;
+      }
+    }
+  }
+
+  // ドラフトに本番のdisplay_orderをマージしてソート
+  const draftsWithOrder = drafts.map((draft) => ({
+    ...draft,
+    display_order: draft.production_job_id
+      ? productionDisplayOrders[draft.production_job_id] ?? null
+      : null
+  }));
+
+  // display_orderでソート（nullは後ろ）
+  draftsWithOrder.sort((a, b) => {
+    if (a.display_order === null && b.display_order === null) {
+      // 両方nullの場合はcreated_atの降順
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    }
+    if (a.display_order === null) return 1;
+    if (b.display_order === null) return -1;
+    return a.display_order - b.display_order;
+  });
+
+  return { data: draftsWithOrder, error: null };
 }
 
 /**
  * 求人draftを審査申請（本番テーブルにコピー）
  */
-export async function submitJobForReview(draftId: string) {
+export async function submitJobForReview(draftId: string, keepProductionActive: boolean = true) {
   const supabase = await createClient();
 
   // draftを取得
@@ -576,24 +510,12 @@ export async function submitJobForReview(draftId: string) {
     submitted_at: new Date().toISOString()
   };
 
-  console.log("submitJobForReview: Updating draft with:", {
-    draftId,
-    updateData,
-    currentDraftStatus: draft.draft_status
-  });
-
   const { data: updatedDraft, error: updateError } = await supabase
     .from("job_postings_draft")
     .update(updateData)
     .eq("id", draftId)
     .select()
     .single();
-
-  console.log("submitJobForReview: Update result:", {
-    updatedDraft,
-    updateError,
-    newDraftStatus: updatedDraft?.draft_status
-  });
 
   if (updateError) {
     console.error("Update draft status error:", updateError);
@@ -602,11 +524,20 @@ export async function submitJobForReview(draftId: string) {
 
   // 更新後の状態を確認
   if (updatedDraft?.draft_status !== "submitted") {
-    console.error("submitJobForReview: Draft status was not updated to 'submitted'", {
-      expected: "submitted",
-      actual: updatedDraft?.draft_status
-    });
     return { data: null, error: "ドラフトステータスの更新に失敗しました" };
+  }
+
+  // 審査申請時に本番求人を非公開にする場合
+  if (!keepProductionActive && draft.production_job_id) {
+    const { error: productionUpdateError } = await supabase
+      .from("job_postings")
+      .update({ status: "closed" })
+      .eq("id", draft.production_job_id);
+
+    if (productionUpdateError) {
+      console.error("Failed to close production job:", productionUpdateError);
+      // エラーが発生しても審査申請は成功とみなす
+    }
   }
 
   revalidatePath("/studio/jobs");
@@ -624,15 +555,11 @@ export async function getJobDraftById(draftId: string) {
   try {
     const supabase = await createClient();
 
-    console.log("getJobDraftById called with draftId:", draftId);
-
     const { data: draft, error } = await supabase
       .from("job_postings_draft")
       .select("*")
       .eq("id", draftId)
       .maybeSingle();
-
-    console.log("Supabase query result:", { draft, error });
 
     if (error) {
       console.error("Get job draft by id error:", error);
@@ -640,11 +567,8 @@ export async function getJobDraftById(draftId: string) {
     }
 
     if (!draft) {
-      console.error("Draft not found for id:", draftId);
       return { data: null, error: "下書きが見つかりません" };
     }
-
-    console.log("Successfully retrieved draft:", draft.id);
     return { data: draft as JobDraftData | null, error: null };
   } catch (error) {
     console.error("Unexpected error in getJobDraftById:", error);
@@ -659,8 +583,6 @@ export async function getJobDraftByProductionId(productionJobId: string) {
   try {
     const supabase = await createClient();
 
-    console.log("getJobDraftByProductionId called with productionJobId:", productionJobId);
-
     // production_job_idからdraftを取得
     const { data: draft, error } = await supabase
       .from("job_postings_draft")
@@ -670,25 +592,97 @@ export async function getJobDraftByProductionId(productionJobId: string) {
       .limit(1)
       .maybeSingle();
 
-    console.log("Supabase query result:", { draft, error });
-
     if (error) {
       console.error("Get job draft by production id error:", error);
       return { data: null, error: error.message };
     }
 
     if (!draft) {
-      console.error("Draft not found for production_job_id:", productionJobId);
       return { data: null, error: "下書きが見つかりません" };
     }
-
-    console.log("Successfully retrieved draft:", draft.id);
     return { data: draft as JobDraftData | null, error: null };
   } catch (error) {
     console.error("Unexpected error in getJobDraftByProductionId:", error);
     return {
       data: null,
       error: error instanceof Error ? error.message : "予期しないエラーが発生しました"
+    };
+  }
+}
+
+/**
+ * 求人の表示順序を更新（本番テーブル）
+ * ドラフトIDから本番IDを取得して、本番テーブルの表示順序を更新
+ */
+export async function reorderJobs(orders: Array<{ id: string; display_order: number }>) {
+  const supabase = await createClient();
+
+  // 現在のユーザーIDを取得
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { data: null, error: "ログインが必要です" };
+  }
+
+  // ユーザーのcompany_idを取得
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("company_id")
+    .eq("id", user.id)
+    .single();
+
+  if (profileError || !profile?.company_id) {
+    return { data: null, error: "企業情報が見つかりません" };
+  }
+
+  try {
+    // ドラフトIDから本番IDを取得
+    const draftIds = orders.map((o) => o.id);
+    const { data: drafts, error: draftsError } = await supabase
+      .from("job_postings_draft")
+      .select("id, production_job_id")
+      .in("id", draftIds)
+      .eq("company_id", profile.company_id);
+
+    if (draftsError) {
+      console.error("Get job drafts error:", draftsError);
+      return { data: null, error: draftsError.message };
+    }
+
+    // ドラフトIDと本番IDのマッピングを作成
+    const draftToProduction = new Map<string, string>();
+    for (const draft of drafts || []) {
+      if (draft.production_job_id) {
+        draftToProduction.set(draft.id, draft.production_job_id);
+      }
+    }
+
+    // 本番テーブルの表示順序を更新
+    for (const order of orders) {
+      const productionId = draftToProduction.get(order.id);
+      if (productionId) {
+        const { error } = await supabase
+          .from("job_postings")
+          .update({ display_order: order.display_order })
+          .eq("id", productionId)
+          .eq("company_id", profile.company_id);
+
+        if (error) {
+          console.error("Reorder jobs error:", error);
+          return { data: null, error: error.message };
+        }
+      }
+    }
+
+    revalidatePath("/studio/jobs");
+    return { data: true, error: null };
+  } catch (error) {
+    console.error("Reorder jobs error:", error);
+    return {
+      data: null,
+      error: error instanceof Error ? error.message : "並び替えに失敗しました"
     };
   }
 }
@@ -775,3 +769,4 @@ export async function uploadJobDraftCoverImage(
     };
   }
 }
+

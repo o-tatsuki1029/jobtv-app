@@ -30,9 +30,10 @@ export function ManagersListContent() {
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<{
-    full_name: string;
+    first_name: string;
+    last_name: string;
     role: string;
-  }>({ full_name: "", role: "admin" });
+  }>({ first_name: "", last_name: "", role: "admin" });
 
   useEffect(() => {
     fetchManagers();
@@ -53,14 +54,16 @@ export function ManagersListContent() {
   const handleEdit = (manager: Manager) => {
     setEditingId(manager.id);
     setEditForm({
-      full_name: manager.full_name || "",
+      first_name: manager.first_name || "",
+      last_name: manager.last_name || "",
       role: manager.role || "admin",
     });
   };
 
   const handleSave = async (id: string) => {
     const { error } = await updateManager(id, {
-      full_name: editForm.full_name || null,
+      first_name: editForm.first_name || null,
+      last_name: editForm.last_name || null,
       role: editForm.role,
     });
 
@@ -76,7 +79,7 @@ export function ManagersListContent() {
 
   const handleCancel = () => {
     setEditingId(null);
-    setEditForm({ full_name: "", role: "admin" });
+    setEditForm({ first_name: "", last_name: "", role: "admin" });
   };
 
   if (loading) {
@@ -124,19 +127,35 @@ export function ManagersListContent() {
                       />
                     </div>
                     <div className="grid gap-2">
-                      <Label htmlFor={`name-${manager.id}`}>
-                        氏名 <span className="text-red-500">*</span>
+                      <Label htmlFor={`last-name-${manager.id}`}>
+                        姓 <span className="text-red-500">*</span>
                       </Label>
                       <Input
-                        id={`name-${manager.id}`}
-                        value={editForm.full_name}
+                        id={`last-name-${manager.id}`}
+                        value={editForm.last_name}
                         onChange={(e) =>
                           setEditForm({
                             ...editForm,
-                            full_name: e.target.value,
+                            last_name: e.target.value,
                           })
                         }
-                        placeholder="氏名を入力"
+                        placeholder="山田"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor={`first-name-${manager.id}`}>
+                        名 <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id={`first-name-${manager.id}`}
+                        value={editForm.first_name}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            first_name: e.target.value,
+                          })
+                        }
+                        placeholder="太郎"
                       />
                     </div>
                     <div className="grid gap-2">
@@ -177,7 +196,9 @@ export function ManagersListContent() {
                   <div className="flex items-center justify-between">
                     <div className="space-y-1">
                       <p className="font-medium">
-                        {manager.full_name || manager.email || "不明"}
+                        {manager.last_name && manager.first_name
+                          ? `${manager.last_name} ${manager.first_name}`
+                          : manager.email || "不明"}
                       </p>
                       <p className="text-sm text-muted-foreground">
                         {manager.email}

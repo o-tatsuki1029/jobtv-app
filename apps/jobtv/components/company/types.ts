@@ -13,6 +13,7 @@ export interface CompanyData {
   industry: string;
   employees: string;
   location: string;
+  prefecture?: string;
   address: string;
   addressLine1: string;
   addressLine2: string;
@@ -21,7 +22,7 @@ export interface CompanyData {
   established: string;
   website: string;
   companyInfo: string;
-  status?: "pending" | "active" | "closed";
+  status?: "active" | "closed";
   snsUrls?: {
     x?: string;
     instagram?: string;
@@ -29,7 +30,7 @@ export interface CompanyData {
     youtube?: string;
   };
   programs: any[];
-  shortVideos: Array<{
+  shortVideos?: Array<{
     id: string;
     title: string;
     video: string;
@@ -54,7 +55,6 @@ export interface CompanyProfileFormData {
   tagline?: string;
   logo_url?: string;
   cover_image_url?: string;
-  main_video_url?: string;
   industry?: string;
   employees?: string;
   location?: string;
@@ -69,18 +69,6 @@ export interface CompanyProfileFormData {
   sns_instagram_url?: string;
   sns_tiktok_url?: string;
   sns_youtube_url?: string;
-  short_videos?: Array<{
-    id: string;
-    title: string;
-    video_url: string;
-    thumbnail_url?: string;
-  }>;
-  documentary_videos?: Array<{
-    id: string;
-    title: string;
-    video_url: string;
-    thumbnail_url?: string;
-  }>;
   benefits?: string[];
 }
 
@@ -108,6 +96,7 @@ export function dbToCompanyData(
     industry?: string | null;
     employees?: string | null;
     location?: string | null;
+    prefecture?: string | null;
     address?: string | null;
     address_line1?: string | null;
     address_line2?: string | null;
@@ -124,6 +113,31 @@ export function dbToCompanyData(
       prefecture?: string | null;
       location_detail?: string | null;
       cover_image_url?: string | null;
+    }>;
+    videos?: Array<{
+      id: string;
+      title: string;
+      video_url: string;
+      thumbnail_url?: string | null;
+      category: string;
+      display_order: number;
+      status: string;
+    }>;
+    sessions?: Array<{
+      id: string;
+      title: string;
+      type?: string | null;
+      location_type?: string | null;
+      location_detail?: string | null;
+      description?: string | null;
+      graduation_year?: number | null;
+      session_dates?: Array<{
+        id: string;
+        event_date: string;
+        start_time: string;
+        end_time: string;
+        capacity?: number | null;
+      }>;
     }>;
   }
 ): CompanyData {
@@ -154,6 +168,29 @@ export function dbToCompanyData(
     }));
   };
 
+  // videosテーブルから取得した動画をカテゴリー別に分類
+  // videosプロパティが存在する場合は、そのカテゴリーについてはvideosテーブルを優先する
+  const videosByTable = dbCompany.videos;
+  const hasVideosFromTable = videosByTable !== undefined;
+  
+  const mainVideoFromTable = videosByTable?.find((v) => v.category === "main");
+  const shortVideosFromTable = videosByTable
+    ?.filter((v) => v.category === "short")
+    .map((v) => ({
+      id: v.id,
+      title: v.title,
+      video: v.video_url,
+      thumbnail: v.thumbnail_url || undefined
+    }));
+  const documentaryVideosFromTable = videosByTable
+    ?.filter((v) => v.category === "documentary")
+    .map((v) => ({
+      id: v.id,
+      title: v.title,
+      video: v.video_url,
+      thumbnail: v.thumbnail_url || undefined
+    }));
+
   return {
     id: dbCompany.id,
     name: dbCompany.name,
@@ -161,10 +198,13 @@ export function dbToCompanyData(
     tagline: dbCompany.tagline || undefined,
     logo: dbCompany.logo_url || "",
     coverImage: dbCompany.cover_image_url || "",
-    mainVideo: dbCompany.main_video_url || undefined,
+    mainVideo: hasVideosFromTable 
+      ? (mainVideoFromTable?.video_url || undefined) 
+      : (dbCompany.main_video_url || undefined),
     industry: dbCompany.industry || "",
     employees: dbCompany.employees || "",
     location: dbCompany.location || "",
+    prefecture: (dbCompany as any).prefecture || "",
     address: dbCompany.address || "",
     addressLine1: (dbCompany as any).address_line1 || "",
     addressLine2: (dbCompany as any).address_line2 || "",
@@ -172,7 +212,7 @@ export function dbToCompanyData(
     established: dbCompany.established || "",
     website: dbCompany.website || "",
     companyInfo: (dbCompany as any).company_info || "",
-    status: (dbCompany as any).status || "pending",
+    status: (dbCompany as any).status || "active",
     snsUrls: {
       x: dbCompany.sns_x_url || undefined,
       instagram: dbCompany.sns_instagram_url || undefined,
@@ -181,8 +221,12 @@ export function dbToCompanyData(
     },
     benefits: dbCompany.benefits || [],
     programs: [],
-    shortVideos: parseVideos(dbCompany.short_videos),
-    documentaryVideos: parseVideos(dbCompany.documentary_videos),
+    shortVideos: hasVideosFromTable 
+      ? (shortVideosFromTable || []) 
+      : parseVideos(dbCompany.short_videos),
+    documentaryVideos: hasVideosFromTable 
+      ? (documentaryVideosFromTable || []) 
+      : parseVideos(dbCompany.documentary_videos),
     jobs: (dbCompany.job_postings || []).map((job) => {
       // 都道府県と詳細を組み合わせてlocationを作成
       const locationText = [job.prefecture, job.location_detail]
@@ -196,7 +240,38 @@ export function dbToCompanyData(
         coverImage: job.cover_image_url || undefined
       };
     }),
-    events: []
+    events: (dbCompany.sessions || []).map((session) => {
+      // 最も近い日程を取得
+      const sortedDates = (session.session_dates || [])
+        .filter((d) => d.event_date)
+        .sort((a, b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime());
+      const nextDate = sortedDates[0];
+
+      // 日付をフォーマット
+      let dateStr = "";
+      if (nextDate) {
+        const eventDate = new Date(nextDate.event_date);
+        const dayNames = ["日", "月", "火", "水", "木", "金", "土"];
+        const dayName = dayNames[eventDate.getDay()];
+        const year = eventDate.getFullYear();
+        const month = eventDate.getMonth() + 1;
+        const day = eventDate.getDate();
+        dateStr = `${year}年${month}月${day}日 (${dayName}) ${nextDate.start_time?.slice(0, 5) || ""}〜`;
+      }
+
+      // 場所を組み立て
+      const locationParts = [session.location_type, session.location_detail].filter(Boolean);
+      const locationStr = locationParts.join(" / ");
+
+      return {
+        id: session.id,
+        title: session.title,
+        date: dateStr,
+        location: locationStr,
+        type: session.type || "説明会",
+        status: "受付中" // 公開されている説明会は受付中として表示
+      };
+    })
   };
 }
 
@@ -213,27 +288,15 @@ export function companyDataToFormDataForPage(
     description: companyData.description,
     tagline: companyData.tagline,
     cover_image_url: companyData.coverImage,
-    main_video_url: companyData.mainVideo,
     sns_x_url: snsUrls?.x,
     sns_instagram_url: snsUrls?.instagram,
     sns_tiktok_url: snsUrls?.tiktok,
     sns_youtube_url: snsUrls?.youtube,
-    short_videos: companyData.shortVideos?.map((v) => ({
-      id: v.id,
-      title: v.title,
-      video_url: v.video,
-      thumbnail_url: v.thumbnail
-    })),
-    documentary_videos: companyData.documentaryVideos?.map((v) => ({
-      id: v.id,
-      title: v.title,
-      video_url: v.video,
-      thumbnail_url: v.thumbnail
-    })),
     benefits: companyData.benefits?.filter((benefit) => benefit.trim() !== "")
     // 以下の項目は意図的に除外（companiesテーブルで管理されるため）
     // logo_url, industry, employees, location, address,
     // representative, capital, established, website
+    // 動画関連も除外（/studio/videosで管理）
   };
 }
 
@@ -246,7 +309,6 @@ export function companyDataToFormData(companyData: Partial<CompanyData>): Compan
     tagline: companyData.tagline,
     logo_url: companyData.logo,
     cover_image_url: companyData.coverImage,
-    main_video_url: companyData.mainVideo,
     industry: companyData.industry,
     employees: companyData.employees,
     location: companyData.location,
@@ -259,18 +321,6 @@ export function companyDataToFormData(companyData: Partial<CompanyData>): Compan
     sns_instagram_url: companyData.snsUrls?.instagram,
     sns_tiktok_url: companyData.snsUrls?.tiktok,
     sns_youtube_url: companyData.snsUrls?.youtube,
-    short_videos: companyData.shortVideos?.map((v) => ({
-      id: v.id,
-      title: v.title,
-      video_url: v.video,
-      thumbnail_url: v.thumbnail
-    })),
-    documentary_videos: companyData.documentaryVideos?.map((v) => ({
-      id: v.id,
-      title: v.title,
-      video_url: v.video,
-      thumbnail_url: v.thumbnail
-    })),
     benefits: companyData.benefits?.filter((benefit) => benefit.trim() !== "")
   };
 }

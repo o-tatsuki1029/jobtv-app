@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import type { Tables, TablesInsert, TablesUpdate } from "@jobtv-app/shared/types";
 import type { CompanyProfileFormData } from "@/components/company/types";
@@ -56,7 +57,13 @@ export async function getCompanyPageById(companyId: string): Promise<{
   try {
     const supabase = await createClient();
 
-    const { data, error } = await supabase.from("company_pages").select("*").eq("company_id", companyId).maybeSingle();
+    // status === "active"のレコードのみ取得（公開中のページのみ）
+    const { data, error } = await supabase
+      .from("company_pages")
+      .select("*")
+      .eq("company_id", companyId)
+      .eq("status", "active")
+      .maybeSingle();
 
     if (error) {
       console.error("Get company page by id error:", error);
@@ -93,54 +100,71 @@ export async function saveCompanyPage(formData: CompanyProfileFormData): Promise
       return { data: null, error: permissionCheck.error || "編集権限がありません" };
     }
 
-    // 既存のdraftを取得
-    const existingDraftResult = await getCompanyPageDraft();
-    if (existingDraftResult.error && !existingDraftResult.error.includes("下書きが見つかりません")) {
-      return { data: null, error: existingDraftResult.error };
+    const supabase = await createClient();
+
+    // すべてのdraftを取得（approved, rejected, submittedを含む）
+    const { data: allDrafts, error: draftsError } = await supabase
+      .from("company_pages_draft")
+      .select("*")
+      .eq("company_id", companyId)
+      .order("updated_at", { ascending: false });
+
+    if (draftsError) {
+      return { data: null, error: draftsError.message };
     }
 
-    const existingDraft = existingDraftResult.data;
+    // 編集可能なdraft（draftステータスのみ）を探す
+    const editableDraft = allDrafts?.find((d) => d.draft_status === "draft");
+
+    // 編集モードのdraft（rejected, approved, submitted）を探す
+    const editModeDraft = allDrafts?.find(
+      (d) => d.draft_status === "rejected" || d.draft_status === "approved" || d.draft_status === "submitted"
+    );
 
     // 更新データを準備
-    const draftData: Partial<Omit<
-      CompanyPageDraftUpdate,
-      | "id"
-      | "created_by"
-      | "company_id"
-      | "draft_status"
-      | "submitted_at"
-      | "approved_at"
-      | "rejected_at"
-      | "production_page_id"
-    >> = {};
+    const draftData: Partial<
+      Omit<
+        CompanyPageDraftUpdate,
+        | "id"
+        | "created_by"
+        | "company_id"
+        | "draft_status"
+        | "submitted_at"
+        | "approved_at"
+        | "rejected_at"
+        | "production_page_id"
+      >
+    > = {};
 
     if (formData.description !== undefined) draftData.description = formData.description || null;
     if (formData.tagline !== undefined) draftData.tagline = formData.tagline || null;
     if (formData.cover_image_url !== undefined) draftData.cover_image_url = formData.cover_image_url || null;
-    if (formData.main_video_url !== undefined) draftData.main_video_url = formData.main_video_url || null;
     if (formData.sns_x_url !== undefined) draftData.sns_x_url = formData.sns_x_url || null;
     if (formData.sns_instagram_url !== undefined) draftData.sns_instagram_url = formData.sns_instagram_url || null;
     if (formData.sns_tiktok_url !== undefined) draftData.sns_tiktok_url = formData.sns_tiktok_url || null;
     if (formData.sns_youtube_url !== undefined) draftData.sns_youtube_url = formData.sns_youtube_url || null;
-    if (formData.short_videos !== undefined) {
-      draftData.short_videos = formData.short_videos ? (formData.short_videos as any) : null;
-    }
-    if (formData.documentary_videos !== undefined) {
-      draftData.documentary_videos = formData.documentary_videos ? (formData.documentary_videos as any) : null;
-    }
     if (formData.benefits !== undefined) draftData.benefits = formData.benefits || null;
 
     let result: CompanyPageDraftRow | null = null;
 
-    if (existingDraft && (existingDraft.draft_status === "draft" || existingDraft.draft_status === "rejected")) {
-      // 既存のdraftを更新
-      const updateResult = await updateCompanyPageDraft(existingDraft.id, draftData);
+    if (editableDraft) {
+      // ケース1: 編集可能なdraft（draftステータス）がある場合は更新
+      const updateResult = await updateCompanyPageDraft(editableDraft.id, draftData);
+      if (updateResult.error) {
+        return { data: null, error: updateResult.error };
+      }
+      result = updateResult.data;
+    } else if (editModeDraft) {
+      // ケース2: 編集モードのdraftがある場合（rejected, approved, submitted）
+      // それをdraftに戻して更新（新規作成しない）
+      // updateCompanyPageDraftは内部でdraft_statusなどを処理するため、ここでは渡さない
+      const updateResult = await updateCompanyPageDraft(editModeDraft.id, draftData);
       if (updateResult.error) {
         return { data: null, error: updateResult.error };
       }
       result = updateResult.data;
     } else {
-      // 新規作成
+      // ケース3: draftが一切ない場合（新規作成モード）
       const createData: Omit<
         CompanyPageDraftInsert,
         "id" | "created_by" | "draft_status" | "submitted_at" | "approved_at" | "rejected_at" | "production_page_id"
@@ -169,93 +193,6 @@ export async function saveCompanyPage(formData: CompanyProfileFormData): Promise
     return {
       data: null,
       error: error instanceof Error ? error.message : "企業ページ情報の保存に失敗しました"
-    };
-  }
-}
-
-/**
- * 企業ページの動画ライブラリ（company_videos）を保存・更新
- */
-export async function saveCompanyPageVideos(formData: { company_videos?: any }): Promise<{
-  data: CompanyPageRow | null;
-  error: string | null;
-}> {
-  try {
-    const { companyId, error: companyIdError } = await getUserCompanyId();
-
-    if (companyIdError) {
-      return { data: null, error: companyIdError };
-    }
-
-    // 権限チェック
-    const permissionCheck = await checkCompanyEditPermission(companyId);
-    if (!permissionCheck.allowed) {
-      return { data: null, error: permissionCheck.error || "編集権限がありません" };
-    }
-
-    const supabase = await createClient();
-
-    // 既存のページ情報を確認
-    const { data: existingPage } = await supabase
-      .from("company_pages")
-      .select("id")
-      .eq("company_id", companyId)
-      .maybeSingle();
-
-    // 更新データを準備
-    const updateData: CompanyPageUpdate = {};
-
-    if (formData.company_videos !== undefined) {
-      updateData.company_videos = formData.company_videos ? (formData.company_videos as any) : null;
-    }
-
-    // updated_atは常に更新
-    updateData.updated_at = new Date().toISOString();
-
-    let result: CompanyPageRow | null = null;
-
-    if (existingPage) {
-      // 既存のページ情報を更新
-      const { data, error } = await supabase
-        .from("company_pages")
-        .update(updateData)
-        .eq("id", existingPage.id)
-        .select()
-        .single();
-
-      if (error) {
-        console.error("Update company page videos error:", error);
-        return { data: null, error: error.message };
-      }
-
-      result = data;
-    } else {
-      // 新規作成
-      const insertData: TablesInsert<"company_pages"> = {
-        company_id: companyId,
-        ...updateData
-      } as TablesInsert<"company_pages">;
-
-      const { data, error } = await supabase.from("company_pages").insert(insertData).select().single();
-
-      if (error) {
-        console.error("Create company page videos error:", error);
-        return { data: null, error: error.message };
-      }
-
-      result = data;
-    }
-
-    // キャッシュを無効化
-    revalidatePath(`/company/${companyId}`);
-    revalidatePath("/studio/company");
-
-    return { data: result, error: null };
-  } catch (error) {
-    console.error("Save company page videos error:", error);
-    return {
-      data: null,
-      error: error instanceof Error ? error.message : "動画ライブラリの保存に失敗しました"
     };
   }
 }
@@ -333,16 +270,21 @@ export async function updateCompanyPageDraft(
     return { data: null, error: fetchError.message };
   }
 
-  // submittedまたはapprovedの場合はdraftに戻す（編集可能にする）
+  // submitted、approved、rejectedの場合はdraftに戻す（編集可能にする）
   const updateData: CompanyPageDraftUpdate = {
     ...data,
     updated_at: new Date().toISOString()
   } as CompanyPageDraftUpdate;
 
-  if (currentDraft?.draft_status === "submitted" || currentDraft?.draft_status === "approved") {
+  if (
+    currentDraft?.draft_status === "submitted" ||
+    currentDraft?.draft_status === "approved" ||
+    currentDraft?.draft_status === "rejected"
+  ) {
     (updateData as any).draft_status = "draft";
     (updateData as any).submitted_at = null;
     (updateData as any).approved_at = null;
+    (updateData as any).rejected_at = null;
   }
 
   const { data: result, error } = await supabase
@@ -448,12 +390,12 @@ export async function getCompanyPageDraft(id?: string) {
 
     return { data: draftById, error: null };
   } else {
-    // IDが指定されていない場合、最新のdraftまたはrejectedを取得
+    // IDが指定されていない場合、最新のdraftを取得
     const { data: latestDraft, error: latestDraftError } = await supabase
       .from("company_pages_draft")
       .select("*")
       .eq("company_id", profile.company_id)
-      .in("draft_status", ["draft", "rejected"])
+      .in("draft_status", ["draft", "submitted", "approved", "rejected"])
       .order("updated_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -472,36 +414,30 @@ export async function getCompanyPageDraft(id?: string) {
 }
 
 /**
- * 企業ページdraftをIDで取得（管理者用、company_idチェックなし）
+ * 企業ページdraftをIDで取得（管理者用、company_idチェックなし、RLSバイパス）
  */
-export async function getCompanyPageDraftById(draftId: string) {
+export async function getCompanyPageDraftByIdAdmin(draftId: string) {
   try {
-    const supabase = await createClient();
+    const supabaseAdmin = createAdminClient();
 
-    console.log("getCompanyPageDraftById called with draftId:", draftId);
-
-    const { data: draft, error } = await supabase
+    const { data: draft, error } = await supabaseAdmin
       .from("company_pages_draft")
       .select("*")
       .eq("id", draftId)
       .single();
 
-    console.log("Supabase query result:", { draft, error });
-
     if (error) {
-      console.error("Get company page draft by id error:", error);
+      console.error("Get company page draft by id (admin) error:", error);
       return { data: null, error: error.message };
     }
 
     if (!draft) {
-      console.error("Draft not found for id:", draftId);
       return { data: null, error: "下書きが見つかりません" };
     }
 
-    console.log("Successfully retrieved draft:", draft.id);
     return { data: draft, error: null };
   } catch (error) {
-    console.error("Unexpected error in getCompanyPageDraftById:", error);
+    console.error("Unexpected error in getCompanyPageDraftByIdAdmin:", error);
     return {
       data: null,
       error: error instanceof Error ? error.message : "予期しないエラーが発生しました"
@@ -558,7 +494,7 @@ export async function getCompanyPageDrafts() {
 /**
  * 企業ページdraftを審査申請（本番テーブルにコピー）
  */
-export async function submitCompanyPageForReview(draftId: string) {
+export async function submitCompanyPageForReview(draftId: string, keepProductionActive: boolean = true) {
   const supabase = await createClient();
 
   // draftを取得
@@ -570,6 +506,14 @@ export async function submitCompanyPageForReview(draftId: string) {
 
   if (draftError || !draft) {
     return { data: null, error: "下書きが見つかりません" };
+  }
+
+  // 必須項目のバリデーション（サーバー側）
+  if (!draft.tagline || draft.tagline.trim() === "") {
+    return { data: null, error: "キャッチコピーは必須項目です" };
+  }
+  if (!draft.description || draft.description.trim() === "") {
+    return { data: null, error: "会社紹介文は必須項目です" };
   }
 
   // submittedの場合は再度申請可能（編集後に再申請する場合）
@@ -584,16 +528,34 @@ export async function submitCompanyPageForReview(draftId: string) {
     submitted_at: new Date().toISOString()
   };
 
-  const { error: updateError } = await supabase.from("company_pages_draft").update(updateData).eq("id", draftId);
+  const { data: updatedDraft, error: updateError } = await supabase
+    .from("company_pages_draft")
+    .update(updateData)
+    .eq("id", draftId)
+    .select()
+    .single();
 
   if (updateError) {
     console.error("Update draft status error:", updateError);
     return { data: null, error: updateError.message };
   }
 
+  // 公開設定の処理（keepProductionActiveがfalseの場合は本番ページを非公開にする）
+  if (!keepProductionActive && draft.production_page_id) {
+    const { error: statusError } = await supabase
+      .from("company_pages")
+      .update({ status: "closed" })
+      .eq("id", draft.production_page_id);
+
+    if (statusError) {
+      console.error("Update production page status error:", statusError);
+      // エラーが発生しても審査申請は完了しているので、警告のみ
+    }
+  }
+
   revalidatePath("/studio/company");
   revalidatePath("/admin/review");
-  return { data: draft, error: null };
+  return { data: updatedDraft || draft, error: null };
 }
 
 /**
@@ -674,6 +636,78 @@ export async function uploadCompanyPageDraftCoverImage(
     return {
       data: null,
       error: error instanceof Error ? error.message : "ファイルのアップロードに失敗しました"
+    };
+  }
+}
+
+/**
+ * 企業ページの公開/非公開を切り替え
+ */
+export async function toggleCompanyPageStatus(companyId: string, newStatus: "active" | "closed") {
+  try {
+    const supabase = await createClient();
+
+    // 現在のユーザーIDを取得
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { data: null, error: "ログインが必要です" };
+    }
+
+    // ユーザーのcompany_idを取得
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("company_id")
+      .eq("id", user.id)
+      .single();
+
+    if (profileError || !profile?.company_id) {
+      return { data: null, error: "企業情報が見つかりません" };
+    }
+
+    // 自分の企業のページのみ変更可能
+    if (profile.company_id !== companyId) {
+      return { data: null, error: "権限がありません" };
+    }
+
+    // 企業ページ情報を取得
+    const { data: companyPage, error: pageError } = await supabase
+      .from("company_pages")
+      .select("id, status, company_id")
+      .eq("company_id", companyId)
+      .maybeSingle();
+
+    if (pageError) {
+      console.error("Get company page error:", pageError);
+      return { data: null, error: pageError.message };
+    }
+
+    if (!companyPage) {
+      return { data: null, error: "企業ページが見つかりません" };
+    }
+
+    // ステータスを更新
+    const { data: updatedPage, error: updateError } = await supabase
+      .from("company_pages")
+      .update({ status: newStatus, updated_at: new Date().toISOString() })
+      .eq("id", companyPage.id)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error("Toggle company page status error:", updateError);
+      return { data: null, error: updateError.message };
+    }
+
+    revalidatePath("/studio/company");
+    return { data: updatedPage, error: null };
+  } catch (error) {
+    console.error("Toggle company page status error:", error);
+    return {
+      data: null,
+      error: error instanceof Error ? error.message : "ステータスの切り替えに失敗しました"
     };
   }
 }

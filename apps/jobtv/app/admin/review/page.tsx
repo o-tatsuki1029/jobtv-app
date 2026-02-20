@@ -1,17 +1,18 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { MapPin, Users, ImageIcon, Building, ExternalLink } from "lucide-react";
-import StudioButton from "@/components/studio/atoms/StudioButton";
-import StudioBadge from "@/components/studio/atoms/StudioBadge";
+import { useRouter, useSearchParams } from "next/navigation";
 import ErrorMessage from "@/components/studio/atoms/ErrorMessage";
 import LoadingSpinner from "@/components/studio/atoms/LoadingSpinner";
 import EmptyState from "@/components/studio/atoms/EmptyState";
 import Tabs from "@/components/studio/molecules/Tabs";
-import ApprovalActions from "@/components/admin/ApprovalActions";
 import StudioPreviewModal from "@/components/studio/organisms/StudioPreviewModal";
+import ReviewJobCard from "@/components/admin/review/ReviewJobCard";
+import ReviewSessionCard from "@/components/admin/review/ReviewSessionCard";
+import ReviewCompanyInfoCard from "@/components/admin/review/ReviewCompanyInfoCard";
+import ReviewCompanyPageCard from "@/components/admin/review/ReviewCompanyPageCard";
+import ReviewVideoCard from "@/components/admin/review/ReviewVideoCard";
+import ReviewDiffModal from "@/components/admin/review/ReviewDiffModal";
 import {
   getAllJobsForReview,
   getAllSessionsForReview,
@@ -26,9 +27,10 @@ import {
   approveCompanyPage,
   rejectCompanyPage
 } from "@/lib/actions/admin-actions";
+import { getAllVideosDraft, approveVideo, rejectVideo } from "@/lib/actions/admin-video-actions";
 import { getJobDraftByProductionId, getJobDraftById } from "@/lib/actions/job-actions";
 import { getSessionDraftByProductionId, getSessionDraftById } from "@/lib/actions/session-actions";
-import { getCompanyPageDraftById } from "@/lib/actions/company-page-actions";
+import { getCompanyPageDraftByIdAdmin } from "@/lib/actions/company-page-actions";
 import type { Tables } from "@jobtv-app/shared/types";
 
 type JobPosting = Tables<"job_postings">;
@@ -63,16 +65,19 @@ interface SessionWithCompany extends Session {
   } | null;
 }
 
-type TabType = "company-info" | "company-pages" | "jobs" | "sessions";
+type TabType = "company-info" | "company-pages" | "jobs" | "sessions" | "videos";
 
 export default function ReviewPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<TabType>("company-pages");
+  const searchParams = useSearchParams();
+  const tabFromUrl = (searchParams.get("tab") as TabType) || "company-info";
+  const [activeTab, setActiveTab] = useState<TabType>(tabFromUrl);
 
   const [jobs, setJobs] = useState<Job[]>([]);
   const [sessions, setSessions] = useState<SessionWithCompany[]>([]);
   const [companyInfo, setCompanyInfo] = useState<Company[]>([]);
   const [companyPages, setCompanyPages] = useState<Company[]>([]);
+  const [videos, setVideos] = useState<any[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -83,6 +88,108 @@ export default function ReviewPage() {
   const [previewData, setPreviewData] = useState<any>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("/studio/company/preview-content");
 
+  // 差分表示用のstate
+  const [isDiffOpen, setIsDiffOpen] = useState(false);
+  const [diffData, setDiffData] = useState<{
+    title: string;
+    fields: { label: string; old: any; new: any; isChanged: boolean }[];
+  } | null>(null);
+
+  // 差分を表示
+  const handleShowDiff = (item: any, type: TabType) => {
+    let fields: { label: string; key: string }[] = [];
+    const production = item.production_data || {};
+    const draft = item;
+
+    switch (type) {
+      case "jobs":
+        fields = [
+          { label: "タイトル", key: "title" },
+          { label: "雇用形態", key: "employment_type" },
+          { label: "都道府県", key: "prefecture" },
+          { label: "詳細住所", key: "location_detail" },
+          { label: "卒業年", key: "graduation_year" },
+          { label: "仕事内容", key: "description" },
+          { label: "応募資格", key: "requirements" },
+          { label: "福利厚生", key: "benefits" },
+          { label: "選考プロセス", key: "selection_process" },
+          { label: "カバー画像URL", key: "cover_image_url" }
+        ];
+        break;
+      case "sessions":
+        fields = [
+          { label: "タイトル", key: "title" },
+          { label: "形式", key: "type" },
+          { label: "場所", key: "location_type" },
+          { label: "詳細住所", key: "location_detail" },
+          { label: "定員", key: "capacity" },
+          { label: "説明会内容", key: "description" },
+          { label: "カバー画像URL", key: "cover_image_url" }
+        ];
+        break;
+      case "company-pages":
+        fields = [
+          { label: "タグライン", key: "tagline" },
+          { label: "企業紹介文", key: "description" },
+          { label: "カバー画像URL", key: "cover_image_url" },
+          { label: "メイン動画URL", key: "main_video_url" },
+          { label: "SNS (X)", key: "sns_x_url" },
+          { label: "SNS (Instagram)", key: "sns_instagram_url" },
+          { label: "SNS (TikTok)", key: "sns_tiktok_url" },
+          { label: "SNS (YouTube)", key: "sns_youtube_url" },
+          { label: "特典情報", key: "benefits" }
+        ];
+        break;
+      case "videos":
+        fields = [
+          { label: "タイトル", key: "title" },
+          { label: "カテゴリー", key: "category" },
+          { label: "動画URL", key: "video_url" },
+          { label: "サムネイルURL", key: "thumbnail_url" },
+          { label: "表示順序", key: "display_order" }
+        ];
+        break;
+      case "company-info":
+        fields = [
+          { label: "会社名", key: "name" },
+          { label: "ロゴURL", key: "logo_url" },
+          { label: "Webサイト", key: "website" },
+          { label: "業界", key: "industry" },
+          { label: "従業員数", key: "employees" },
+          { label: "拠点", key: "location" },
+          { label: "住所", key: "address" },
+          { label: "住所1", key: "address_line1" },
+          { label: "住所2", key: "address_line2" },
+          { label: "代表者", key: "representative" },
+          { label: "設立", key: "established" },
+          { label: "企業詳細情報", key: "company_info" }
+        ];
+        break;
+    }
+
+    const diffFields = fields.map((f) => {
+      const oldValue = production[f.key];
+      const newValue = draft[f.key];
+      
+      // 文字列化して比較
+      const oldStr = oldValue === null || oldValue === undefined ? "" : String(oldValue);
+      const newStr = newValue === null || newValue === undefined ? "" : String(newValue);
+
+      return {
+        label: f.label,
+        old: oldValue,
+        new: newValue,
+        isChanged: oldStr !== newStr
+      };
+    });
+
+    setDiffData({
+      title: item.name || item.title || "不明な項目",
+      fields: diffFields
+    });
+    setIsDiffOpen(true);
+  };
+
   // データを取得
   useEffect(() => {
     loadAllData();
@@ -92,11 +199,12 @@ export default function ReviewPage() {
     setLoading(true);
     setError(null);
 
-    const [jobsResult, sessionsResult, companyInfoResult, companyPagesResult] = await Promise.all([
+    const [jobsResult, sessionsResult, companyInfoResult, companyPagesResult, videosResult] = await Promise.all([
       getAllJobsForReview(),
       getAllSessionsForReview(),
       getAllCompanyInfoForReview(),
-      getAllCompaniesForReview()
+      getAllCompaniesForReview(),
+      getAllVideosDraft({ draft_status: "submitted" })
     ]);
 
     if (jobsResult.error) {
@@ -121,6 +229,12 @@ export default function ReviewPage() {
       setError(companyPagesResult.error);
     } else if (companyPagesResult.data) {
       setCompanyPages(companyPagesResult.data);
+    }
+
+    if (videosResult.error) {
+      console.error("Videos load error:", videosResult.error);
+    } else if (videosResult.data) {
+      setVideos(videosResult.data);
     }
 
     setLoading(false);
@@ -184,6 +298,22 @@ export default function ReviewPage() {
 
   const handleRejectCompanyPage = async (draftId: string) => {
     const result = await rejectCompanyPage(draftId);
+    if (!result.error) {
+      await loadAllData();
+    }
+    return result;
+  };
+
+  const handleApproveVideo = async (draftId: string) => {
+    const result = await approveVideo(draftId);
+    if (!result.error) {
+      await loadAllData();
+    }
+    return result;
+  };
+
+  const handleRejectVideo = async (draftId: string) => {
+    const result = await rejectVideo(draftId);
     if (!result.error) {
       await loadAllData();
     }
@@ -398,9 +528,9 @@ export default function ReviewPage() {
       }
 
       // companyIdは実際にはdraft_id
-      console.log("Calling getCompanyPageDraftById with:", companyId);
-      const { data: draft, error } = await getCompanyPageDraftById(companyId);
-      console.log("getCompanyPageDraftById result:", {
+      console.log("Calling getCompanyPageDraftByIdAdmin with:", companyId);
+      const { data: draft, error } = await getCompanyPageDraftByIdAdmin(companyId);
+      console.log("getCompanyPageDraftByIdAdmin result:", {
         hasDraft: !!draft,
         draftId: draft?.id,
         error,
@@ -462,8 +592,8 @@ export default function ReviewPage() {
         name: company.name,
         description: draft.description || company.description || "",
         logo: company.logo_url,
-        coverImage: draft.cover_image_url || company.cover_image_url,
-        tagline: draft.tagline || company.tagline,
+        coverImage: draft.cover_image_url,
+        tagline: draft.tagline,
         companyInfo: company.company_info,
         mainVideo: draft.main_video_url,
         snsUrls: {
@@ -493,11 +623,17 @@ export default function ReviewPage() {
     return locationType || locationDetail || null;
   };
 
+  const handleTabChange = (tabId: TabType) => {
+    setActiveTab(tabId);
+    router.push(`/admin/review?tab=${tabId}`);
+  };
+
   const tabs = [
-    { id: "company-info" as TabType, label: "企業情報", count: companyInfo.length, color: "purple" as const },
-    { id: "company-pages" as TabType, label: "企業ページ", count: companyPages.length, color: "purple" as const },
+    { id: "company-info" as TabType, label: "企業情報", count: companyInfo.length, color: "black" as const },
+    { id: "company-pages" as TabType, label: "企業ページ", count: companyPages.length, color: "red" as const },
     { id: "jobs" as TabType, label: "求人", count: jobs.length, color: "blue" as const },
-    { id: "sessions" as TabType, label: "説明会", count: sessions.length, color: "green" as const }
+    { id: "sessions" as TabType, label: "説明会", count: sessions.length, color: "green" as const },
+    { id: "videos" as TabType, label: "動画", count: videos.length, color: "purple" as const }
   ];
 
   return (
@@ -511,6 +647,15 @@ export default function ReviewPage() {
         companyData={previewData}
         previewUrl={previewUrl}
       />
+
+      {/* 差分表示モーダル */}
+      <ReviewDiffModal
+        isOpen={isDiffOpen}
+        onClose={() => setIsDiffOpen(false)}
+        title={diffData?.title || ""}
+        fields={diffData?.fields || []}
+      />
+
       <div className="space-y-10 animate-in fade-in duration-300">
         <ErrorMessage message={error || ""} />
 
@@ -520,7 +665,7 @@ export default function ReviewPage() {
         </div>
 
         {/* タブ */}
-        <Tabs tabs={tabs} activeTab={activeTab} onTabChange={(tabId) => setActiveTab(tabId as TabType)} />
+        <Tabs tabs={tabs} activeTab={activeTab} onTabChange={(tabId) => handleTabChange(tabId as TabType)} />
 
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           <div className="p-6">
@@ -535,61 +680,15 @@ export default function ReviewPage() {
                       <EmptyState title="審査待ちの企業情報はありません" />
                     ) : (
                       <div className="space-y-4">
-                        {companyInfo.map((company) => {
-                          const draftId = (company as any).draft_id || company.id;
-                          return (
-                            <div
-                              key={company.id}
-                              className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col md:flex-row transition-all hover:border-black/10"
-                            >
-                              <div className="md:w-64 p-6 flex items-center justify-center bg-purple-50 border-b md:border-b-0 md:border-r border-purple-100">
-                                {company.logo_url ? (
-                                  <img
-                                    src={company.logo_url}
-                                    alt={company.name || ""}
-                                    className="max-w-full max-h-32 object-contain"
-                                  />
-                                ) : (
-                                  <Building className="w-16 h-16 text-purple-400" />
-                                )}
-                              </div>
-                              <div className="flex-1 p-4 md:p-6 flex flex-col justify-between">
-                                <div>
-                                  <div className="flex items-center gap-2 mb-1.5">
-                                    <span className="text-[10px] font-black uppercase tracking-wider bg-purple-600 text-white px-2 py-0.5 rounded">
-                                      企業情報
-                                    </span>
-                                    <StudioBadge variant="neutral">審査中</StudioBadge>
-                                  </div>
-                                  <h3 className="text-xl font-black text-gray-900 mb-2">{company.name || "未設定"}</h3>
-                                  {company.company_info && (
-                                    <p className="text-sm text-gray-600 line-clamp-2 mt-2">{company.company_info}</p>
-                                  )}
-                                </div>
-                                <div className="flex flex-wrap items-center gap-x-8 gap-y-3 mt-4">
-                                  {company.website && (
-                                    <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
-                                      <a
-                                        href={company.website}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="hover:text-black"
-                                      >
-                                        {company.website}
-                                      </a>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="md:w-64 p-4 flex flex-col items-center justify-center gap-3 bg-gray-50/50 border-t md:border-t-0 md:border-l border-gray-100">
-                                <ApprovalActions
-                                  onApprove={() => handleApproveCompanyInfo(draftId)}
-                                  onReject={() => handleRejectCompanyInfo(draftId)}
-                                />
-                              </div>
-                            </div>
-                          );
-                        })}
+                        {companyInfo.map((company) => (
+                          <ReviewCompanyInfoCard
+                            key={company.id}
+                            company={company}
+                            onShowDiff={(item) => handleShowDiff(item, "company-info")}
+                            onApprove={handleApproveCompanyInfo}
+                            onReject={handleRejectCompanyInfo}
+                          />
+                        ))}
                       </div>
                     )}
                   </>
@@ -602,78 +701,16 @@ export default function ReviewPage() {
                       <EmptyState title="審査待ちの企業ページはありません" />
                     ) : (
                       <div className="space-y-4">
-                        {companyPages.map((company) => {
-                          const draftId = (company as any).draft_id || company.id;
-                          return (
-                            <div
-                              key={company.id}
-                              className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col md:flex-row transition-all hover:border-black/10"
-                            >
-                              <div className="md:w-64 p-6 flex items-center justify-center bg-purple-50 border-b md:border-b-0 md:border-r border-purple-100">
-                                {company.logo_url ? (
-                                  <img
-                                    src={company.logo_url}
-                                    alt={company.name || ""}
-                                    className="max-w-full max-h-32 object-contain"
-                                  />
-                                ) : (
-                                  <Building className="w-16 h-16 text-purple-400" />
-                                )}
-                              </div>
-                              <div className="flex-1 p-4 md:p-6 flex flex-col justify-between">
-                                <div>
-                                  <div className="flex items-center gap-2 mb-1.5">
-                                    <span className="text-[10px] font-black uppercase tracking-wider bg-purple-600 text-white px-2 py-0.5 rounded">
-                                      企業ページ
-                                    </span>
-                                    <StudioBadge variant="neutral">審査中</StudioBadge>
-                                  </div>
-                                  <h3 className="text-xl font-black text-gray-900 mb-2">{company.name || "未設定"}</h3>
-                                  {company.tagline && (
-                                    <p className="text-sm text-gray-600 line-clamp-2">{company.tagline}</p>
-                                  )}
-                                  {company.description && (
-                                    <p className="text-sm text-gray-600 line-clamp-2 mt-2">{company.description}</p>
-                                  )}
-                                </div>
-                                <div className="flex flex-wrap items-center gap-x-8 gap-y-3 mt-4">
-                                  {company.website && (
-                                    <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
-                                      <a
-                                        href={company.website}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="hover:text-black"
-                                      >
-                                        {company.website}
-                                      </a>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="md:w-64 p-4 flex flex-row items-center justify-end gap-3 bg-gray-50/50 border-t md:border-t-0 md:border-l border-gray-100">
-                                <StudioButton
-                                  variant="outline"
-                                  size="sm"
-                                  icon={<ExternalLink className="w-3 h-3" />}
-                                  onClick={async () => {
-                                    if (!draftId) {
-                                      alert(`ドラフトIDが見つかりません。company.id: ${company.id}`);
-                                      return;
-                                    }
-                                    await handlePreviewCompany(draftId);
-                                  }}
-                                >
-                                  プレビューを見る
-                                </StudioButton>
-                                <ApprovalActions
-                                  onApprove={() => handleApproveCompanyPage(draftId)}
-                                  onReject={() => handleRejectCompanyPage(draftId)}
-                                />
-                              </div>
-                            </div>
-                          );
-                        })}
+                        {companyPages.map((company) => (
+                          <ReviewCompanyPageCard
+                            key={company.id}
+                            company={company}
+                            onPreview={handlePreviewCompany}
+                            onShowDiff={(item) => handleShowDiff(item, "company-pages")}
+                            onApprove={handleApproveCompanyPage}
+                            onReject={handleRejectCompanyPage}
+                          />
+                        ))}
                       </div>
                     )}
                   </>
@@ -688,90 +725,16 @@ export default function ReviewPage() {
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        {jobs.map((job) => {
-                          const locationText = [job.prefecture, job.location_detail]
-                            .filter(Boolean)
-                            .join(job.prefecture && job.location_detail ? " " : "");
-
-                          return (
-                            <div
-                              key={job.id}
-                              className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col md:flex-row transition-all hover:border-black/10"
-                            >
-                              <div className="md:w-64 relative bg-blue-50 border-b md:border-b-0 md:border-r border-blue-100 overflow-hidden">
-                                {job.cover_image_url ? (
-                                  <Image src={job.cover_image_url} alt={job.title} fill className="object-cover" />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center">
-                                    <ImageIcon className="w-12 h-12 text-blue-400" />
-                                  </div>
-                                )}
-                              </div>
-                              <div className="flex-1 p-4 md:p-6 flex flex-col justify-between">
-                                <div>
-                                  <div className="flex items-center gap-2 mb-1.5">
-                                    {job.employment_type && (
-                                      <span className="text-[10px] font-black uppercase tracking-wider bg-blue-600 text-white px-2 py-0.5 rounded">
-                                        {job.employment_type}
-                                      </span>
-                                    )}
-                                    <StudioBadge variant="neutral">審査中</StudioBadge>
-                                    {job.companies && (
-                                      <span className="text-xs text-gray-500 font-medium">{job.companies.name}</span>
-                                    )}
-                                  </div>
-                                  <h3 className="text-xl font-black text-gray-900 mb-2">{job.title}</h3>
-                                  {job.description && (
-                                    <p className="text-sm text-gray-600 line-clamp-2">{job.description}</p>
-                                  )}
-                                </div>
-                                <div className="flex flex-wrap items-center gap-x-8 gap-y-3 mt-4">
-                                  {locationText && (
-                                    <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
-                                      <MapPin className="w-4 h-4" />
-                                      {locationText}
-                                    </div>
-                                  )}
-                                  {job.graduation_year && (
-                                    <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
-                                      <Users className="w-4 h-4" />
-                                      {job.graduation_year}年卒
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="md:w-64 p-4 flex flex-row items-center justify-end gap-3 bg-gray-50/50 border-t md:border-t-0 md:border-l border-gray-100">
-                                <StudioButton
-                                  variant="outline"
-                                  size="sm"
-                                  icon={<ExternalLink className="w-3 h-3" />}
-                                  onClick={() => {
-                                    const draftId = (job as any).draft_id || job.id;
-                                    console.log(
-                                      "Preview button clicked. draftId:",
-                                      draftId,
-                                      "job.id:",
-                                      job.id,
-                                      "full job:",
-                                      job
-                                    );
-                                    if (!draftId) {
-                                      alert("ドラフトIDが見つかりません");
-                                      return;
-                                    }
-                                    handlePreviewJob(draftId);
-                                  }}
-                                >
-                                  プレビューを見る
-                                </StudioButton>
-                                <ApprovalActions
-                                  onApprove={() => handleApproveJob((job as any).draft_id || job.id)}
-                                  onReject={() => handleRejectJob((job as any).draft_id || job.id)}
-                                />
-                              </div>
-                            </div>
-                          );
-                        })}
+                        {jobs.map((job) => (
+                          <ReviewJobCard
+                            key={job.id}
+                            job={job}
+                            onPreview={handlePreviewJob}
+                            onShowDiff={(item) => handleShowDiff(item, "jobs")}
+                            onApprove={handleApproveJob}
+                            onReject={handleRejectJob}
+                          />
+                        ))}
                       </div>
                     )}
                   </>
@@ -786,95 +749,38 @@ export default function ReviewPage() {
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        {sessions.map((session) => {
-                          const locationText = getLocationText(session.location_type, session.location_detail);
+                        {sessions.map((session) => (
+                          <ReviewSessionCard
+                            key={session.id}
+                            session={session}
+                            onPreview={handlePreviewSession}
+                            onShowDiff={(item) => handleShowDiff(item, "sessions")}
+                            onApprove={handleApproveSession}
+                            onReject={handleRejectSession}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
 
-                          return (
-                            <div
-                              key={session.id}
-                              className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col md:flex-row transition-all hover:border-black/10"
-                            >
-                              <div className="md:w-64 relative bg-green-50 border-b md:border-b-0 md:border-r border-green-100 overflow-hidden">
-                                {session.cover_image_url ? (
-                                  <Image
-                                    src={session.cover_image_url}
-                                    alt={session.title}
-                                    fill
-                                    className="object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center">
-                                    <ImageIcon className="w-12 h-12 text-green-400" />
-                                  </div>
-                                )}
-                              </div>
-                              <div className="flex-1 p-4 md:p-6 flex flex-col justify-between">
-                                <div>
-                                  <div className="flex items-center gap-2 mb-1.5">
-                                    {session.type && (
-                                      <span className="text-[10px] font-black uppercase tracking-wider bg-green-600 text-white px-2 py-0.5 rounded">
-                                        {session.type}
-                                      </span>
-                                    )}
-                                    <StudioBadge variant="neutral">審査中</StudioBadge>
-                                    {session.companies && (
-                                      <span className="text-xs text-gray-500 font-medium">
-                                        {session.companies.name}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <h3 className="text-xl font-black text-gray-900 mb-2">{session.title}</h3>
-                                  {session.description && (
-                                    <p className="text-sm text-gray-600 line-clamp-2">{session.description}</p>
-                                  )}
-                                </div>
-                                <div className="flex flex-wrap items-center gap-x-8 gap-y-3 mt-4">
-                                  {locationText && (
-                                    <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
-                                      <MapPin className="w-4 h-4" />
-                                      {locationText}
-                                    </div>
-                                  )}
-                                  {session.capacity && (
-                                    <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
-                                      <Users className="w-4 h-4" />
-                                      定員: {session.capacity}名
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="md:w-64 p-4 flex flex-row items-center justify-end gap-3 bg-gray-50/50 border-t md:border-t-0 md:border-l border-gray-100">
-                                <StudioButton
-                                  variant="outline"
-                                  size="sm"
-                                  icon={<ExternalLink className="w-3 h-3" />}
-                                  onClick={() => {
-                                    const draftId = (session as any).draft_id || session.id;
-                                    console.log(
-                                      "Preview button clicked. draftId:",
-                                      draftId,
-                                      "session.id:",
-                                      session.id,
-                                      "full session:",
-                                      session
-                                    );
-                                    if (!draftId) {
-                                      alert("ドラフトIDが見つかりません");
-                                      return;
-                                    }
-                                    handlePreviewSession(draftId);
-                                  }}
-                                >
-                                  プレビューを見る
-                                </StudioButton>
-                                <ApprovalActions
-                                  onApprove={() => handleApproveSession((session as any).draft_id || session.id)}
-                                  onReject={() => handleRejectSession((session as any).draft_id || session.id)}
-                                />
-                              </div>
-                            </div>
-                          );
-                        })}
+                {/* 動画タブ */}
+                {activeTab === "videos" && (
+                  <>
+                    {videos.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-12">
+                        <p className="text-gray-500 font-medium">審査待ちの動画はありません</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {videos.map((video) => (
+                          <ReviewVideoCard
+                            key={video.id}
+                            video={video}
+                            onApprove={handleApproveVideo}
+                            onReject={handleRejectVideo}
+                          />
+                        ))}
                       </div>
                     )}
                   </>

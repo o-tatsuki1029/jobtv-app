@@ -10,6 +10,7 @@ import {
   updatePassword as baseUpdatePassword
 } from "@jobtv-app/shared/actions/auth";
 import { getFullSiteUrl } from "@jobtv-app/shared/utils/dev-config";
+import { createClient } from "@/lib/supabase/server";
 
 /**
  * サインアップ処理
@@ -27,7 +28,8 @@ export async function signUp(formData: FormData) {
 }
 
 /**
- * ログイン処理
+ * ログイン処理（一般ユーザー用）
+ * 管理者はログインできません
  */
 export async function signIn(formData: FormData) {
   const email = formData.get("email") as string;
@@ -36,6 +38,36 @@ export async function signIn(formData: FormData) {
 
   if (result.error) {
     return { error: result.error };
+  }
+
+  // ログイン成功後、ロールをチェック
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "認証に失敗しました" };
+  }
+
+  // プロフィールからロールを取得
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (profileError || !profile) {
+    // ログアウトして終了
+    await supabase.auth.signOut();
+    return { error: "ユーザー情報の取得に失敗しました" };
+  }
+
+  // adminロールの場合はログインを拒否
+  if (profile.role === "admin") {
+    // ログアウトして終了
+    await supabase.auth.signOut();
+    return { error: "管理者アカウントはこちらからログインできません。管理者ログインページをご利用ください。" };
   }
 
   revalidatePath("/", "layout");

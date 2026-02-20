@@ -11,7 +11,7 @@ import EmptyState from "@/components/studio/atoms/EmptyState";
 import PageHeader from "@/components/studio/molecules/PageHeader";
 import FilterSortSection from "@/components/studio/molecules/FilterSortSection";
 import ApprovalActions from "@/components/admin/ApprovalActions";
-import { getAllCompaniesForReview, approveCompany, rejectCompany } from "@/lib/actions/admin-actions";
+import { getAllCompaniesForReview, approveCompanyInfo, rejectCompanyInfo } from "@/lib/actions/admin-actions";
 import type { Tables } from "@jobtv-app/shared/types";
 
 type Company = Tables<"companies">;
@@ -69,11 +69,11 @@ export default function AdminCompaniesPage() {
   }, [companies, sortBy]);
 
   const handleApprove = async (companyId: string) => {
-    return approveCompany(companyId);
+    return approveCompanyInfo(companyId);
   };
 
   const handleReject = async (companyId: string) => {
-    return rejectCompany(companyId);
+    return rejectCompanyInfo(companyId);
   };
 
   return (
@@ -132,9 +132,6 @@ export default function AdminCompaniesPage() {
                         <StudioBadge variant="neutral">審査中</StudioBadge>
                       </div>
                       <h3 className="text-xl font-black text-gray-900 mb-2">{company.name || "未設定"}</h3>
-                      {company.tagline && (
-                        <p className="text-sm text-gray-600 line-clamp-2">{company.tagline}</p>
-                      )}
                       {company.company_info && (
                         <p className="text-sm text-gray-600 line-clamp-2 mt-2">{company.company_info}</p>
                       )}

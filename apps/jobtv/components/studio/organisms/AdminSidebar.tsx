@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut } from "lucide-react";
 import { ADMIN_NAVIGATION } from "../constants";
 import StudioNavItem from "../molecules/StudioNavItem";
 import { getUserInfo } from "@/lib/actions/user-actions";
@@ -59,20 +58,13 @@ export default function AdminSidebar() {
           ))}
         </nav>
 
-        <div className="p-4 border-t border-white/10 space-y-3">
+        <div className="p-4 border-t border-white/10">
           {!isLoading && userName && (
             <div className="px-4 py-2 space-y-1">
               <div className="text-xs font-medium text-gray-400">管理者</div>
               <div className="text-sm font-bold text-white">{userName}</div>
             </div>
           )}
-          <Link
-            href="/studio"
-            className="flex items-center gap-3 w-full px-4 py-3 text-sm font-medium text-gray-400 hover:text-white transition-colors group"
-          >
-            <LogOut className="w-5 h-5 transition-transform group-hover:-translate-x-1" />
-            スタジオに戻る
-          </Link>
         </div>
       </aside>
 

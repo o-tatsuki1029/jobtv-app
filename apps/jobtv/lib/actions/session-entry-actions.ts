@@ -198,7 +198,7 @@ export type Session = {
 };
 
 /**
- * セッション一覧を取得
+ * セッション一覧を取得（events用 - 旧システム）
  */
 export async function getSessions() {
   const supabase = await createClient();
@@ -230,6 +230,82 @@ export async function getSessions() {
   }
 
   return data as unknown as Session[];
+}
+
+/**
+ * 説明会の日程一覧を取得（session_dates用 - 新システム）
+ */
+export type SessionDate = {
+  id: string;
+  session_id: string;
+  event_date: string;
+  start_time: string;
+  end_time: string;
+  capacity: number | null;
+  session: {
+    id: string;
+    title: string;
+    type: string;
+    location_type: string | null;
+    location_detail: string | null;
+    company_id: string;
+    companies: {
+      name: string;
+      logo_url: string | null;
+    } | null;
+  } | null;
+};
+
+export async function getAvailableSessionDates() {
+  const supabase = await createClient();
+  
+  const { data, error } = await supabase
+    .from("session_dates")
+    .select(
+      `
+      id,
+      session_id,
+      event_date,
+      start_time,
+      end_time,
+      capacity,
+      sessions!inner (
+        id,
+        title,
+        type,
+        location_type,
+        location_detail,
+        company_id,
+        status,
+        companies (
+          name,
+          logo_url
+        )
+      )
+    `
+    )
+    .eq("sessions.status", "active")
+    .gte("event_date", new Date().toISOString().split("T")[0])
+    .order("event_date", { ascending: true })
+    .order("start_time", { ascending: true });
+
+  if (error) {
+    console.error("Error fetching session dates:", error);
+    return [];
+  }
+
+  // データを整形
+  const formattedData = (data as any[]).map((item) => ({
+    id: item.id,
+    session_id: item.session_id,
+    event_date: item.event_date,
+    start_time: item.start_time,
+    end_time: item.end_time,
+    capacity: item.capacity,
+    session: item.sessions
+  }));
+
+  return formattedData as SessionDate[];
 }
 
 /**

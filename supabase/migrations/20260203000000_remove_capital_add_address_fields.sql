@@ -9,3 +9,4 @@ ALTER TABLE companies ADD COLUMN IF NOT EXISTS address_line1 TEXT;
 ALTER TABLE companies ADD COLUMN IF NOT EXISTS address_line2 TEXT;
 
 
+

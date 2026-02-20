@@ -184,3 +184,27 @@ export function validateUrlWithProtocol(url: string, fieldName: string = "URL"):
   }
   return null;
 }
+
+/**
+ * カタカナのバリデーション
+ * @param value - バリデーション対象の値
+ * @param fieldName - フィールド名（エラーメッセージに使用）
+ * @returns エラーメッセージ（正常な場合はnull）
+ */
+export function validateKatakana(
+  value: string,
+  fieldName: string = "この項目"
+): string | null {
+  if (!value || !value.trim()) {
+    return null; // 空の場合はバリデーションしない（必須チェックは別で行う）
+  }
+  
+  // 全角カタカナ、長音記号、中黒のみを許可
+  const katakanaRegex = /^[ァ-ヶー・]+$/;
+  
+  if (!katakanaRegex.test(value)) {
+    return `${fieldName}は全角カタカナで入力してください`;
+  }
+  
+  return null;
+}

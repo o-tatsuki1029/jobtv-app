@@ -17,7 +17,7 @@ export default async function AdminDashboardPage() {
     );
   }
 
-  const totalPending = summary.pendingJobs + summary.pendingSessions + summary.pendingCompanies;
+  const totalPending = summary.pendingJobs + summary.pendingSessions + summary.pendingCompanyPages + summary.pendingCompanyInfo;
 
   return (
     <div className="space-y-6">
@@ -42,7 +42,11 @@ export default async function AdminDashboardPage() {
           <div className="mt-4 pt-4 border-t border-gray-100 text-sm space-y-1">
             <p className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-purple-500"></span>
-              企業: {summary.pendingCompanies}件
+              企業情報: {summary.pendingCompanyInfo}件
+            </p>
+            <p className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-purple-400"></span>
+              企業ページ: {summary.pendingCompanyPages}件
             </p>
             <p className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-blue-500"></span>

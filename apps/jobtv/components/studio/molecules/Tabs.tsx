@@ -6,7 +6,7 @@ interface Tab {
   id: string;
   label: string;
   count?: number;
-  color?: "blue" | "green" | "purple";
+  color?: "blue" | "green" | "purple" | "black" | "red";
 }
 
 interface TabsProps {
@@ -32,6 +32,16 @@ export default function Tabs({ tabs, activeTab, onTabChange, className = "" }: T
       active: "bg-purple-600 text-white border-b-2 border-purple-600",
       inactive: "text-purple-600 hover:bg-purple-50",
       badge: "bg-purple-100 text-purple-700"
+    },
+    black: {
+      active: "bg-black text-white border-b-2 border-black",
+      inactive: "text-black hover:bg-gray-50",
+      badge: "bg-gray-100 text-gray-700"
+    },
+    red: {
+      active: "bg-red-600 text-white border-b-2 border-red-600",
+      inactive: "text-red-600 hover:bg-red-50",
+      badge: "bg-red-100 text-red-700"
     }
   };
 

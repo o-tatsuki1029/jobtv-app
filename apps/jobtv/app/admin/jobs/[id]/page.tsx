@@ -69,19 +69,15 @@ export default async function AdminJobDetailPage({ params }: JobDetailPageProps)
             <p className="text-muted-foreground">求人情報の審査</p>
           </div>
         </div>
-        {jobData.status === "pending" && (
-          <ApprovalActions
-            onApprove={() => approveJob(id)}
-            onReject={() => rejectJob(id)}
-          />
-        )}
+        {/* 審査中の判定はドラフトテーブルのdraft_statusを参照 */}
+        {/* このページは本番テーブルから取得しているため、審査機能は別ページで実装 */}
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-6">
         <div>
           <div className="flex items-center gap-2 mb-4">
-            <StudioBadge variant={jobData.status === "pending" ? "neutral" : "success"}>
-              {jobData.status === "pending" ? "審査中" : jobData.status === "active" ? "公開中" : "非公開"}
+            <StudioBadge variant={jobData.status === "active" ? "success" : "neutral"}>
+              {jobData.status === "active" ? "公開中" : "非公開"}
             </StudioBadge>
             {jobData.companies && (
               <span className="text-sm text-gray-600 font-medium">企業: {jobData.companies.name}</span>

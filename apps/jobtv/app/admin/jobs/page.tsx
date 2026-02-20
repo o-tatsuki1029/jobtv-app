@@ -9,6 +9,7 @@ import StudioBadge from "@/components/studio/atoms/StudioBadge";
 import ErrorMessage from "@/components/studio/atoms/ErrorMessage";
 import LoadingSpinner from "@/components/studio/atoms/LoadingSpinner";
 import EmptyState from "@/components/studio/atoms/EmptyState";
+import PageHeader from "@/components/studio/molecules/PageHeader";
 import FilterSortSection from "@/components/studio/molecules/FilterSortSection";
 import ApprovalActions from "@/components/admin/ApprovalActions";
 import { getAllJobsForReview, approveJob, rejectJob } from "@/lib/actions/admin-actions";

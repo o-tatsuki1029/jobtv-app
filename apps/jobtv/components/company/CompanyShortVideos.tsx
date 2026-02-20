@@ -1,6 +1,8 @@
 "use client";
 
+import React, { useState } from "react";
 import ShortVideoSection from "@/components/ShortVideoSection";
+import VideoModal from "@/components/VideoModal";
 import type { CompanyData } from "./types";
 
 interface CompanyShortVideosProps {
@@ -8,6 +10,12 @@ interface CompanyShortVideosProps {
 }
 
 export default function CompanyShortVideos({ company }: CompanyShortVideosProps) {
+  const [selectedVideo, setSelectedVideo] = useState<{
+    videoUrl: string;
+    title: string;
+    thumbnail?: string;
+  } | null>(null);
+
   if (!company.shortVideos || company.shortVideos.length === 0) return null;
 
   return (
@@ -21,13 +29,34 @@ export default function CompanyShortVideos({ company }: CompanyShortVideosProps)
         videos={company.shortVideos.map((v) => ({
           id: v.id,
           title: v.title,
-          thumbnail: v.thumbnail || "",
+          thumbnail: v.thumbnail || null,
           channel: "ショート動画",
           likes: 0,
-          duration: "0:00"
+          duration: "0:00",
+          videoUrl: v.video
         }))}
         showMore={false}
+        onVideoClick={(video) => {
+          if (video.videoUrl) {
+            setSelectedVideo({
+              videoUrl: video.videoUrl,
+              title: video.title,
+              thumbnail: video.thumbnail || undefined
+            });
+          }
+        }}
       />
+
+      {selectedVideo && (
+        <VideoModal
+          isOpen={!!selectedVideo}
+          onClose={() => setSelectedVideo(null)}
+          videoUrl={selectedVideo.videoUrl}
+          title={selectedVideo.title}
+          thumbnail={selectedVideo.thumbnail}
+          aspectRatio="portrait"
+        />
+      )}
     </section>
   );
 }

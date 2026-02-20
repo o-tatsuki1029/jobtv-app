@@ -26,8 +26,14 @@ export default function CompanyMainHeader({ company }: CompanyMainHeaderProps) {
         } px-4 md:px-0 flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6`}
       >
         <div className="flex items-center gap-4 md:gap-5">
-          <div className="relative w-12 h-12 md:w-16 md:h-16 flex-shrink-0 bg-white rounded-md border border-gray-800">
-            <Image src={company.logo} alt={company.name} fill className="object-contain rounded-md" />
+          <div className="relative w-12 h-12 md:w-16 md:h-16 flex-shrink-0 bg-white rounded-md border border-gray-800 overflow-hidden">
+            {company.logo ? (
+              <Image src={company.logo} alt={company.name} fill className="object-contain" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                <span className="text-gray-400 font-bold text-lg">{company.name.charAt(0)}</span>
+              </div>
+            )}
           </div>
           <div>
             <h1 className="text-lg md:text-2xl font-bold text-white mb-0.5">{company.name}</h1>

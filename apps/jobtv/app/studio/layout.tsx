@@ -1,20 +1,13 @@
-"use client";
+import { requireRecruiterOrAdmin } from "@/lib/auth/require-auth";
+import StudioLayoutClient from "./layout-client";
 
-import React from "react";
-import { usePathname } from "next/navigation";
-import StudioPageLayout from "@/components/studio/templates/StudioPageLayout";
+export default async function StudioLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  // recruiterまたはadmin権限をチェック
+  await requireRecruiterOrAdmin();
 
-export default function StudioLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-
-  // プレビューコンテンツ用ページの場合は、レイアウトを適用せず中身だけを返す
-  if (
-    pathname === "/studio/company/preview-content" ||
-    pathname === "/studio/jobs/preview-content" ||
-    pathname === "/studio/sessions/preview-content"
-  ) {
-    return <>{children}</>;
-  }
-
-  return <StudioPageLayout>{children}</StudioPageLayout>;
+  return <StudioLayoutClient>{children}</StudioLayoutClient>;
 }

@@ -1,4 +1,4 @@
-import { requireAdmin } from "@/lib/actions/admin-actions";
+import { requireAdmin } from "@/lib/auth/require-auth";
 import StudioPageLayout from "@/components/studio/templates/StudioPageLayout";
 import AdminSidebar from "@/components/studio/organisms/AdminSidebar";
 

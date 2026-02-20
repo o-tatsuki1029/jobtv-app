@@ -77,7 +77,7 @@ export default function HeroSection({ title, description, thumbnail, videoUrl, c
           <div className="relative">
             {showVideo && videoUrl ? (
               <div className="relative aspect-video rounded-xl overflow-hidden shadow-2xl">
-                <VideoPlayer src={videoUrl} poster={thumbnail} autoplay={true} className="w-full h-full" />
+                <VideoPlayer src={videoUrl} poster={thumbnail} autoplay={true} muted={true} className="w-full h-full" />
               </div>
             ) : (
               <div className="relative aspect-video rounded-xl overflow-hidden shadow-2xl group cursor-pointer">

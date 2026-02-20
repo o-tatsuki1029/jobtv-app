@@ -13,9 +13,10 @@ export async function getManagers() {
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, email, full_name, role")
+    .select("id, email, first_name, last_name, role")
     .in("role", ["admin", "RA", "CA", "MRK"])
-    .order("full_name")
+    .order("last_name")
+    .order("first_name")
     .order("email");
 
   if (error) {
@@ -31,14 +32,23 @@ export async function getManagers() {
  */
 export async function updateManager(
   id: string,
-  data: { full_name?: string | null; role?: string },
+  data: { 
+    first_name?: string | null; 
+    last_name?: string | null; 
+    first_name_kana?: string | null; 
+    last_name_kana?: string | null; 
+    role?: string 
+  },
 ) {
   const supabase = await createClient();
 
   const { error } = await supabase
     .from("profiles")
     .update({
-      full_name: data.full_name || null,
+      first_name: data.first_name || null,
+      last_name: data.last_name || null,
+      first_name_kana: data.first_name_kana || null,
+      last_name_kana: data.last_name_kana || null,
       role: data.role,
     })
     .eq("id", id);

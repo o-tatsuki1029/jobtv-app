@@ -23,7 +23,7 @@ export async function getUserInfo(): Promise<{
 
     const { data: userProfile, error: profileError } = await supabase
       .from("profiles")
-      .select("full_name, first_name, last_name, company_id")
+      .select("first_name, last_name, company_id, deleted_at")
       .eq("id", user.id)
       .single();
 
@@ -31,12 +31,12 @@ export async function getUserInfo(): Promise<{
       return { userName: null, companyName: null, error: "ユーザー情報の取得に失敗しました" };
     }
 
-    // full_nameがあればそれを使用、なければfirst_nameとlast_nameを組み合わせ
+    // 論理削除されている場合でも名前は表示
+    // first_nameとlast_nameを組み合わせ、なければメールアドレスを使用
     const userName =
-      userProfile.full_name ||
-      (userProfile.first_name && userProfile.last_name
+      userProfile.first_name && userProfile.last_name
         ? `${userProfile.last_name} ${userProfile.first_name}`
-        : userProfile.first_name || userProfile.last_name || null);
+        : user.email || null;
 
     // 企業名を取得
     let companyName: string | null = null;

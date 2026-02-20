@@ -2,7 +2,8 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { createEventEntry, getSessions, type Session } from "@/lib/actions/session-entry-actions";
+import { getAvailableSessionDates, type SessionDate } from "@/lib/actions/session-entry-actions";
+import { createSessionReservation } from "@/lib/actions/session-reservation-actions";
 import { EventSelection } from "@/components/session/EventSelection";
 import { EventEntryForm, type EventEntryFormData } from "@/components/session/EventEntryForm";
 import Link from "next/link";
@@ -11,10 +12,10 @@ export const dynamic = "force-dynamic";
 
 function SessionEntryContent() {
   const searchParams = useSearchParams();
-  const urlSessionId = searchParams.get("sessionId") || "";
-  const [selectedSessionId, setSelectedSessionId] = useState(urlSessionId);
+  const urlSessionDateId = searchParams.get("sessionDateId") || "";
+  const [selectedSessionDateId, setSelectedSessionDateId] = useState(urlSessionDateId);
 
-  const [sessions, setSessions] = useState<Session[]>([]);
+  const [sessionDates, setSessionDates] = useState<SessionDate[]>([]);
   const [isLoadingSessions, setIsLoadingSessions] = useState(true);
 
   const [formData, setFormData] = useState<EventEntryFormData>({
@@ -33,55 +34,50 @@ function SessionEntryContent() {
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // 説明会一覧を取得
+  // 説明会日程一覧を取得
   useEffect(() => {
-    async function fetchSessions() {
+    async function fetchSessionDates() {
       setIsLoadingSessions(true);
-      const data = await getSessions();
-      setSessions(data);
+      const data = await getAvailableSessionDates();
+      setSessionDates(data);
       setIsLoadingSessions(false);
     }
-    fetchSessions();
+    fetchSessionDates();
   }, []);
 
   // URLパラメータの変更を監視
   useEffect(() => {
-    if (urlSessionId) {
-      setSelectedSessionId(urlSessionId);
+    if (urlSessionDateId) {
+      setSelectedSessionDateId(urlSessionDateId);
     }
-  }, [urlSessionId]);
+  }, [urlSessionDateId]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!selectedSessionId) {
-      setError("説明会を選択してください");
+    if (!selectedSessionDateId) {
+      setError("日程を選択してください");
       return;
     }
     setLoading(true);
     setError(null);
 
     try {
-      // セッションからイベントIDを取得
-      const selectedSession = sessions.find((s) => s.id === selectedSessionId);
-      if (!selectedSession) {
-        setError("セッションが見つかりません");
+      const result = await createSessionReservation(selectedSessionDateId, {
+        last_name: formData.last_name,
+        first_name: formData.first_name,
+        last_name_kana: formData.last_name_kana,
+        first_name_kana: formData.first_name_kana,
+        phone: formData.phone,
+        email: formData.email,
+        school_name: formData.school_name || undefined,
+        gender: formData.gender || undefined,
+        graduation_year: formData.graduation_year ? parseInt(formData.graduation_year) : undefined
+      });
+
+      if (result.error) {
+        setError(result.error);
         return;
       }
-
-      await createEventEntry({
-        eventId: selectedSession.event_id,
-        candidate: {
-          last_name: formData.last_name,
-          first_name: formData.first_name,
-          last_name_kana: formData.last_name_kana,
-          first_name_kana: formData.first_name_kana,
-          phone: formData.phone,
-          email: formData.email,
-          school_name: formData.school_name || undefined,
-          gender: formData.gender || undefined,
-          graduation_year: formData.graduation_year ? parseInt(formData.graduation_year) : undefined
-        }
-      });
 
       setSuccess(true);
     } catch (err) {
@@ -124,16 +120,19 @@ function SessionEntryContent() {
           </div>
 
           <EventSelection
-            events={sessions.map((s) => ({
-              id: s.id,
-              event_date: s.events.event_date,
-              start_time: s.start_time,
-              end_time: s.end_time,
-              master_event_types: s.events.master_event_types
+            events={sessionDates.map((sd) => ({
+              id: sd.id,
+              event_date: sd.event_date,
+              start_time: sd.start_time,
+              end_time: sd.end_time,
+              master_event_types: {
+                name: sd.session?.title || "",
+                area: sd.session?.location_detail || ""
+              }
             }))}
             isLoading={isLoadingSessions}
-            selectedEventId={selectedSessionId}
-            onSelect={setSelectedSessionId}
+            selectedEventId={selectedSessionDateId}
+            onSelect={setSelectedSessionDateId}
           />
 
           <EventEntryForm
@@ -144,7 +143,7 @@ function SessionEntryContent() {
             loading={loading}
             error={error}
             setError={setError}
-            selectedEventId={selectedSessionId}
+            selectedEventId={selectedSessionDateId}
           />
         </div>
 

@@ -1,101 +1,243 @@
 "use client";
 
-import React from "react";
-import { Users, Video, Eye, TrendingUp, Plus } from "lucide-react";
-import StudioButton from "@/components/studio/atoms/StudioButton";
-import StudioStatCard from "@/components/studio/molecules/StudioStatCard";
+import React, { useState, useEffect } from "react";
+import { Building2, Briefcase, Calendar, Users, ChevronRight, Bell, Settings, ExternalLink, LayoutDashboard, Globe, Menu } from "lucide-react";
+import Link from "next/link";
+import { getNotifications, markNotificationAsRead, type NotificationWithReadStatus } from "@/lib/actions/notification-actions";
+import { getCompanyProfile } from "@/lib/actions/company-profile-actions";
+import { formatDistanceToNow } from "date-fns";
+import { ja } from "date-fns/locale";
+import NotificationDetailModal from "@/components/studio/organisms/NotificationDetailModal";
 
 export default function StudioDashboard() {
+  const [notifications, setNotifications] = useState<NotificationWithReadStatus[]>([]);
+  const [selectedNotification, setSelectedNotification] = useState<{
+    title: string;
+    message: string;
+    type: string;
+    time: string;
+  } | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [companyId, setCompanyId] = useState<string | null>(null);
+  const [companyName, setCompanyName] = useState<string | null>(null);
+  const [companyLogo, setCompanyLogo] = useState<string | null>(null);
+
+  const loadNotifications = async () => {
+    const { data } = await getNotifications();
+    setNotifications(data || []);
+  };
+
+  useEffect(() => {
+    loadNotifications();
+    
+    // 企業情報を取得
+    const fetchCompanyInfo = async () => {
+      try {
+        const companyResult = await getCompanyProfile();
+        if (!companyResult.error && companyResult.data) {
+          setCompanyId(companyResult.data.id);
+          setCompanyName(companyResult.data.name);
+          setCompanyLogo(companyResult.data.logo_url);
+        }
+      } catch (error) {
+        console.error("Error fetching company info:", error);
+      }
+    };
+    
+    fetchCompanyInfo();
+  }, []);
+
+  const handleNotificationClick = async (notification: NotificationWithReadStatus) => {
+    // モーダルを開く
+    setSelectedNotification({
+      title: notification.title,
+      message: notification.message,
+      type: notification.type,
+      time: formatDistanceToNow(new Date(notification.created_at), { addSuffix: true, locale: ja })
+    });
+    setIsModalOpen(true);
+
+    // 未読の場合は既読にする
+    if (!notification.is_read) {
+      await markNotificationAsRead(notification.id);
+      await loadNotifications();
+    }
+  };
+
+  const menuItems = [
+    {
+      title: "企業ページ",
+      description: "企業情報とプロフィールを管理",
+      icon: Building2,
+      href: "/studio/company",
+      color: "bg-blue-500"
+    },
+    {
+      title: "求人管理",
+      description: "求人情報の作成と編集",
+      icon: Briefcase,
+      href: "/studio/jobs",
+      color: "bg-green-500"
+    },
+    {
+      title: "説明会・インターン",
+      description: "説明会とインターンシップの管理",
+      icon: Calendar,
+      href: "/studio/sessions",
+      color: "bg-purple-500"
+    },
+    {
+      title: "候補者管理",
+      description: "応募者と予約者の確認",
+      icon: Users,
+      href: "/studio/candidates",
+      color: "bg-orange-500"
+    },
+    {
+      title: "設定",
+      description: "アカウントとシステム設定",
+      icon: Settings,
+      href: "/studio/settings",
+      color: "bg-gray-500"
+    }
+  ];
+
   return (
     <div className="space-y-10">
       {/* ヘッダーエリア */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
+      <div>
+        <div className="flex items-center gap-3 mb-2">
+          <LayoutDashboard className="w-8 h-8 text-gray-900" />
           <h1 className="text-3xl font-black tracking-tight">ダッシュボード</h1>
-          <p className="text-gray-500 font-medium">こんにちは、サンプル株式会社 Studioへようこそ。</p>
         </div>
-        <StudioButton icon={<Plus className="w-4 h-4" />}>新規動画をアップロード</StudioButton>
-      </div>
-
-      {/* 統計カード */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[
-          { label: "総視聴回数", value: "45,231", icon: Eye, change: "+12.5%", changeType: "increase" as const },
-          { label: "総エントリー数", value: "1,284", icon: Users, change: "+5.2%", changeType: "increase" as const },
-          { label: "公開動画数", value: "12", icon: Video, change: "0%", changeType: "neutral" as const },
-          { label: "平均視聴維持率", value: "68%", icon: TrendingUp, change: "+2.4%", changeType: "increase" as const }
-        ].map((stat, i) => (
-          <StudioStatCard
-            key={i}
-            label={stat.label}
-            value={stat.value}
-            icon={stat.icon}
-            change={stat.change}
-            changeType={stat.changeType}
-          />
-        ))}
+        <p className="text-gray-500 font-medium">JOBTV Studioへようこそ</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* 最近の動画リスト */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="font-bold text-lg">最近のアップロード動画</h2>
-            <button className="text-sm font-bold text-gray-500 hover:text-black transition-colors">すべて見る</button>
-          </div>
-          <div className="divide-y divide-gray-50">
-            {[1, 2, 3].map((v) => (
-              <div
-                key={v}
-                className="p-6 flex items-center gap-4 hover:bg-gray-50 transition-colors cursor-pointer group"
-              >
-                <div className="w-24 aspect-video bg-gray-200 rounded-md flex-shrink-0 relative overflow-hidden">
-                  <div className="absolute inset-0 flex items-center justify-center text-gray-400 group-hover:scale-110 transition-transform">
-                    <Video className="w-6 h-6" />
+        {/* メインコンテンツ - メニューカード */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* 企業ページセクション */}
+          {companyId && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Globe className="w-5 h-5 text-gray-700" />
+                <h2 className="text-xl font-bold text-gray-900">公開ページ</h2>
+              </div>
+              {/* 企業ページを開くボタン */}
+            <a
+              href={`/company/${companyId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block"
+            >
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 hover:shadow-md hover:border-gray-300 transition-all group cursor-pointer">
+                <div className="flex items-center gap-4">
+                  {/* 企業ロゴ */}
+                  <div className="flex-shrink-0">
+                    {companyLogo ? (
+                      <img
+                        src={companyLogo}
+                        alt={companyName || "企業ロゴ"}
+                        className="w-16 h-16 rounded-lg object-contain border border-gray-200"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-2xl">
+                        {companyName?.charAt(0) || "企"}
+                      </div>
+                    )}
                   </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-sm truncate">【新卒採用】エンジニア社員インタビュー 2026</h3>
-                  <div className="flex items-center gap-3 mt-1">
-                    <span className="text-xs text-gray-400">2026/01/25 アップロード</span>
-                    <span className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded">公開中</span>
+                  
+                  {/* テキスト部分 */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="text-lg font-bold text-gray-900">企業ページを開く</h3>
+                      <ExternalLink className="w-5 h-5 text-blue-600" />
+                    </div>
+                    {companyName && (
+                      <p className="text-sm text-gray-600 truncate">{companyName}</p>
+                    )}
                   </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-black text-gray-900">1,245</p>
-                  <p className="text-[10px] text-gray-400 font-medium">視聴回数</p>
                 </div>
               </div>
+            </a>
+            </div>
+          )}
+          
+          <div className="flex items-center gap-2">
+            <Menu className="w-5 h-5 text-gray-700" />
+            <h2 className="text-xl font-bold text-gray-900">メニュー</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {menuItems.map((item) => (
+              <Link key={item.href} href={item.href}>
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 hover:shadow-md hover:border-gray-300 transition-all group cursor-pointer h-full">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className={`w-12 h-12 rounded-xl ${item.color} flex items-center justify-center text-white`}>
+                      <item.icon className="w-6 h-6" />
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-gray-600 group-hover:translate-x-1 transition-all" />
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">{item.title}</h3>
+                  <p className="text-sm text-gray-500">{item.description}</p>
+                </div>
+              </Link>
             ))}
           </div>
         </div>
 
-        {/* 最近のアクティビティ */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <div className="p-6 border-b border-gray-100">
-            <h2 className="font-bold text-lg">最近のエントリー</h2>
+        {/* 右カラム - お知らせ */}
+        <div className="space-y-6">
+          <div className="flex items-center gap-2">
+            <Bell className="w-5 h-5 text-gray-700" />
+            <h2 className="text-xl font-bold text-gray-900">お知らせ</h2>
           </div>
-          <div className="p-6 space-y-6">
-            {[1, 2, 3, 4].map((a) => (
-              <div key={a} className="flex gap-3">
-                <div className="w-8 h-8 rounded-full bg-gray-100 flex-shrink-0 flex items-center justify-center">
-                  <Users className="w-4 h-4 text-gray-500" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold">佐藤 健太 さん</p>
-                  <p className="text-xs text-gray-500 mt-0.5">機械学習エンジニア職にエントリーしました</p>
-                  <p className="text-[10px] text-gray-400 mt-1">2時間前</p>
-                </div>
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            {notifications.length === 0 ? (
+              <div className="p-8 text-center text-gray-500">
+                <Bell className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                <p className="text-sm">お知らせはありません</p>
               </div>
-            ))}
-          </div>
-          <div className="p-4 bg-gray-50 border-t border-gray-100">
-            <button className="w-full text-sm font-bold text-gray-500 py-2 hover:text-black transition-colors">
-              すべてのエントリーを確認
-            </button>
+            ) : (
+              <>
+                <div className="divide-y divide-gray-100">
+                  {notifications.slice(0, 4).map((notification) => (
+                    <div
+                      key={notification.id}
+                      onClick={() => handleNotificationClick(notification)}
+                      className="p-4 hover:bg-gray-50 transition-colors cursor-pointer group relative"
+                    >
+                      {!notification.is_read && (
+                        <div className="absolute top-4 right-4 w-2 h-2 bg-red-500 rounded-full" />
+                      )}
+                      <h3 className="text-sm font-bold text-gray-900 mb-1 pr-4">{notification.title}</h3>
+                      <p className="text-xs text-gray-600 mb-2 leading-relaxed line-clamp-2">
+                        {notification.message}
+                      </p>
+                      <p className="text-[10px] text-gray-400 font-medium">
+                        {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true, locale: ja })}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                <div className="p-3 bg-gray-50 border-t border-gray-100">
+                  <Link href="/studio/notifications">
+                    <button className="w-full text-xs font-bold text-gray-500 py-1.5 hover:text-black transition-colors">
+                      すべてのお知らせを見る
+                    </button>
+                  </Link>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
+
+      {/* お知らせ詳細モーダル */}
+      <NotificationDetailModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        notification={selectedNotification}
+      />
     </div>
   );
 }

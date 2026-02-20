@@ -2,87 +2,51 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Briefcase, ArrowLeft } from "lucide-react";
+import { Briefcase } from "lucide-react";
 import StudioBadge from "@/components/studio/atoms/StudioBadge";
 import StudioFormField from "@/components/studio/molecules/StudioFormField";
 import StudioLabel from "@/components/studio/atoms/StudioLabel";
 import StudioSelect from "@/components/studio/atoms/StudioSelect";
+import PrefectureSelect from "@/components/studio/molecules/PrefectureSelect";
 import StudioPreviewModal from "@/components/studio/organisms/StudioPreviewModal";
+import SubmitReviewModal from "@/components/studio/organisms/SubmitReviewModal";
 import StudioImageUpload from "@/components/studio/molecules/StudioImageUpload";
 import LoadingSpinner from "@/components/studio/atoms/LoadingSpinner";
 import ErrorMessage from "@/components/studio/atoms/ErrorMessage";
-import { getJobDraft, createJobDraft, updateJobDraft, uploadJobDraftCoverImage, submitJobForReview } from "@/lib/actions/job-actions";
-import { useFormState } from "@/hooks/useFormState";
+import StudioBackButton from "@/components/studio/atoms/StudioBackButton";
+import {
+  getJobDraft,
+  createJobDraft,
+  updateJobDraft,
+  uploadJobDraftCoverImage,
+  submitJobForReview,
+  toggleJobStatus
+} from "@/lib/actions/job-actions";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
-import { useDraftSubmit } from "@/hooks/useDraftSubmit";
-import { hasFieldChanges, hasObjectChanges, hasChanges } from "@/utils/form-utils";
+import { hasFieldChanges } from "@/utils/form-utils";
 import { validateRequired, validateMaxLength } from "@jobtv-app/shared/utils/validation";
 import type { Tables } from "@jobtv-app/shared/types";
 import DraftActionButtons from "@/components/studio/molecules/DraftActionButtons";
+import { useStudioEditor } from "@/hooks/useStudioEditor";
+import StudioEditorStatusSection from "@/components/studio/molecules/StudioEditorStatusSection";
+import StudioEditorAlerts from "@/components/studio/molecules/StudioEditorAlerts";
 
 // 型定義（DBスキーマに合わせる）
 type JobDraft = Tables<"job_postings_draft">;
+type JobPosting = Tables<"job_postings">;
 
-interface Job extends Omit<JobDraft, "available_statuses" | "draft_status"> {
+interface Job extends Omit<JobDraft, "available_statuses" | "draft_status" | "production_job_id"> {
   available_statuses?: JobDraft["available_statuses"];
-  draft_status?: JobDraft["draft_status"];
   production_job_id?: string | null;
+  production_status?: "active" | "closed" | null; // 本番テーブルのstatus
   cover_image_url: string | null;
+  status?: "draft" | "active" | "closed"; // 表示用のstatus（draft_statusから変換）
+  draft_status?: "draft" | "submitted" | "approved" | "rejected"; // ドラフトステータス
+  companies?: {
+    name: string;
+    logo_url: string | null;
+  };
 }
-
-// 必須の応募ステータス
-const REQUIRED_STATUSES: string[] = ["applied", "offer", "rejected", "withdrawn"];
-
-// 都道府県リスト
-const PREFECTURES = [
-  "北海道",
-  "青森県",
-  "岩手県",
-  "宮城県",
-  "秋田県",
-  "山形県",
-  "福島県",
-  "茨城県",
-  "栃木県",
-  "群馬県",
-  "埼玉県",
-  "千葉県",
-  "東京都",
-  "神奈川県",
-  "新潟県",
-  "富山県",
-  "石川県",
-  "福井県",
-  "山梨県",
-  "長野県",
-  "岐阜県",
-  "静岡県",
-  "愛知県",
-  "三重県",
-  "滋賀県",
-  "京都府",
-  "大阪府",
-  "兵庫県",
-  "奈良県",
-  "和歌山県",
-  "鳥取県",
-  "島根県",
-  "岡山県",
-  "広島県",
-  "山口県",
-  "徳島県",
-  "香川県",
-  "愛媛県",
-  "高知県",
-  "福岡県",
-  "佐賀県",
-  "長崎県",
-  "熊本県",
-  "大分県",
-  "宮崎県",
-  "鹿児島県",
-  "沖縄県"
-];
 
 export default function JobEditPage() {
   const router = useRouter();
@@ -92,23 +56,99 @@ export default function JobEditPage() {
 
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [initialJob, setInitialJob] = useState<Job | null>(null);
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [previewDevice, setPreviewDevice] = useState<"desktop" | "mobile">("desktop");
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [isCoverImageUploading, setIsCoverImageUploading] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<{
-    employment_type?: string;
-    graduation_year?: string;
-    prefecture?: string;
-    location_detail?: string;
-    description?: string;
-    title?: string;
-    requirements?: string;
-    benefits?: string;
-    selection_process?: string;
-  }>({});
+
+  // 共通スタジオエディターフック
+  const {
+    loading,
+    setLoading,
+    saving,
+    setSaving,
+    error,
+    setError,
+    fieldErrors,
+    setFieldErrors,
+    isSubmittingReview,
+    isPreviewOpen,
+    setIsPreviewOpen,
+    previewDevice,
+    setPreviewDevice,
+    isReadOnly,
+    showUnderReviewAlert,
+    showOlderVersionAlert,
+    handleToggleStatus,
+    submitForReview,
+    isSubmitModalOpen,
+    setIsSubmitModalOpen
+  } = useStudioEditor({
+    type: "job",
+    id: jobId,
+    data: selectedJob
+      ? {
+          id: selectedJob.id,
+          draft_status: selectedJob.draft_status as string | undefined,
+          production_status: (selectedJob.production_status || undefined) as string | undefined,
+          production_id: selectedJob.production_job_id
+        }
+      : null,
+    onSave: async () => {
+      if (!selectedJob) {
+        return { error: "求人データが見つかりません" };
+      }
+
+      const jobData = {
+        title: selectedJob.title || "",
+        employment_type: selectedJob.employment_type || "",
+        graduation_year: selectedJob.graduation_year || undefined,
+        prefecture: selectedJob.prefecture || "",
+        location_detail: selectedJob.location_detail || "",
+        description: selectedJob.description || "",
+        requirements: selectedJob.requirements || "",
+        benefits: selectedJob.benefits || "",
+        selection_process: selectedJob.selection_process || "",
+        available_statuses: selectedJob.available_statuses || [],
+        cover_image_url: selectedJob.cover_image_url || null
+      };
+
+      let draftId = selectedJob.id;
+
+      // 新規作成または既存のdraftを更新
+      if (isNew || !draftId) {
+        const createResult = await createJobDraft(jobData);
+        if (createResult.error) {
+          return { error: createResult.error };
+        }
+        draftId = createResult.data?.id || "";
+        // 新規作成した場合はselectedJobを更新
+        if (createResult.data) {
+          setSelectedJob({ ...selectedJob, id: draftId });
+        }
+      } else {
+        const updateResult = await updateJobDraft(draftId, jobData);
+        if (updateResult.error) {
+          return { error: updateResult.error };
+        }
+      }
+
+      return { error: null, draftId };
+    },
+    onSubmit: async (id, keepProductionActive) => {
+      return await submitJobForReview(id, keepProductionActive);
+    },
+    onToggleStatus: async (id, status) => {
+      return await toggleJobStatus(selectedJob?.production_job_id || "", status);
+    },
+    validate: () => {
+      if (!validateRequiredFields()) {
+        return "必須項目を入力してください";
+      }
+      if (Object.keys(fieldErrors).length > 0 || hasCharacterLimitErrors()) {
+        return "入力内容を確認してください";
+      }
+      return null;
+    },
+    redirectTo: "/studio/jobs"
+  });
 
   // 変更検知関数
   const hasJobChanges = useCallback((): boolean => {
@@ -131,24 +171,17 @@ export default function JobEditPage() {
     // フィールドの変更をチェック
     const fieldChanged = hasFieldChanges(selectedJob, initialJob, fieldsToCompare);
 
-    // 応募ステータスの変更をチェック
-    const statusChanged = hasObjectChanges(
-      { available_statuses: selectedJob.available_statuses || [] },
-      { available_statuses: initialJob.available_statuses || [] }
-    );
-
-    return hasChanges(fieldChanged, statusChanged);
+    return fieldChanged;
   }, [selectedJob, initialJob]);
 
   // ページ離脱時の警告
-  const { handleNavigation } = useUnsavedChanges(hasJobChanges);
+  useUnsavedChanges(hasJobChanges);
 
   // 求人データを取得
   useEffect(() => {
     const loadJob = async () => {
       if (isNew) {
         // 新規作成の場合
-        const currentYear = new Date().getFullYear();
         const defaultStatuses: JobPosting["available_statuses"] = [
           "applied",
           "document_screening",
@@ -164,20 +197,24 @@ export default function JobEditPage() {
           company_id: "",
           title: "",
           employment_type: "正社員",
-          location: "",
           prefecture: "",
           location_detail: "",
-          status: "pending",
+          status: "active",
+          draft_status: undefined,
           description: "",
           requirements: "",
           benefits: "",
           selection_process: "",
-          graduation_year: currentYear,
+          graduation_year: 2028,
           available_statuses: defaultStatuses,
           cover_image_url: "",
+          display_order: 0,
           created_by: "",
           created_at: "",
-          updated_at: ""
+          updated_at: "",
+          submitted_at: null,
+          approved_at: null,
+          rejected_at: null
         };
         setSelectedJob(newJob);
         setInitialJob(JSON.parse(JSON.stringify(newJob)));
@@ -194,13 +231,10 @@ export default function JobEditPage() {
         }
 
         if (data) {
-          // 必須ステータスを常に含める
-          const currentStatuses = data.available_statuses || [];
-          const finalStatuses = [...new Set([...REQUIRED_STATUSES, ...currentStatuses])];
-
           const jobData = {
             ...data,
-            available_statuses: finalStatuses as JobPosting["available_statuses"]
+            production_job_id: data.production_job_id || undefined,
+            production_status: (data as any).production_status || undefined
           } as Job;
           setSelectedJob(jobData);
           setInitialJob(JSON.parse(JSON.stringify(jobData)));
@@ -210,9 +244,10 @@ export default function JobEditPage() {
     };
 
     loadJob();
-  }, [jobId, isNew]);
+  }, [jobId, isNew, setLoading, setError]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    if (isReadOnly) return;
     const { name, value } = e.target;
     if (selectedJob) {
       if (name === "graduation_year") {
@@ -220,10 +255,10 @@ export default function JobEditPage() {
       } else {
         setSelectedJob({ ...selectedJob, [name]: value });
       }
-      
+
       // 必須項目と文字数制限のチェック
       const newErrors: Partial<typeof fieldErrors> = {};
-      
+
       // 必須項目のチェック
       if (name === "employment_type") {
         const error = validateRequired(value, "雇用形態");
@@ -245,7 +280,7 @@ export default function JobEditPage() {
         const error = validateRequired(value, "職務内容");
         if (error) newErrors.description = error;
       }
-      
+
       // 文字数制限のチェック
       if (name === "title") {
         const error = validateMaxLength(value, 30, "求人タイトル");
@@ -267,10 +302,10 @@ export default function JobEditPage() {
         const error = validateMaxLength(value, 2000, "選考フロー");
         if (error) newErrors.selection_process = error;
       }
-      
+
       // フィールドエラーを更新
       setFieldErrors((prev) => {
-        const updated = { ...prev };
+        const updated: Record<string, string> = { ...prev };
         if (newErrors[name as keyof typeof newErrors]) {
           updated[name as keyof typeof updated] = newErrors[name as keyof typeof newErrors] as string;
         } else if (updated[name as keyof typeof updated]) {
@@ -280,33 +315,6 @@ export default function JobEditPage() {
         return updated;
       });
     }
-  };
-
-  // 応募ステータスの選択を処理
-  const handleStatusChange = (status: string, checked: boolean) => {
-    if (!selectedJob) return;
-
-    // 必須ステータスは変更不可
-    if (REQUIRED_STATUSES.includes(status)) {
-      return;
-    }
-
-    const currentStatuses = selectedJob.available_statuses || [];
-    let newStatuses: string[];
-
-    if (checked) {
-      newStatuses = [...currentStatuses, status];
-    } else {
-      newStatuses = currentStatuses.filter((s) => s !== status);
-    }
-
-    // 必須ステータスを常に含める
-    const finalStatuses = [...new Set([...REQUIRED_STATUSES, ...newStatuses])];
-
-    setSelectedJob({
-      ...selectedJob,
-      available_statuses: finalStatuses as JobPosting["available_statuses"]
-    });
   };
 
   // 文字数制限のチェック
@@ -393,133 +401,8 @@ export default function JobEditPage() {
     return Object.keys(errors).length === 0;
   };
 
-
-  const handleBack = () => {
-    handleNavigation("/studio/jobs");
-  };
-
-  // 審査申請の共通ロジック
-  const { submitForReview, isSubmitting, error: submitError } = useDraftSubmit({
-    onSave: async () => {
-      if (!selectedJob) {
-        return { error: "求人データが見つかりません" };
-      }
-
-      const jobData = {
-        title: selectedJob.title || "",
-        employment_type: selectedJob.employment_type || "",
-        graduation_year: selectedJob.graduation_year || null,
-        prefecture: selectedJob.prefecture || "",
-        location_detail: selectedJob.location_detail || "",
-        description: selectedJob.description || "",
-        requirements: selectedJob.requirements || "",
-        benefits: selectedJob.benefits || "",
-        selection_process: selectedJob.selection_process || "",
-        available_statuses: selectedJob.available_statuses || [],
-        cover_image_url: selectedJob.cover_image_url || null
-      };
-
-      let draftId = selectedJob.id;
-
-      // 新規作成または既存のdraftを更新
-      if (isNew || !draftId) {
-        const createResult = await createJobDraft(jobData);
-        if (createResult.error) {
-          return { error: createResult.error };
-        }
-        draftId = createResult.data?.id || "";
-        // 新規作成した場合はselectedJobを更新
-        if (createResult.data) {
-          setSelectedJob({ ...selectedJob, id: draftId });
-        }
-      } else {
-        const updateResult = await updateJobDraft(draftId, jobData);
-        if (updateResult.error) {
-          return { error: updateResult.error };
-        }
-      }
-
-      return { error: null, draftId };
-    },
-    onSubmit: async (draftId) => {
-      return await submitJobForReview(draftId);
-    },
-    validate: () => {
-      if (!validateRequiredFields()) {
-        return "必須項目を入力してください";
-      }
-      if (Object.keys(fieldErrors).length > 0 || hasCharacterLimitErrors()) {
-        return "入力内容を確認してください";
-      }
-      return null;
-    },
-    redirectTo: "/studio/jobs"
-  });
-
-  const handleSubmitForReview = async () => {
-    if (!selectedJob) {
-      setError("求人データが見つかりません");
-      return;
-    }
-
-    // バリデーション
-    if (!validateRequiredFields()) {
-      setError("必須項目を入力してください");
-      return;
-    }
-
-    if (Object.keys(fieldErrors).length > 0 || hasCharacterLimitErrors()) {
-      setError("入力内容を確認してください");
-      return;
-    }
-
-    // 審査申請（onSave内で保存処理が実行される）
-    const currentDraftId = selectedJob.id;
-    if (!currentDraftId && !isNew) {
-      setError("ドラフトIDが見つかりません");
-      return;
-    }
-
-    await submitForReview(currentDraftId || undefined);
-  };
-
-  // submitErrorも表示する
-  useEffect(() => {
-    if (submitError) {
-      setError(submitError);
-    }
-  }, [submitError]);
-
-  // 応募ステータスの日本語ラベル
-  const statusLabels: Record<string, string> = {
-    applied: "応募済み",
-    document_screening: "書類選考",
-    first_interview: "1次面接",
-    second_interview: "2次面接",
-    final_interview: "最終面接",
-    offer: "内定",
-    rejected: "不採用",
-    withdrawn: "辞退"
-  };
-
-  // 利用可能な応募ステータスのリスト
-  const availableStatuses: Array<keyof typeof statusLabels> = [
-    "applied",
-    "document_screening",
-    "first_interview",
-    "second_interview",
-    "final_interview",
-    "offer",
-    "rejected",
-    "withdrawn"
-  ];
-
-  // 卒業年の選択肢を生成（現在年から5年後まで）
-  const currentYear = new Date().getFullYear();
-  const graduationYears = Array.from({ length: 6 }, (_, i) => currentYear + i);
-
-  // 審査中（submitted）の場合は編集不可
-  const isReadOnly = selectedJob?.draft_status === "submitted";
+  // 卒年度は2028年のみ
+  const graduationYears = [2028];
 
   if (loading) {
     return (
@@ -562,13 +445,15 @@ export default function JobEditPage() {
     title: selectedJob.title,
     graduationYear: `${selectedJob.graduation_year}年卒`,
     location: locationText || "",
-    status: selectedJob.status === "active" ? "published" : "private",
+    status: (selectedJob.production_status || selectedJob.status) === "active" ? "published" : "private",
     description: selectedJob.description || "",
     requirements: selectedJob.requirements || "",
     benefits: selectedJob.benefits || "",
     selectionProcess: selectedJob.selection_process || "",
-    companyName: "サンプル株式会社",
-    companyLogo: "https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=200&h=200&fit=crop",
+    companyName: selectedJob.companies?.name || "サンプル株式会社",
+    companyLogo:
+      selectedJob.companies?.logo_url ||
+      "https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=200&h=200&fit=crop",
     workLocation: locationText || undefined,
     workConditions: selectedJob.employment_type || undefined,
     coverImage: selectedJob.cover_image_url || undefined
@@ -576,6 +461,9 @@ export default function JobEditPage() {
 
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-300 pb-24">
+      {/* 共通警告メッセージ */}
+      <StudioEditorAlerts showUnderReviewAlert={showUnderReviewAlert} showOlderVersionAlert={showOlderVersionAlert} />
+
       {/* プレビューモーダル */}
       <StudioPreviewModal
         isOpen={isPreviewOpen}
@@ -586,13 +474,21 @@ export default function JobEditPage() {
         previewUrl="/studio/jobs/preview-content"
       />
 
+      <SubmitReviewModal
+        isOpen={isSubmitModalOpen}
+        onClose={() => setIsSubmitModalOpen(false)}
+        onSubmit={(keepProductionActive) => {
+          submitForReview(keepProductionActive);
+        }}
+        isSubmitting={isSubmittingReview}
+        hasProduction={!!selectedJob.production_job_id}
+      />
+
       <ErrorMessage message={error || ""} />
 
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <button onClick={handleBack} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-            <ArrowLeft className="w-6 h-6" />
-          </button>
+          <StudioBackButton href="/studio/jobs" />
           <div>
             <h1 className="text-3xl font-black tracking-tight text-gray-900">
               {isNew ? "新規求人作成" : "求人を編集"}
@@ -600,18 +496,15 @@ export default function JobEditPage() {
             <p className="text-gray-500 font-medium">求人の詳細情報を入力してください。</p>
           </div>
         </div>
-        {/* 公開ステータス表示 */}
+        {/* 審査ステータスと公開設定トグル（ヘッダー右側） */}
         {!isNew && (
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-500 font-medium">公開ステータス:</span>
-            <StudioBadge
-              variant={
-                selectedJob.status === "active" ? "success" : selectedJob.status === "pending" ? "neutral" : "neutral"
-              }
-            >
-              {selectedJob.status === "active" ? "公開中" : selectedJob.status === "pending" ? "審査中" : "非公開"}
-            </StudioBadge>
-          </div>
+          <StudioEditorStatusSection
+            draftStatus={selectedJob.draft_status}
+            productionStatus={selectedJob.production_status || (selectedJob.status as any)}
+            onToggleStatus={handleToggleStatus}
+            hasProduction={!!selectedJob.production_job_id}
+            disabled={saving}
+          />
         )}
       </div>
 
@@ -676,26 +569,14 @@ export default function JobEditPage() {
                     <p className="text-xs text-red-500 font-bold">{fieldErrors.graduation_year}</p>
                   )}
                 </div>
-                <div className="space-y-2">
-                  <StudioLabel required>勤務地/都道府県</StudioLabel>
-                  <StudioSelect
-                    name="prefecture"
-                    value={selectedJob.prefecture || ""}
-                    onChange={handleChange}
-                    required
-                    disabled={isReadOnly}
-                  >
-                    <option value="">選択してください</option>
-                    {PREFECTURES.map((pref) => (
-                      <option key={pref} value={pref}>
-                        {pref}
-                      </option>
-                    ))}
-                  </StudioSelect>
-                  {fieldErrors.prefecture && (
-                    <p className="text-xs text-red-500 font-bold">{fieldErrors.prefecture}</p>
-                  )}
-                </div>
+                <PrefectureSelect
+                  label="勤務地/都道府県"
+                  value={selectedJob.prefecture || ""}
+                  onChange={handleChange}
+                  required
+                  error={fieldErrors.prefecture}
+                  disabled={isReadOnly}
+                />
                 <div className="space-y-2">
                   <StudioFormField
                     label="勤務地/詳細"
@@ -782,7 +663,7 @@ export default function JobEditPage() {
               </div>
               <p className="text-sm text-gray-500 mt-1">求人詳細ページの上部に表示される画像を設定できます</p>
             </div>
-            <div className="p-6">
+            <div className={`p-6 ${isReadOnly ? "opacity-60 pointer-events-none" : ""}`}>
               <StudioImageUpload
                 label=""
                 type="cover"
@@ -804,61 +685,25 @@ export default function JobEditPage() {
               />
             </div>
           </div>
-
-          {/* 応募ステータス設定 */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="p-6 border-b border-gray-100">
-              <h2 className="font-bold text-lg text-gray-900">応募ステータス設定</h2>
-              <p className="text-sm text-gray-500 mt-1">この求人で使用する応募ステータスを選択してください</p>
-            </div>
-            <div className="p-6 space-y-3">
-              {availableStatuses.map((status) => {
-                const statusValue = status as JobPosting["available_statuses"][number];
-                const isChecked = selectedJob.available_statuses?.includes(statusValue) || false;
-                const isRequired = REQUIRED_STATUSES.includes(status);
-                return (
-                  <label
-                    key={status}
-                    className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
-                      isRequired ? "bg-gray-50 cursor-not-allowed" : "hover:bg-gray-50 cursor-pointer"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={isChecked}
-                      disabled={isRequired || isReadOnly}
-                      onChange={(e) => handleStatusChange(status, e.target.checked)}
-                      className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500 focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                    />
-                    <div className="flex items-center gap-2 flex-1">
-                      <span className={`text-sm font-medium ${isRequired ? "text-gray-600" : "text-gray-900"}`}>
-                        {statusLabels[status]}
-                      </span>
-                      {isRequired ? (
-                        <StudioBadge variant="error">必須</StudioBadge>
-                      ) : (
-                        <StudioBadge variant="neutral">任意</StudioBadge>
-                      )}
-                    </div>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
         </div>
       </div>
 
       {/* 画面下部のボタン */}
       <DraftActionButtons
         onPreview={() => setIsPreviewOpen(true)}
-        onSubmitForReview={handleSubmitForReview}
-        isSubmitting={isSubmitting || saving}
+        showPreviewButton={true}
+        onSubmitForReview={() => setIsSubmitModalOpen(true)}
+        isSubmitting={isSubmittingReview}
         isSubmitDisabled={isCoverImageUploading || Object.keys(fieldErrors).length > 0 || hasCharacterLimitErrors()}
-        showSubmitButton={selectedJob?.draft_status !== "submitted"}
-        publicPageUrl={selectedJob.production_job_id ? `/job/${selectedJob.production_job_id}` : undefined}
+        showSubmitButton={!isReadOnly}
         hasChanges={hasJobChanges()}
+        showActualPageButton={!!selectedJob.production_job_id && selectedJob.production_status === "active"}
+        onViewActualPage={() => {
+          if (selectedJob.production_job_id) {
+            window.open(`/job/${selectedJob.production_job_id}`, "_blank");
+          }
+        }}
       />
     </div>
   );
 }
-

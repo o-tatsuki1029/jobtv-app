@@ -1,5 +1,6 @@
 import CompanyProfileView, { dbToCompanyData } from "@/components/company";
 import { getCompanyProfileById } from "@/lib/actions/company-profile-actions";
+import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
@@ -285,6 +286,22 @@ export default async function CompanyDetailPage({ params }: CompanyDetailPagePro
   if (result.error || !result.data) {
     // エラー時またはデータがない場合は404を返す
     console.error("Failed to fetch company profile:", result.error);
+    notFound();
+  }
+
+  // 企業ページ情報（company_pages）が存在するかチェック
+  // getCompanyPageByIdでstatus === "active"のみ取得しているため、
+  // 企業ページ情報が存在するがstatus !== "active"の場合は、pageResult.dataがnullになる
+  // その場合、企業ページ情報が存在するが非公開の場合は404を返す
+  const supabase = await createClient();
+  const { data: companyPageCheck } = await supabase
+    .from("company_pages")
+    .select("id, status")
+    .eq("company_id", id)
+    .maybeSingle();
+
+  // 企業ページ情報が存在するが、status !== "active"の場合は404を返す
+  if (companyPageCheck && companyPageCheck.status !== "active") {
     notFound();
   }
 

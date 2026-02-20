@@ -34,7 +34,7 @@ interface InterviewNoteFormProps {
   className?: string;
 }
 
-type AdminUser = Pick<Tables<"profiles">, "id" | "email" | "full_name">;
+type AdminUser = Pick<Tables<"profiles">, "id" | "email" | "first_name" | "last_name">;
 
 export function InterviewNoteForm({
   candidateId,
@@ -78,9 +78,10 @@ export function InterviewNoteForm({
       // 管理者とリクルーターのリストを取得
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("id, email, full_name")
+        .select("id, email, first_name, last_name")
         .in("role", ["admin", "RA", "CA", "MRK"])
-        .order("full_name")
+        .order("last_name")
+        .order("first_name")
         .order("email");
 
       if (profiles) {
@@ -273,7 +274,9 @@ export function InterviewNoteForm({
           <SelectContent>
             {adminUsers.map((user) => (
               <SelectItem key={user.id} value={user.id}>
-                {user.full_name || user.email || "不明"}
+                {user.last_name && user.first_name
+                  ? `${user.last_name} ${user.first_name}`
+                  : user.email || "不明"}
               </SelectItem>
             ))}
           </SelectContent>

@@ -46,6 +46,7 @@ export async function getTeamMembers(): Promise<{
 
 /**
  * チームメンバーを削除（企業から外す）
+ * 注意: 管理者ロールのメンバーは削除できません
  */
 export async function removeTeamMember(memberId: string): Promise<{
   data: ProfileRow | null;
@@ -69,7 +70,7 @@ export async function removeTeamMember(memberId: string): Promise<{
     // 削除対象のメンバーが同じ企業に所属しているか確認
     const { data: member, error: memberError } = await supabase
       .from("profiles")
-      .select("company_id")
+      .select("company_id, role")
       .eq("id", memberId)
       .single();
 
@@ -79,6 +80,11 @@ export async function removeTeamMember(memberId: string): Promise<{
 
     if (member.company_id !== companyId) {
       return { data: null, error: "このメンバーは削除できません" };
+    }
+
+    // 管理者は削除不可
+    if (member.role === "admin") {
+      return { data: null, error: "システム管理者は削除できません" };
     }
 
     // company_idをnullに設定（削除ではなく企業から外す）
@@ -94,7 +100,7 @@ export async function removeTeamMember(memberId: string): Promise<{
       return { data: null, error: updateError.message };
     }
 
-    revalidatePath("/studio/settings");
+    revalidatePath("/studio/settings/members");
 
     return { data: updatedMember as ProfileRow, error: null };
   } catch (error) {
@@ -108,6 +114,7 @@ export async function removeTeamMember(memberId: string): Promise<{
 
 /**
  * チームメンバーの権限を更新
+ * 注意: 管理者ロールへの変更は許可されていません
  */
 export async function updateTeamMemberRole(
   memberId: string,
@@ -117,6 +124,11 @@ export async function updateTeamMemberRole(
   error: string | null;
 }> {
   try {
+    // 管理者ロールへの変更を防ぐ
+    if (role === "admin") {
+      return { data: null, error: "管理者ロールは設定できません" };
+    }
+
     const { companyId, error: companyIdError } = await getUserCompanyId();
 
     if (companyIdError) {
@@ -134,7 +146,7 @@ export async function updateTeamMemberRole(
     // 更新対象のメンバーが同じ企業に所属しているか確認
     const { data: member, error: memberError } = await supabase
       .from("profiles")
-      .select("company_id")
+      .select("company_id, role")
       .eq("id", memberId)
       .single();
 
@@ -144,6 +156,11 @@ export async function updateTeamMemberRole(
 
     if (member.company_id !== companyId) {
       return { data: null, error: "このメンバーの権限を変更できません" };
+    }
+
+    // 既に管理者のメンバーは変更不可
+    if (member.role === "admin") {
+      return { data: null, error: "システム管理者の権限は変更できません" };
     }
 
     // 権限を更新
@@ -159,7 +176,7 @@ export async function updateTeamMemberRole(
       return { data: null, error: updateError.message };
     }
 
-    revalidatePath("/studio/settings");
+    revalidatePath("/studio/settings/members");
 
     return { data: updatedMember as ProfileRow, error: null };
   } catch (error) {
@@ -167,6 +184,110 @@ export async function updateTeamMemberRole(
     return {
       data: null,
       error: error instanceof Error ? error.message : "チームメンバーの権限更新に失敗しました"
+    };
+  }
+}
+
+/**
+ * チームメンバーを招待
+ * Supabaseの招待機能を使用してメールを送信
+ */
+export async function inviteTeamMember(
+  email: string,
+  firstName: string,
+  lastName: string,
+  firstNameKana: string,
+  lastNameKana: string
+): Promise<{
+  data: { email: string } | null;
+  error: string | null;
+}> {
+  try {
+    const { companyId, error: companyIdError } = await getUserCompanyId();
+
+    if (companyIdError) {
+      return { data: null, error: companyIdError };
+    }
+
+    // 権限チェック
+    const permissionCheck = await checkCompanyEditPermission(companyId);
+    if (!permissionCheck.allowed) {
+      return { data: null, error: permissionCheck.error || "編集権限がありません" };
+    }
+
+    const supabase = await createClient();
+
+    // 既に同じメールアドレスのユーザーが存在するかチェック
+    const { data: existingProfile, error: checkError } = await supabase
+      .from("profiles")
+      .select("id, email, company_id")
+      .eq("email", email)
+      .maybeSingle();
+
+    if (checkError) {
+      console.error("Check existing profile error:", checkError);
+      return { data: null, error: "ユーザーの確認に失敗しました" };
+    }
+
+    if (existingProfile) {
+      if (existingProfile.company_id === companyId) {
+        return { data: null, error: "このメールアドレスは既にチームメンバーです" };
+      } else if (existingProfile.company_id) {
+        return { data: null, error: "このメールアドレスは既に他の企業に所属しています" };
+      } else {
+        // company_idがnullの場合は、このユーザーを企業に追加
+        const { error: updateError } = await supabase
+          .from("profiles")
+          .update({
+            company_id: companyId,
+            first_name: firstName,
+            last_name: lastName,
+            first_name_kana: firstNameKana,
+            last_name_kana: lastNameKana,
+            role: "recruiter",
+          })
+          .eq("id", existingProfile.id);
+
+        if (updateError) {
+          console.error("Update existing profile error:", updateError);
+          return { data: null, error: "メンバーの追加に失敗しました" };
+        }
+
+        revalidatePath("/studio/settings/members");
+        return { data: { email }, error: null };
+      }
+    }
+
+    // Supabaseの招待機能を使用
+    // 注意: この機能を使用するには、Supabaseプロジェクトで招待機能が有効になっている必要があります
+    const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
+      email,
+      {
+        data: {
+          first_name: firstName,
+          last_name: lastName,
+          first_name_kana: firstNameKana,
+          last_name_kana: lastNameKana,
+          company_id: companyId,
+          role: "recruiter",
+        },
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+      }
+    );
+
+    if (inviteError) {
+      console.error("Invite user error:", inviteError);
+      return { data: null, error: "招待メールの送信に失敗しました" };
+    }
+
+    revalidatePath("/studio/settings/members");
+
+    return { data: { email }, error: null };
+  } catch (error) {
+    console.error("Invite team member error:", error);
+    return {
+      data: null,
+      error: error instanceof Error ? error.message : "メンバーの招待に失敗しました"
     };
   }
 }

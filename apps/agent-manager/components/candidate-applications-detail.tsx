@@ -153,7 +153,9 @@ function MetaInfoHeader({
       {profiles && (
         <span className="flex items-center gap-1">
           <User className="h-3 w-3" />
-          記録者: {profiles.full_name || profiles.email || "不明"}
+          記録者: {profiles.last_name && profiles.first_name
+            ? `${profiles.last_name} ${profiles.first_name}`
+            : profiles.email || "不明"}
           {profiles.role && (
             <span className="text-muted-foreground">
               ({ROLE_LABELS[profiles.role] || profiles.role})
@@ -197,7 +199,9 @@ function MetaInfoFooter({
         <span className="flex items-center gap-1">
           <Edit className="h-3 w-3" />
           最終編集者:{" "}
-          {displayUpdatedBy.full_name || displayUpdatedBy.email || "不明"}
+          {displayUpdatedBy.last_name && displayUpdatedBy.first_name
+            ? `${displayUpdatedBy.last_name} ${displayUpdatedBy.first_name}`
+            : displayUpdatedBy.email || "不明"}
           {displayUpdatedBy.role && (
             <span className="text-muted-foreground">
               ({ROLE_LABELS[displayUpdatedBy.role] || displayUpdatedBy.role})
@@ -275,11 +279,13 @@ function InterviewNoteItem({
             <span className="text-sm text-muted-foreground">
               実施者:{" "}
               {item.interviewerProfile
-                ? item.interviewerProfile.full_name ||
-                  item.interviewerProfile.email ||
-                  "不明"
+                ? item.interviewerProfile.last_name && item.interviewerProfile.first_name
+                  ? `${item.interviewerProfile.last_name} ${item.interviewerProfile.first_name}`
+                  : item.interviewerProfile.email || "不明"
                 : item.profiles
-                ? item.profiles.full_name || item.profiles.email || "不明"
+                ? item.profiles.last_name && item.profiles.first_name
+                  ? `${item.profiles.last_name} ${item.profiles.first_name}`
+                  : item.profiles.email || "不明"
                 : "不明"}
               {item.interviewerProfile?.role && (
                 <span className="ml-1">

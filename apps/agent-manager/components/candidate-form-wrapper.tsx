@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 interface CandidateFormWrapperProps {
   initialData?: {
     id?: string;
-    full_name?: string;
+    first_name?: string;
+    last_name?: string;
     email?: string;
     phone?: string;
     notes?: string;

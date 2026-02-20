@@ -139,7 +139,8 @@ export default async function SessionDetailPage({ params }: SessionDetailPagePro
     companyName: company.name,
     companyLogo: company.logo_url || "",
     companyId: company.id,
-    coverImage: session.cover_image_url || company.cover_image_url || undefined
+    coverImage: session.cover_image_url || undefined,
+    graduationYear: session.graduation_year || undefined
   };
 
   return <SessionDetailView session={sessionData} />;

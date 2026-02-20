@@ -3,7 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import StudioButton from "@/components/studio/atoms/StudioButton";
 import StudioBadge from "@/components/studio/atoms/StudioBadge";
 import ApprovalActions from "@/components/admin/ApprovalActions";
-import { approveCompany, rejectCompany } from "@/lib/actions/admin-actions";
+import { approveCompanyInfo, rejectCompanyInfo } from "@/lib/actions/admin-actions";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import type { Tables } from "@jobtv-app/shared/types";
@@ -52,19 +52,15 @@ export default async function AdminCompanyDetailPage({ params }: CompanyDetailPa
             <p className="text-muted-foreground">企業情報の審査</p>
           </div>
         </div>
-        {companyData.status === "pending" && (
-          <ApprovalActions
-            onApprove={() => approveCompany(id)}
-            onReject={() => rejectCompany(id)}
-          />
-        )}
+        {/* 審査中の判定はドラフトテーブルのdraft_statusを参照 */}
+        {/* このページは本番テーブルから取得しているため、審査機能は別ページで実装 */}
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-6">
         <div>
           <div className="flex items-center gap-2 mb-4">
-            <StudioBadge variant={companyData.status === "pending" ? "neutral" : "success"}>
-              {companyData.status === "pending" ? "審査中" : companyData.status === "active" ? "公開中" : "非公開"}
+            <StudioBadge variant={companyData.status === "active" ? "success" : "neutral"}>
+              {companyData.status === "active" ? "公開中" : "非公開"}
             </StudioBadge>
           </div>
         </div>
@@ -83,8 +79,8 @@ export default async function AdminCompanyDetailPage({ params }: CompanyDetailPa
             <p className="text-base">{companyData.name || "未設定"}</p>
           </div>
           <div>
-            <p className="text-sm font-medium text-muted-foreground mb-1">タグライン</p>
-            <p className="text-base">{companyData.tagline || "未設定"}</p>
+            <p className="text-sm font-medium text-muted-foreground mb-1">業界</p>
+            <p className="text-base">{companyData.industry || "未設定"}</p>
           </div>
           <div>
             <p className="text-sm font-medium text-muted-foreground mb-1">ウェブサイト</p>

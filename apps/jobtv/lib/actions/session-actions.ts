@@ -40,7 +40,7 @@ export async function getSessions() {
   }
 
   const { data, error } = await supabase
-    .from("sessions")
+    .from("sessions_draft")
     .select("*")
     .eq("company_id", profile.company_id)
     .order("created_at", { ascending: false });
@@ -70,9 +70,9 @@ export async function getSession(id: string) {
 }
 
 /**
- * 説明会を作成
+ * 説明会の公開/非公開を切り替え
  */
-export async function createSession(data: Omit<SessionData, "id" | "created_by">) {
+export async function toggleSessionStatus(productionSessionId: string, newStatus: "active" | "closed") {
   const supabase = await createClient();
 
   // 現在のユーザーIDを取得
@@ -81,10 +81,7 @@ export async function createSession(data: Omit<SessionData, "id" | "created_by">
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return {
-      data: null,
-      error: "ログインが必要です"
-    };
+    return { data: null, error: "ログインが必要です" };
   }
 
   // ユーザーのcompany_idを取得
@@ -95,147 +92,40 @@ export async function createSession(data: Omit<SessionData, "id" | "created_by">
     .single();
 
   if (profileError || !profile?.company_id) {
-    return {
-      data: null,
-      error: "企業情報が見つかりません"
-    };
+    return { data: null, error: "企業情報が見つかりません" };
   }
 
-  const sessionData: TablesInsert<"sessions"> = {
-    ...data,
-    company_id: profile.company_id,
-    created_by: user.id,
-    // 新規作成時は常にpending（審査中）ステータス
-    status: "pending" as const
-  } as TablesInsert<"sessions">;
+  // 本番レコードが自分の企業のものか確認
+  const { data: productionSession, error: sessionError } = await supabase
+    .from("sessions")
+    .select("company_id, status")
+    .eq("id", productionSessionId)
+    .single();
 
-  const { data: result, error } = await supabase.from("sessions").insert(sessionData).select().single();
+  if (sessionError || !productionSession) {
+    return { data: null, error: "説明会が見つかりません" };
+  }
+
+  if (productionSession.company_id !== profile.company_id) {
+    return { data: null, error: "権限がありません" };
+  }
+
+  // 本番テーブルのstatusを変更
+  const { data, error } = await supabase
+    .from("sessions")
+    .update({ status: newStatus })
+    .eq("id", productionSessionId)
+    .select()
+    .maybeSingle();
 
   if (error) {
-    console.error("Create session error:", error);
+    console.error("Toggle session status error:", error);
     return { data: null, error: error.message };
   }
 
   revalidatePath("/studio/sessions");
-  return { data: result, error: null };
-}
-
-/**
- * 説明会を更新
- */
-export async function updateSession(id: string, data: Partial<Omit<SessionData, "id" | "created_by" | "company_id" | "status">>) {
-  const supabase = await createClient();
-
-  // statusは企業管理画面から変更不可（管理者のみ変更可能）
-  const { status, ...updateDataWithoutStatus } = data;
-
-  const updateData: TablesUpdate<"sessions"> = {
-    ...updateDataWithoutStatus,
-    updated_at: new Date().toISOString()
-  } as TablesUpdate<"sessions">;
-
-  const { data: result, error } = await supabase.from("sessions").update(updateData).eq("id", id).select().single();
-
-  if (error) {
-    console.error("Update session error:", error);
-    return { data: null, error: error.message };
-  }
-
-  revalidatePath("/studio/sessions");
-  return { data: result, error: null };
-}
-
-/**
- * 説明会を削除
- */
-export async function deleteSession(id: string) {
-  const supabase = await createClient();
-
-  const { error } = await supabase.from("sessions").delete().eq("id", id);
-
-  if (error) {
-    console.error("Delete session error:", error);
-    return { error: error.message };
-  }
-
-  revalidatePath("/studio/sessions");
-  return { error: null };
-}
-
-/**
- * 説明会のカバー画像をアップロード
- */
-export async function uploadSessionCoverImage(sessionId: string | null, file: File) {
-  try {
-    const supabase = await createClient();
-
-    const {
-      data: { user }
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return { data: null, error: "ログインが必要です" };
-    }
-
-    // ユーザーのcompany_idを取得
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("company_id")
-      .eq("id", user.id)
-      .single();
-
-    if (profileError || !profile?.company_id) {
-      return { data: null, error: "企業情報が見つかりません" };
-    }
-
-    // ファイルサイズチェック（50MB以下）
-    const maxSize = 50 * 1024 * 1024; // 50MB
-    if (file.size > maxSize) {
-      return { data: null, error: "ファイルサイズは50MB以下である必要があります" };
-    }
-
-    // MIMEタイプチェック（画像のみ）
-    const allowedMimeTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-    if (!allowedMimeTypes.includes(file.type)) {
-      return {
-        data: null,
-        error: "サポートされていないファイル形式です。画像（JPEG, PNG, WebP, GIF）をアップロードしてください。"
-      };
-    }
-
-    // ファイル名を生成（companyId/sessions/sessionId-or-temp/timestamp-originalname）
-    const timestamp = Date.now();
-    const fileExt = file.name.split(".").pop();
-    const fileName = sessionId
-      ? `${profile.company_id}/sessions/${sessionId}/${timestamp}.${fileExt}`
-      : `${profile.company_id}/sessions/temp/${timestamp}.${fileExt}`;
-
-    // ファイルをアップロード
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from("company-assets")
-      .upload(fileName, file, {
-        cacheControl: "3600",
-        upsert: false
-      });
-
-    if (uploadError) {
-      console.error("Upload session cover image error:", uploadError);
-      return { data: null, error: uploadError.message };
-    }
-
-    // 公開URLを取得
-    const {
-      data: { publicUrl }
-    } = supabase.storage.from("company-assets").getPublicUrl(fileName);
-
-    return { data: publicUrl, error: null };
-  } catch (error) {
-    console.error("Upload session cover image error:", error);
-    return {
-      data: null,
-      error: error instanceof Error ? error.message : "ファイルのアップロードに失敗しました"
-    };
-  }
+  revalidatePath(`/session/${productionSessionId}`);
+  return { data, error: null };
 }
 
 /**
@@ -248,10 +138,32 @@ export async function getSessionReservationCounts(sessionIds: string[]) {
     return { data: {}, error: null };
   }
 
+  // 各説明会の全日程IDを取得
+  const { data: allDates, error: datesError } = await supabase
+    .from("session_dates")
+    .select("id, session_id")
+    .in("session_id", sessionIds);
+
+  if (datesError) {
+    console.error("Get session dates error:", datesError);
+    return { data: null, error: datesError.message };
+  }
+
+  if (!allDates || allDates.length === 0) {
+    const counts: Record<string, number> = {};
+    sessionIds.forEach((id) => {
+      counts[id] = 0;
+    });
+    return { data: counts, error: null };
+  }
+
+  const dateIds = allDates.map((d) => d.id);
+
+  // 全日程の予約を取得
   const { data, error } = await supabase
     .from("session_reservations")
-    .select("session_id")
-    .in("session_id", sessionIds)
+    .select("session_date_id")
+    .in("session_date_id", dateIds)
     .eq("status", "reserved");
 
   if (error) {
@@ -264,9 +176,12 @@ export async function getSessionReservationCounts(sessionIds: string[]) {
   sessionIds.forEach((id) => {
     counts[id] = 0;
   });
+
   data?.forEach((reservation) => {
-    if (reservation.session_id) {
-      counts[reservation.session_id] = (counts[reservation.session_id] || 0) + 1;
+    // session_date_idからsession_idを逆引き
+    const date = allDates.find((d) => d.id === reservation.session_date_id);
+    if (date && date.session_id) {
+      counts[date.session_id] = (counts[date.session_id] || 0) + 1;
     }
   });
 
@@ -274,7 +189,7 @@ export async function getSessionReservationCounts(sessionIds: string[]) {
 }
 
 /**
- * 説明会の日程一覧を取得
+ * 説明会の日程一覧を取得（本番テーブル - フロントページ用）
  */
 export async function getSessionDates(sessionId: string) {
   const supabase = await createClient();
@@ -295,24 +210,51 @@ export async function getSessionDates(sessionId: string) {
 }
 
 /**
- * 説明会の日程を保存（一括更新）
+ * 説明会ドラフトの日程一覧を取得（ドラフトテーブル - スタジオ用）
  */
-export async function saveSessionDates(sessionId: string, dates: Array<{ event_date: string; start_time: string; end_time: string; capacity?: number | null }>) {
+export async function getSessionDatesDraft(sessionDraftId: string) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("session_dates_draft")
+    .select("*")
+    .eq("session_draft_id", sessionDraftId)
+    .order("event_date", { ascending: true })
+    .order("start_time", { ascending: true });
+
+  if (error) {
+    console.error("Get session dates draft error:", error);
+    return { data: null, error: error.message };
+  }
+
+  return { data, error: null };
+}
+
+/**
+ * 説明会ドラフトの日程を保存（一括更新）
+ */
+export async function saveSessionDatesDraft(
+  sessionDraftId: string,
+  dates: Array<{ event_date: string; start_time: string; end_time: string; capacity?: number | null }>
+) {
   const supabase = await createClient();
 
   try {
     // 既存の日程を削除
-    const { error: deleteError } = await supabase.from("session_dates").delete().eq("session_id", sessionId);
+    const { error: deleteError } = await supabase
+      .from("session_dates_draft")
+      .delete()
+      .eq("session_draft_id", sessionDraftId);
 
     if (deleteError) {
-      console.error("Delete session dates error:", deleteError);
+      console.error("Delete session dates draft error:", deleteError);
       return { data: null, error: deleteError.message };
     }
 
     // 新しい日程を追加
     if (dates.length > 0) {
       const datesToInsert = dates.map((date) => ({
-        session_id: sessionId,
+        session_draft_id: sessionDraftId,
         event_date: date.event_date,
         start_time: date.start_time,
         end_time: date.end_time,
@@ -320,12 +262,12 @@ export async function saveSessionDates(sessionId: string, dates: Array<{ event_d
       }));
 
       const { data: insertedDates, error: insertError } = await supabase
-        .from("session_dates")
+        .from("session_dates_draft")
         .insert(datesToInsert)
         .select();
 
       if (insertError) {
-        console.error("Insert session dates error:", insertError);
+        console.error("Insert session dates draft error:", insertError);
         return { data: null, error: insertError.message };
       }
 
@@ -334,7 +276,7 @@ export async function saveSessionDates(sessionId: string, dates: Array<{ event_d
 
     return { data: [], error: null };
   } catch (error) {
-    console.error("Save session dates error:", error);
+    console.error("Save session dates draft error:", error);
     return {
       data: null,
       error: error instanceof Error ? error.message : "日程の保存に失敗しました"
@@ -430,16 +372,21 @@ export async function updateSessionDraft(
     return { data: null, error: fetchError.message };
   }
 
-  // submittedまたはapprovedの場合はdraftに戻す（編集可能にする）
+  // submitted、approved、rejectedの場合はdraftに戻す（編集可能にする）
   const updateData: TablesUpdate<"sessions_draft"> = {
     ...data,
     updated_at: new Date().toISOString()
   } as TablesUpdate<"sessions_draft">;
 
-  if (currentDraft?.draft_status === "submitted" || currentDraft?.draft_status === "approved") {
+  if (
+    currentDraft?.draft_status === "submitted" ||
+    currentDraft?.draft_status === "approved" ||
+    currentDraft?.draft_status === "rejected"
+  ) {
     (updateData as any).draft_status = "draft";
     (updateData as any).submitted_at = null;
     (updateData as any).approved_at = null;
+    (updateData as any).rejected_at = null;
   }
 
   const { data: result, error } = await supabase
@@ -493,18 +440,18 @@ export async function getSessionDraft(id: string) {
   // 指定されたIDのdraftを取得
   const { data: draftById, error: draftByIdError } = await supabase
     .from("sessions_draft")
-    .select("*")
+    .select("*, companies!company_id(name, logo_url)")
     .eq("id", id)
     .eq("company_id", profile.company_id)
     .single();
 
   if (draftByIdError || !draftById) {
-    // IDで見つからない場合、最新のdraftまたはrejectedを取得
+    // IDで見つからない場合、最新のdraftを取得
     const { data: latestDraft, error: latestDraftError } = await supabase
       .from("sessions_draft")
-      .select("*")
+      .select("*, companies!company_id(name, logo_url)")
       .eq("company_id", profile.company_id)
-      .in("draft_status", ["draft", "rejected"])
+      .in("draft_status", ["draft", "submitted", "approved", "rejected"])
       .order("updated_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -518,27 +465,32 @@ export async function getSessionDraft(id: string) {
       return { data: null, error: "下書きが見つかりません" };
     }
 
+    // production_session_idがある場合、本番テーブルからstatusを取得（トグルボタン用）
+    if (latestDraft.production_session_id) {
+      const { data: productionSession } = await supabase
+        .from("sessions")
+        .select("status")
+        .eq("id", latestDraft.production_session_id)
+        .maybeSingle();
+
+      if (productionSession) {
+        (latestDraft as any).production_status = productionSession.status;
+      }
+    }
+
     return { data: latestDraft as SessionDraftData, error: null };
   }
 
-  // 取得したdraftがsubmittedまたはapprovedの場合、最新のdraftまたはrejectedを取得
-  if (draftById.draft_status === "submitted" || draftById.draft_status === "approved") {
-    const { data: latestDraft, error: latestDraftError } = await supabase
-      .from("sessions_draft")
-      .select("*")
-      .eq("company_id", profile.company_id)
-      .in("draft_status", ["draft", "rejected"])
-      .order("updated_at", { ascending: false })
-      .limit(1)
+  // production_session_idがある場合、本番テーブルからstatusを取得（トグルボタン用）
+  if (draftById.production_session_id) {
+    const { data: productionSession } = await supabase
+      .from("sessions")
+      .select("status")
+      .eq("id", draftById.production_session_id)
       .maybeSingle();
 
-    if (latestDraftError) {
-      console.error("Get session draft error:", latestDraftError);
-      return { data: null, error: latestDraftError.message };
-    }
-
-    if (latestDraft) {
-      return { data: latestDraft as SessionDraftData, error: null };
+    if (productionSession) {
+      (draftById as any).production_status = productionSession.status;
     }
   }
 
@@ -547,6 +499,7 @@ export async function getSessionDraft(id: string) {
 
 /**
  * 説明会draft一覧を取得（ログインユーザーの企業のdraftのみ）
+ * 本番テーブルのdisplay_orderでソート
  */
 export async function getSessionDrafts() {
   const supabase = await createClient();
@@ -577,7 +530,8 @@ export async function getSessionDrafts() {
     };
   }
 
-  const { data, error } = await supabase
+  // ドラフト一覧を取得
+  const { data: drafts, error } = await supabase
     .from("sessions_draft")
     .select("*")
     .eq("company_id", profile.company_id)
@@ -588,13 +542,48 @@ export async function getSessionDrafts() {
     return { data: null, error: error.message };
   }
 
-  return { data: data || [], error: null };
+  if (!drafts || drafts.length === 0) {
+    return { data: [], error: null };
+  }
+
+  // 本番IDを持つドラフトの本番テーブルからdisplay_orderを取得
+  const productionIds = drafts.filter((d) => d.production_session_id).map((d) => d.production_session_id!);
+
+  let productionDisplayOrders: Record<string, number | null> = {};
+  if (productionIds.length > 0) {
+    const { data: productions } = await supabase.from("sessions").select("id, display_order").in("id", productionIds);
+
+    if (productions) {
+      for (const p of productions) {
+        productionDisplayOrders[p.id] = p.display_order;
+      }
+    }
+  }
+
+  // ドラフトに本番のdisplay_orderをマージしてソート
+  const draftsWithOrder = drafts.map((draft) => ({
+    ...draft,
+    display_order: draft.production_session_id ? productionDisplayOrders[draft.production_session_id] ?? null : null
+  }));
+
+  // display_orderでソート（nullは後ろ）
+  draftsWithOrder.sort((a, b) => {
+    if (a.display_order === null && b.display_order === null) {
+      // 両方nullの場合はcreated_atの降順
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    }
+    if (a.display_order === null) return 1;
+    if (b.display_order === null) return -1;
+    return a.display_order - b.display_order;
+  });
+
+  return { data: draftsWithOrder, error: null };
 }
 
 /**
  * 説明会draftを審査申請（本番テーブルにコピー）
  */
-export async function submitSessionForReview(draftId: string) {
+export async function submitSessionForReview(draftId: string, keepProductionActive: boolean = true) {
   const supabase = await createClient();
 
   // draftを取得
@@ -620,19 +609,116 @@ export async function submitSessionForReview(draftId: string) {
     submitted_at: new Date().toISOString()
   };
 
-  const { error: updateError } = await supabase
+  const { data: updatedDraft, error: updateError } = await supabase
     .from("sessions_draft")
     .update(updateData)
-    .eq("id", draftId);
+    .eq("id", draftId)
+    .select()
+    .single();
 
   if (updateError) {
     console.error("Update draft status error:", updateError);
     return { data: null, error: updateError.message };
   }
 
+  // 更新後の状態を確認
+  if (updatedDraft?.draft_status !== "submitted") {
+    return { data: null, error: "ドラフトステータスの更新に失敗しました" };
+  }
+
+  // 審査申請時に本番説明会を非公開にする場合
+  if (!keepProductionActive && draft.production_session_id) {
+    const { error: productionUpdateError } = await supabase
+      .from("sessions")
+      .update({ status: "closed" })
+      .eq("id", draft.production_session_id);
+
+    if (productionUpdateError) {
+      console.error("Failed to close production session:", productionUpdateError);
+      // エラーが発生しても審査申請は成功とみなす
+    }
+  }
+
   revalidatePath("/studio/sessions");
   revalidatePath("/admin/review");
-  return { data: draft, error: null };
+  return { data: updatedDraft, error: null };
+}
+
+/**
+ * 説明会の表示順序を更新（本番テーブル）
+ * ドラフトIDから本番IDを取得して、本番テーブルの表示順序を更新
+ */
+export async function reorderSessions(orders: Array<{ id: string; display_order: number }>) {
+  const supabase = await createClient();
+
+  // 現在のユーザーIDを取得
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { data: null, error: "ログインが必要です" };
+  }
+
+  // ユーザーのcompany_idを取得
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("company_id")
+    .eq("id", user.id)
+    .single();
+
+  if (profileError || !profile?.company_id) {
+    return { data: null, error: "企業情報が見つかりません" };
+  }
+
+  try {
+    // ドラフトIDから本番IDを取得
+    const draftIds = orders.map((o) => o.id);
+    const { data: drafts, error: draftsError } = await supabase
+      .from("sessions_draft")
+      .select("id, production_session_id")
+      .in("id", draftIds)
+      .eq("company_id", profile.company_id);
+
+    if (draftsError) {
+      console.error("Get session drafts error:", draftsError);
+      return { data: null, error: draftsError.message };
+    }
+
+    // ドラフトIDと本番IDのマッピングを作成
+    const draftToProduction = new Map<string, string>();
+    for (const draft of drafts || []) {
+      if (draft.production_session_id) {
+        draftToProduction.set(draft.id, draft.production_session_id);
+      }
+    }
+
+    // 本番テーブルの表示順序を更新
+    for (const order of orders) {
+      const productionId = draftToProduction.get(order.id);
+      if (productionId) {
+        const { error } = await supabase
+          .from("sessions")
+          .update({ display_order: order.display_order })
+          .eq("id", productionId)
+          .eq("company_id", profile.company_id);
+
+        if (error) {
+          console.error("Reorder sessions error:", error);
+          return { data: null, error: error.message };
+        }
+      }
+    }
+
+    revalidatePath("/studio/sessions");
+    return { data: true, error: null };
+  } catch (error) {
+    console.error("Reorder sessions error:", error);
+    return {
+      data: null,
+      error: error instanceof Error ? error.message : "並び替えに失敗しました"
+    };
+  }
 }
 
 /**
@@ -727,15 +813,7 @@ export async function getSessionDraftById(draftId: string) {
   try {
     const supabase = await createClient();
 
-    console.log("getSessionDraftById called with draftId:", draftId);
-
-    const { data: draft, error } = await supabase
-      .from("sessions_draft")
-      .select("*")
-      .eq("id", draftId)
-      .maybeSingle();
-
-    console.log("Supabase query result:", { draft, error });
+    const { data: draft, error } = await supabase.from("sessions_draft").select("*").eq("id", draftId).maybeSingle();
 
     if (error) {
       console.error("Get session draft by id error:", error);
@@ -747,7 +825,6 @@ export async function getSessionDraftById(draftId: string) {
       return { data: null, error: "下書きが見つかりません" };
     }
 
-    console.log("Successfully retrieved draft:", draft.id);
     return { data: draft, error: null };
   } catch (error) {
     console.error("Unexpected error in getSessionDraftById:", error);
@@ -781,4 +858,3 @@ export async function getSessionDraftByProductionId(productionSessionId: string)
 
   return { data: draft, error: null };
 }
-

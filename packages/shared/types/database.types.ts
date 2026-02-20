@@ -334,6 +334,7 @@ export type Database = {
           logo_url: string | null
           name: string
           notes: string | null
+          prefecture: string | null
           representative: string | null
           status: Database["public"]["Enums"]["company_status"] | null
           updated_at: string
@@ -353,6 +354,7 @@ export type Database = {
           logo_url?: string | null
           name: string
           notes?: string | null
+          prefecture?: string | null
           representative?: string | null
           status?: Database["public"]["Enums"]["company_status"] | null
           updated_at?: string
@@ -372,6 +374,7 @@ export type Database = {
           logo_url?: string | null
           name?: string
           notes?: string | null
+          prefecture?: string | null
           representative?: string | null
           status?: Database["public"]["Enums"]["company_status"] | null
           updated_at?: string
@@ -396,6 +399,7 @@ export type Database = {
           logo_url: string | null
           name: string
           notes: string | null
+          prefecture: string | null
           production_company_id: string | null
           rejected_at: string | null
           representative: string | null
@@ -419,6 +423,7 @@ export type Database = {
           logo_url?: string | null
           name: string
           notes?: string | null
+          prefecture?: string | null
           production_company_id?: string | null
           rejected_at?: string | null
           representative?: string | null
@@ -442,6 +447,7 @@ export type Database = {
           logo_url?: string | null
           name?: string
           notes?: string | null
+          prefecture?: string | null
           production_company_id?: string | null
           rejected_at?: string | null
           representative?: string | null
@@ -482,6 +488,7 @@ export type Database = {
           sns_tiktok_url: string | null
           sns_x_url: string | null
           sns_youtube_url: string | null
+          status: Database["public"]["Enums"]["company_page_status"]
           tagline: string | null
           updated_at: string
         }
@@ -500,6 +507,7 @@ export type Database = {
           sns_tiktok_url?: string | null
           sns_x_url?: string | null
           sns_youtube_url?: string | null
+          status?: Database["public"]["Enums"]["company_page_status"]
           tagline?: string | null
           updated_at?: string
         }
@@ -518,6 +526,7 @@ export type Database = {
           sns_tiktok_url?: string | null
           sns_x_url?: string | null
           sns_youtube_url?: string | null
+          status?: Database["public"]["Enums"]["company_page_status"]
           tagline?: string | null
           updated_at?: string
         }
@@ -835,6 +844,7 @@ export type Database = {
           created_at: string
           created_by: string
           description: string | null
+          display_order: number | null
           employment_type: string | null
           graduation_year: number
           id: string
@@ -855,6 +865,7 @@ export type Database = {
           created_at?: string
           created_by: string
           description?: string | null
+          display_order?: number | null
           employment_type?: string | null
           graduation_year: number
           id?: string
@@ -875,6 +886,7 @@ export type Database = {
           created_at?: string
           created_by?: string
           description?: string | null
+          display_order?: number | null
           employment_type?: string | null
           graduation_year?: number
           id?: string
@@ -907,6 +919,7 @@ export type Database = {
           created_at: string
           created_by: string
           description: string | null
+          display_order: number | null
           draft_status: string
           employment_type: string | null
           graduation_year: number
@@ -930,6 +943,7 @@ export type Database = {
           created_at?: string
           created_by: string
           description?: string | null
+          display_order?: number | null
           draft_status?: string
           employment_type?: string | null
           graduation_year: number
@@ -953,6 +967,7 @@ export type Database = {
           created_at?: string
           created_by?: string
           description?: string | null
+          display_order?: number | null
           draft_status?: string
           employment_type?: string | null
           graduation_year?: number
@@ -1180,6 +1195,76 @@ export type Database = {
           },
         ]
       }
+      notification_reads: {
+        Row: {
+          id: string
+          notification_id: string
+          read_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          notification_id: string
+          read_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          notification_id?: string
+          read_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_reads_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "notifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          message: string
+          target_company_id: string | null
+          title: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          message: string
+          target_company_id?: string | null
+          title: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          message?: string
+          target_company_id?: string | null
+          title?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_target_company_id_fkey"
+            columns: ["target_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       phone_call_list_items: {
         Row: {
           candidate_id: string
@@ -1349,10 +1434,10 @@ export type Database = {
           avatar_url: string | null
           company_id: string | null
           created_at: string
+          deleted_at: string | null
           email: string | null
           first_name: string | null
           first_name_kana: string | null
-          full_name: string | null
           id: string
           last_name: string | null
           last_name_kana: string | null
@@ -1365,10 +1450,10 @@ export type Database = {
           avatar_url?: string | null
           company_id?: string | null
           created_at?: string
+          deleted_at?: string | null
           email?: string | null
           first_name?: string | null
           first_name_kana?: string | null
-          full_name?: string | null
           id: string
           last_name?: string | null
           last_name_kana?: string | null
@@ -1381,10 +1466,10 @@ export type Database = {
           avatar_url?: string | null
           company_id?: string | null
           created_at?: string
+          deleted_at?: string | null
           email?: string | null
           first_name?: string | null
           first_name_kana?: string | null
-          full_name?: string | null
           id?: string
           last_name?: string | null
           last_name_kana?: string | null
@@ -1585,13 +1670,54 @@ export type Database = {
           },
         ]
       }
+      session_dates_draft: {
+        Row: {
+          capacity: number | null
+          created_at: string
+          end_time: string
+          event_date: string
+          id: string
+          session_draft_id: string
+          start_time: string
+          updated_at: string
+        }
+        Insert: {
+          capacity?: number | null
+          created_at?: string
+          end_time: string
+          event_date: string
+          id?: string
+          session_draft_id: string
+          start_time: string
+          updated_at?: string
+        }
+        Update: {
+          capacity?: number | null
+          created_at?: string
+          end_time?: string
+          event_date?: string
+          id?: string
+          session_draft_id?: string
+          start_time?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_dates_draft_session_draft_id_fkey"
+            columns: ["session_draft_id"]
+            isOneToOne: false
+            referencedRelation: "sessions_draft"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       session_reservations: {
         Row: {
           attended: boolean
           candidate_id: string
           created_at: string
           id: string
-          session_id: string
+          session_date_id: string
           status: string
           updated_at: string
         }
@@ -1600,7 +1726,7 @@ export type Database = {
           candidate_id: string
           created_at?: string
           id?: string
-          session_id: string
+          session_date_id: string
           status?: string
           updated_at?: string
         }
@@ -1609,7 +1735,7 @@ export type Database = {
           candidate_id?: string
           created_at?: string
           id?: string
-          session_id?: string
+          session_date_id?: string
           status?: string
           updated_at?: string
         }
@@ -1622,10 +1748,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "session_reservations_session_id_fkey"
-            columns: ["session_id"]
+            foreignKeyName: "session_reservations_session_date_id_fkey"
+            columns: ["session_date_id"]
             isOneToOne: false
-            referencedRelation: "sessions"
+            referencedRelation: "session_dates"
             referencedColumns: ["id"]
           },
         ]
@@ -1638,6 +1764,8 @@ export type Database = {
           created_at: string
           created_by: string
           description: string
+          display_order: number | null
+          graduation_year: number | null
           id: string
           location_detail: string | null
           location_type: string | null
@@ -1653,6 +1781,8 @@ export type Database = {
           created_at?: string
           created_by: string
           description: string
+          display_order?: number | null
+          graduation_year?: number | null
           id?: string
           location_detail?: string | null
           location_type?: string | null
@@ -1668,6 +1798,8 @@ export type Database = {
           created_at?: string
           created_by?: string
           description?: string
+          display_order?: number | null
+          graduation_year?: number | null
           id?: string
           location_detail?: string | null
           location_type?: string | null
@@ -1702,7 +1834,9 @@ export type Database = {
           created_at: string
           created_by: string
           description: string
+          display_order: number | null
           draft_status: string
+          graduation_year: number | null
           id: string
           location_detail: string | null
           location_type: string | null
@@ -1721,7 +1855,9 @@ export type Database = {
           created_at?: string
           created_by: string
           description: string
+          display_order?: number | null
           draft_status?: string
+          graduation_year?: number | null
           id?: string
           location_detail?: string | null
           location_type?: string | null
@@ -1740,7 +1876,9 @@ export type Database = {
           created_at?: string
           created_by?: string
           description?: string
+          display_order?: number | null
           draft_status?: string
+          graduation_year?: number | null
           id?: string
           location_detail?: string | null
           location_type?: string | null
@@ -1775,6 +1913,138 @@ export type Database = {
           },
         ]
       }
+      videos: {
+        Row: {
+          category: Database["public"]["Enums"]["video_category"]
+          company_id: string
+          created_at: string
+          display_order: number
+          id: string
+          status: Database["public"]["Enums"]["company_page_status"]
+          thumbnail_url: string | null
+          title: string
+          updated_at: string
+          video_url: string
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["video_category"]
+          company_id: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          status?: Database["public"]["Enums"]["company_page_status"]
+          thumbnail_url?: string | null
+          title: string
+          updated_at?: string
+          video_url: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["video_category"]
+          company_id?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          status?: Database["public"]["Enums"]["company_page_status"]
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string
+          video_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "videos_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      videos_draft: {
+        Row: {
+          approved_at: string | null
+          category: Database["public"]["Enums"]["video_category"]
+          company_id: string
+          conversion_status: string | null
+          created_at: string
+          created_by: string | null
+          display_order: number
+          draft_status: Database["public"]["Enums"]["draft_status"]
+          id: string
+          mediaconvert_job_id: string | null
+          production_video_id: string | null
+          rejected_at: string | null
+          streaming_url: string | null
+          submitted_at: string | null
+          thumbnail_url: string | null
+          title: string
+          updated_at: string
+          video_url: string
+        }
+        Insert: {
+          approved_at?: string | null
+          category: Database["public"]["Enums"]["video_category"]
+          company_id: string
+          conversion_status?: string | null
+          created_at?: string
+          created_by?: string | null
+          display_order?: number
+          draft_status?: Database["public"]["Enums"]["draft_status"]
+          id?: string
+          mediaconvert_job_id?: string | null
+          production_video_id?: string | null
+          rejected_at?: string | null
+          streaming_url?: string | null
+          submitted_at?: string | null
+          thumbnail_url?: string | null
+          title: string
+          updated_at?: string
+          video_url: string
+        }
+        Update: {
+          approved_at?: string | null
+          category?: Database["public"]["Enums"]["video_category"]
+          company_id?: string
+          conversion_status?: string | null
+          created_at?: string
+          created_by?: string | null
+          display_order?: number
+          draft_status?: Database["public"]["Enums"]["draft_status"]
+          id?: string
+          mediaconvert_job_id?: string | null
+          production_video_id?: string | null
+          rejected_at?: string | null
+          streaming_url?: string | null
+          submitted_at?: string | null
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string
+          video_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "videos_draft_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "videos_draft_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "videos_draft_production_video_id_fkey"
+            columns: ["production_video_id"]
+            isOneToOne: false
+            referencedRelation: "videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -1803,11 +2073,13 @@ export type Database = {
         | "offer"
         | "rejected"
         | "withdrawn"
-      company_status: "pending" | "active" | "closed"
+      company_page_status: "active" | "closed"
+      company_status: "active" | "closed"
       draft_status: "draft" | "submitted" | "approved" | "rejected"
-      job_status: "pending" | "active" | "closed"
-      session_status: "pending" | "active" | "closed"
+      job_status: "active" | "closed"
+      session_status: "active" | "closed"
       user_role: "admin" | "recruiter"
+      video_category: "main" | "short" | "documentary"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1945,11 +2217,13 @@ export const Constants = {
         "rejected",
         "withdrawn",
       ],
-      company_status: ["pending", "active", "closed"],
+      company_page_status: ["active", "closed"],
+      company_status: ["active", "closed"],
       draft_status: ["draft", "submitted", "approved", "rejected"],
-      job_status: ["pending", "active", "closed"],
-      session_status: ["pending", "active", "closed"],
+      job_status: ["active", "closed"],
+      session_status: ["active", "closed"],
       user_role: ["admin", "recruiter"],
+      video_category: ["main", "short", "documentary"],
     },
   },
 } as const

@@ -10,6 +10,8 @@ interface ApprovalActionsProps {
   onReject: () => Promise<{ error: string | null }>;
   approveLabel?: string;
   rejectLabel?: string;
+  vertical?: boolean;
+  approveDisabled?: boolean;
 }
 
 export default function ApprovalActions({
@@ -17,6 +19,8 @@ export default function ApprovalActions({
   onReject,
   approveLabel = "承認",
   rejectLabel = "却下",
+  vertical = false,
+  approveDisabled = false,
 }: ApprovalActionsProps) {
   const router = useRouter();
   const [processing, setProcessing] = useState(false);
@@ -47,11 +51,13 @@ export default function ApprovalActions({
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className={`flex ${vertical ? "flex-col w-full" : "items-center"} gap-2`}>
       <StudioButton
         onClick={handleApprove}
-        disabled={processing}
-        className="bg-green-600 hover:bg-green-700 text-white"
+        disabled={processing || approveDisabled}
+        className={`bg-green-600 hover:bg-green-700 text-white ${vertical ? "w-full" : ""} ${
+          approveDisabled ? "opacity-50 cursor-not-allowed" : ""
+        }`}
       >
         <Check className="mr-1 h-4 w-4" />
         {approveLabel}
@@ -59,7 +65,7 @@ export default function ApprovalActions({
       <StudioButton
         onClick={handleReject}
         disabled={processing}
-        className="bg-red-600 hover:bg-red-700 text-white"
+        className={`bg-red-600 hover:bg-red-700 text-white ${vertical ? "w-full" : ""}`}
       >
         <X className="mr-1 h-4 w-4" />
         {rejectLabel}
@@ -67,4 +73,3 @@ export default function ApprovalActions({
     </div>
   );
 }
-

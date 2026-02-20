@@ -8,3 +8,4 @@ ALTER TABLE companies ADD COLUMN IF NOT EXISTS company_videos JSONB DEFAULT '[]'
 -- company_videos: [{"id": "uuid", "title": "string", "video_url": "string", "thumbnail_url": "string"}]
 
 
+

@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { Tables, TablesInsert, TablesUpdate } from "@jobtv-app/shared/types";
@@ -38,73 +39,23 @@ export async function checkAdminPermission(): Promise<{
 }
 
 /**
- * 管理者権限をチェックし、権限がない場合はリダイレクト
- */
-export async function requireAdmin() {
-  const { isAdmin, error } = await checkAdminPermission();
-
-  if (error || !isAdmin) {
-    redirect("/studio");
-  }
-}
-
-/**
  * 審査待ちの求人一覧を取得（全企業）
  */
 export async function getAllJobsForReview() {
-  const supabase = await createClient();
-
-  // デバッグ: 全てのドラフトステータスを確認
-  const { data: allDrafts, error: allDraftsError } = await supabase
-    .from("job_postings_draft")
-    .select("id, title, draft_status, submitted_at, company_id, production_job_id")
-    .limit(20);
-
-  const statusCounts =
-    allDrafts?.reduce((acc: any, draft: any) => {
-      acc[draft.draft_status] = (acc[draft.draft_status] || 0) + 1;
-      return acc;
-    }, {}) || {};
-
-  console.log("getAllJobsForReview: All drafts sample (first 20):", {
-    totalDrafts: allDrafts?.length || 0,
-    statusCounts,
-    allDrafts: allDrafts?.map((d: any) => ({
-      id: d.id,
-      title: d.title,
-      draft_status: d.draft_status,
-      submitted_at: d.submitted_at,
-      company_id: d.company_id,
-      production_job_id: d.production_job_id
-    })),
-    allDraftsError
-  });
+  const supabaseAdmin = createAdminClient();
 
   // 求人の審査はjob_postings_draftテーブルから取得
-  console.log("getAllJobsForReview: Querying job_postings_draft with draft_status=submitted");
-  const { data: drafts, error: draftsError } = await supabase
+  const { data: drafts, error: draftsError } = await supabaseAdmin
     .from("job_postings_draft")
     .select(
       `
       *,
-      companies!company_id(id, name)
+      companies!company_id(id, name),
+      production:job_postings!production_job_id(*)
     `
     )
     .eq("draft_status", "submitted")
     .order("submitted_at", { ascending: false });
-
-  console.log("getAllJobsForReview: Query result:", {
-    draftsCount: drafts?.length || 0,
-    error: draftsError,
-    drafts: drafts?.map((draft: any) => ({
-      id: draft.id,
-      title: draft.title,
-      draft_status: draft.draft_status,
-      submitted_at: draft.submitted_at,
-      production_job_id: draft.production_job_id,
-      company_id: draft.company_id
-    }))
-  });
 
   if (draftsError) {
     console.error("Get all job drafts for review error:", draftsError);
@@ -131,19 +82,13 @@ export async function getAllJobsForReview() {
       // 審査用のID（draftのID） - 重要: このIDを使ってプレビューを開く
       draft_id: draft.id,
       production_job_id: draft.production_job_id,
+      // 差分表示用に本番データを追加
+      production_data: draft.production,
       // 本番テーブルのIDとしてproduction_job_idを使用（なければdraft.id）
       id: draft.production_job_id || draft.id
     };
-    console.log("Merged job data:", {
-      draft_id: merged.draft_id,
-      production_job_id: merged.production_job_id,
-      id: merged.id,
-      title: merged.title
-    });
     return merged;
   });
-
-  console.log("getAllJobsForReview returning:", mergedData.length, "jobs");
   return { data: mergedData || [], error: null };
 }
 
@@ -151,59 +96,20 @@ export async function getAllJobsForReview() {
  * 審査待ちの説明会一覧を取得（全企業）
  */
 export async function getAllSessionsForReview() {
-  const supabase = await createClient();
-
-  // デバッグ: 全てのドラフトステータスを確認
-  const { data: allDrafts, error: allDraftsError } = await supabase
-    .from("sessions_draft")
-    .select("id, title, draft_status, submitted_at, company_id, production_session_id")
-    .limit(20);
-
-  const statusCounts =
-    allDrafts?.reduce((acc: any, draft: any) => {
-      acc[draft.draft_status] = (acc[draft.draft_status] || 0) + 1;
-      return acc;
-    }, {}) || {};
-
-  console.log("getAllSessionsForReview: All drafts sample (first 20):", {
-    totalDrafts: allDrafts?.length || 0,
-    statusCounts,
-    allDrafts: allDrafts?.map((d: any) => ({
-      id: d.id,
-      title: d.title,
-      draft_status: d.draft_status,
-      submitted_at: d.submitted_at,
-      company_id: d.company_id,
-      production_session_id: d.production_session_id
-    })),
-    allDraftsError
-  });
+  const supabaseAdmin = createAdminClient();
 
   // 説明会の審査はsessions_draftテーブルから取得
-  console.log("getAllSessionsForReview: Querying sessions_draft with draft_status=submitted");
-  const { data: drafts, error: draftsError } = await supabase
+  const { data: drafts, error: draftsError } = await supabaseAdmin
     .from("sessions_draft")
     .select(
       `
       *,
-      companies!company_id(id, name)
+      companies!company_id(id, name),
+      production:sessions!production_session_id(*)
     `
     )
     .eq("draft_status", "submitted")
     .order("submitted_at", { ascending: false });
-
-  console.log("getAllSessionsForReview: Query result:", {
-    draftsCount: drafts?.length || 0,
-    error: draftsError,
-    drafts: drafts?.map((draft: any) => ({
-      id: draft.id,
-      title: draft.title,
-      draft_status: draft.draft_status,
-      submitted_at: draft.submitted_at,
-      production_session_id: draft.production_session_id,
-      company_id: draft.company_id
-    }))
-  });
 
   if (draftsError) {
     console.error("Get all session drafts for review error:", draftsError);
@@ -226,19 +132,13 @@ export async function getAllSessionsForReview() {
       // 審査用のID（draftのID） - 重要: このIDを使ってプレビューを開く
       draft_id: draft.id,
       production_session_id: draft.production_session_id,
+      // 差分表示用に本番データを追加
+      production_data: draft.production,
       // 本番テーブルのIDとしてproduction_session_idを使用（なければdraft.id）
       id: draft.production_session_id || draft.id
     };
-    console.log("Merged session data:", {
-      draft_id: merged.draft_id,
-      production_session_id: merged.production_session_id,
-      id: merged.id,
-      title: merged.title
-    });
     return merged;
   });
-
-  console.log("getAllSessionsForReview returning:", mergedData.length, "sessions");
   return { data: mergedData || [], error: null };
 }
 
@@ -246,16 +146,17 @@ export async function getAllSessionsForReview() {
  * 審査待ちの企業情報（companies）一覧を取得
  */
 export async function getAllCompanyInfoForReview() {
-  const supabase = await createClient();
+  const supabaseAdmin = createAdminClient();
 
   // 企業情報の審査はcompanies_draftテーブルから取得
   // company_idのリレーションシップを明示的に指定
-  const { data: drafts, error: draftsError } = await supabase
+  const { data: drafts, error: draftsError } = await supabaseAdmin
     .from("companies_draft")
     .select(
       `
       *,
-      companies!company_id(id, name, logo_url, website, industry, employees, location, address, address_line1, address_line2, representative, established, company_info)
+      companies!company_id(id, name, logo_url, website, industry, employees, location, address, address_line1, address_line2, representative, established, company_info),
+      production:companies!production_company_id(id, name, logo_url, website, industry, employees, location, address, address_line1, address_line2, representative, established, company_info)
     `
     )
     .eq("draft_status", "submitted")
@@ -272,9 +173,11 @@ export async function getAllCompanyInfoForReview() {
       ...draft.companies,
       ...draft,
       // 企業情報のデータを優先
-      // 審査用のID（draftのID）
+      // 審査用のID（draft size）
       draft_id: draft.id,
       production_company_id: draft.production_company_id,
+      // 差分表示用に本番データを追加
+      production_data: draft.production,
       // 本番テーブルのIDとしてproduction_company_idを使用（なければdraft.id）
       id: draft.production_company_id || draft.id
     };
@@ -288,42 +191,25 @@ export async function getAllCompanyInfoForReview() {
  * 審査待ちの企業ページ一覧を取得
  */
 export async function getAllCompaniesForReview() {
-  const supabase = await createClient();
+  const supabaseAdmin = createAdminClient();
 
   // 企業ページの審査はcompany_pages_draftテーブルから取得
-  console.log("getAllCompaniesForReview: Querying company_pages_draft with status=submitted");
-  const { data: drafts, error: draftsError } = await supabase
+  const { data: drafts, error: draftsError } = await supabaseAdmin
     .from("company_pages_draft")
     .select(
       `
       *,
-      companies!company_id(id, name, logo_url, website, industry, employees, location, address, address_line1, address_line2, representative, established, company_info)
+      companies!company_id(id, name, logo_url, website, industry, employees, location, address, address_line1, address_line2, representative, established, company_info),
+      production:company_pages!production_page_id(*)
     `
     )
     .eq("draft_status", "submitted")
     .order("submitted_at", { ascending: false });
 
-  console.log("getAllCompaniesForReview: Query result:", {
-    draftsCount: drafts?.length || 0,
-    error: draftsError,
-    drafts: drafts
-  });
-
   if (draftsError) {
     console.error("Get all company pages for review error:", draftsError);
     return { data: null, error: draftsError.message };
   }
-
-  // デバッグ: 全てのドラフトステータスを確認
-  const { data: allDrafts, error: allDraftsError } = await supabase
-    .from("company_pages_draft")
-    .select("id, draft_status, company_id")
-    .limit(10);
-
-  console.log("getAllCompaniesForReview: All drafts sample (first 10):", {
-    allDrafts,
-    allDraftsError
-  });
 
   // ドラフトデータと企業データをマージ
   const mergedData = (drafts || []).map((draft: any) => {
@@ -344,17 +230,13 @@ export async function getAllCompaniesForReview() {
       benefits: draft.benefits,
       // 審査用のID（draftのID） - 重要: このIDを使ってプレビューを開く
       draft_id: draft.id,
-      production_page_id: draft.production_page_id
+      production_page_id: draft.production_page_id,
+      // 差分表示用に本番データを追加
+      production_data: draft.production
     };
-    console.log("Merged company data:", {
-      draft_id: merged.draft_id,
-      company_id: merged.id,
-      company_name: merged.name
-    });
     return merged;
   });
 
-  console.log("getAllCompaniesForReview returning:", mergedData.length, "companies");
   return { data: mergedData || [], error: null };
 }
 
@@ -368,11 +250,10 @@ export async function updateJobDraftStatus(draftId: string, status: "approved" |
     return { data: null, error: "管理者権限が必要です" };
   }
 
-  const supabase = await createClient();
+  const supabaseAdmin = createAdminClient();
 
   // draftを取得
-  console.log("updateJobDraftStatus: Fetching draft", { draftId });
-  const { data: draft, error: draftError } = await supabase
+  const { data: draft, error: draftError } = await supabaseAdmin
     .from("job_postings_draft")
     .select("*")
     .eq("id", draftId)
@@ -384,16 +265,8 @@ export async function updateJobDraftStatus(draftId: string, status: "approved" |
   }
 
   if (!draft) {
-    console.error("updateJobDraftStatus: Draft not found", { draftId });
     return { data: null, error: "下書きが見つかりません" };
   }
-
-  console.log("updateJobDraftStatus: Draft found", {
-    draftId: draft.id,
-    draft_status: draft.draft_status,
-    production_job_id: draft.production_job_id,
-    company_id: draft.company_id
-  });
 
   if (draft.draft_status !== "submitted") {
     return { data: null, error: "審査申請済みの下書きのみ承認・却下できます" };
@@ -403,11 +276,6 @@ export async function updateJobDraftStatus(draftId: string, status: "approved" |
   let productionJob;
   if (draft.production_job_id) {
     // 既存の本番テーブルを更新
-    console.log("updateJobDraftStatus: Updating existing production job", {
-      draftId,
-      production_job_id: draft.production_job_id,
-      status
-    });
 
     const productionData: TablesUpdate<"job_postings"> = {
       title: draft.title,
@@ -416,6 +284,7 @@ export async function updateJobDraftStatus(draftId: string, status: "approved" |
       prefecture: draft.prefecture,
       location_detail: draft.location_detail,
       graduation_year: draft.graduation_year,
+      display_order: draft.display_order,
       requirements: draft.requirements,
       benefits: draft.benefits,
       selection_process: draft.selection_process,
@@ -425,18 +294,12 @@ export async function updateJobDraftStatus(draftId: string, status: "approved" |
       updated_at: new Date().toISOString()
     } as TablesUpdate<"job_postings">;
 
-    const { data: updatedJob, error: updateError } = await supabase
+    const { data: updatedJob, error: updateError } = await supabaseAdmin
       .from("job_postings")
       .update(productionData)
       .eq("id", draft.production_job_id)
       .select()
       .maybeSingle();
-
-    console.log("updateJobDraftStatus: Update result", {
-      hasUpdatedJob: !!updatedJob,
-      updateError,
-      production_job_id: draft.production_job_id
-    });
 
     if (updateError) {
       console.error("Update job for approval error:", updateError);
@@ -449,7 +312,6 @@ export async function updateJobDraftStatus(draftId: string, status: "approved" |
         production_job_id: draft.production_job_id
       });
       // 新規作成にフォールバック
-      console.log("updateJobDraftStatus: Falling back to create new production job");
     } else {
       productionJob = updatedJob;
     }
@@ -457,12 +319,6 @@ export async function updateJobDraftStatus(draftId: string, status: "approved" |
 
   // production_job_idがない場合、または更新に失敗した場合は新規作成
   if (!productionJob) {
-    console.log("updateJobDraftStatus: Creating new production job", {
-      draftId,
-      company_id: draft.company_id,
-      status
-    });
-
     const productionData: TablesInsert<"job_postings"> = {
       company_id: draft.company_id,
       title: draft.title,
@@ -471,6 +327,7 @@ export async function updateJobDraftStatus(draftId: string, status: "approved" |
       prefecture: draft.prefecture,
       location_detail: draft.location_detail,
       graduation_year: draft.graduation_year,
+      display_order: draft.display_order,
       requirements: draft.requirements,
       benefits: draft.benefits,
       selection_process: draft.selection_process,
@@ -480,16 +337,11 @@ export async function updateJobDraftStatus(draftId: string, status: "approved" |
       status: status === "approved" ? "active" : "closed"
     } as TablesInsert<"job_postings">;
 
-    const { data: insertedJob, error: insertError } = await supabase
+    const { data: insertedJob, error: insertError } = await supabaseAdmin
       .from("job_postings")
       .insert(productionData)
       .select()
       .maybeSingle();
-
-    console.log("updateJobDraftStatus: Insert result", {
-      hasInsertedJob: !!insertedJob,
-      insertError
-    });
 
     if (insertError) {
       console.error("Create job for approval error:", insertError);
@@ -504,17 +356,33 @@ export async function updateJobDraftStatus(draftId: string, status: "approved" |
   }
 
   // draftのstatusを更新
+  // UNIQUE制約に対応: production_job_idが既に他のドラフトで使用されている場合、そのドラフトを更新
+  if (status === "approved" && productionJob.id) {
+    // 同じproduction_job_idを持つ既存のドラフトを確認
+    const { data: existingDraft } = await supabaseAdmin
+      .from("job_postings_draft")
+      .select("id")
+      .eq("production_job_id", productionJob.id)
+      .neq("id", draftId)
+      .maybeSingle();
+
+    if (existingDraft) {
+      // 既存のドラフトを削除（UNIQUE制約を満たすため）
+      await supabaseAdmin.from("job_postings_draft").delete().eq("id", existingDraft.id);
+    }
+  }
+
   const updateData: TablesUpdate<"job_postings_draft"> = {
     draft_status: status,
     approved_at: status === "approved" ? new Date().toISOString() : null,
     rejected_at: status === "rejected" ? new Date().toISOString() : null
   } as TablesUpdate<"job_postings_draft">;
 
-  if (!draft.production_job_id) {
+  if (!draft.production_job_id && productionJob) {
     (updateData as any).production_job_id = productionJob.id;
   }
 
-  const { error: updateDraftError } = await supabase.from("job_postings_draft").update(updateData).eq("id", draftId);
+  const { error: updateDraftError } = await supabaseAdmin.from("job_postings_draft").update(updateData).eq("id", draftId);
 
   if (updateDraftError) {
     console.error("Update job draft status error:", updateDraftError);
@@ -551,10 +419,10 @@ export async function updateSessionDraftStatus(draftId: string, status: "approve
     return { data: null, error: "管理者権限が必要です" };
   }
 
-  const supabase = await createClient();
+  const supabaseAdmin = createAdminClient();
 
   // draftを取得
-  const { data: draft, error: draftError } = await supabase
+  const { data: draft, error: draftError } = await supabaseAdmin
     .from("sessions_draft")
     .select("*")
     .eq("id", draftId)
@@ -585,11 +453,13 @@ export async function updateSessionDraftStatus(draftId: string, status: "approve
       capacity: draft.capacity,
       description: draft.description,
       cover_image_url: draft.cover_image_url,
+      graduation_year: draft.graduation_year,
+      display_order: draft.display_order,
       status: status === "approved" ? "active" : "closed",
       updated_at: new Date().toISOString()
     } as TablesUpdate<"sessions">;
 
-    const { data: updatedSession, error: updateError } = await supabase
+    const { data: updatedSession, error: updateError } = await supabaseAdmin
       .from("sessions")
       .update(productionData)
       .eq("id", draft.production_session_id)
@@ -617,11 +487,13 @@ export async function updateSessionDraftStatus(draftId: string, status: "approve
       capacity: draft.capacity,
       description: draft.description,
       cover_image_url: draft.cover_image_url,
+      graduation_year: draft.graduation_year,
+      display_order: draft.display_order,
       created_by: draft.created_by,
       status: status === "approved" ? "active" : "closed"
     } as TablesInsert<"sessions">;
 
-    const { data: insertedSession, error: insertError } = await supabase
+    const { data: insertedSession, error: insertError } = await supabaseAdmin
       .from("sessions")
       .insert(productionData)
       .select()
@@ -639,18 +511,89 @@ export async function updateSessionDraftStatus(draftId: string, status: "approve
     productionSession = insertedSession;
   }
 
+  // 日程を本番テーブルにコピー（承認時のみ）
+  if (status === "approved" && productionSession && productionSession.id) {
+    console.log(`[approveSession] Copying dates for session ${productionSession.id} from draft ${draftId}`);
+    
+    // ドラフトの日程を取得
+    const { data: draftDates, error: draftDatesError } = await supabaseAdmin
+      .from("session_dates_draft")
+      .select("*")
+      .eq("session_draft_id", draftId);
+
+    if (draftDatesError) {
+      console.error("Get draft dates error:", draftDatesError);
+      return { data: null, error: `日程の取得に失敗しました: ${draftDatesError.message}` };
+    }
+
+    console.log(`[approveSession] Found ${draftDates?.length || 0} draft dates`);
+
+    if (draftDates && draftDates.length > 0) {
+      // 既存の本番日程を削除
+      const { error: deleteError } = await supabaseAdmin
+        .from("session_dates")
+        .delete()
+        .eq("session_id", productionSession.id);
+
+      if (deleteError) {
+        console.error("Delete existing production dates error:", deleteError);
+        return { data: null, error: `既存日程の削除に失敗しました: ${deleteError.message}` };
+      }
+
+      console.log(`[approveSession] Deleted existing production dates for session ${productionSession.id}`);
+
+      // ドラフト日程を本番にコピー
+      const productionDates = draftDates.map((date) => ({
+        session_id: productionSession.id,
+        event_date: date.event_date,
+        start_time: date.start_time,
+        end_time: date.end_time,
+        capacity: date.capacity
+      }));
+
+      const { error: insertDatesError } = await supabaseAdmin
+        .from("session_dates")
+        .insert(productionDates);
+
+      if (insertDatesError) {
+        console.error("Insert production dates error:", insertDatesError);
+        return { data: null, error: `日程のコピーに失敗しました: ${insertDatesError.message}` };
+      }
+
+      console.log(`[approveSession] Successfully copied ${productionDates.length} dates to production`);
+    } else {
+      console.log(`[approveSession] No draft dates found for draft ${draftId}`);
+    }
+  }
+
   // draftのstatusを更新
+  // UNIQUE制約に対応: production_session_idが既に他のドラフトで使用されている場合、そのドラフトを更新
+  if (status === "approved" && productionSession.id) {
+    // 同じproduction_session_idを持つ既存のドラフトを確認
+    const { data: existingDraft } = await supabaseAdmin
+      .from("sessions_draft")
+      .select("id")
+      .eq("production_session_id", productionSession.id)
+      .neq("id", draftId)
+      .maybeSingle();
+
+    if (existingDraft) {
+      // 既存のドラフトを削除（UNIQUE制約を満たすため）
+      await supabaseAdmin.from("sessions_draft").delete().eq("id", existingDraft.id);
+    }
+  }
+
   const updateData: TablesUpdate<"sessions_draft"> = {
     draft_status: status,
     approved_at: status === "approved" ? new Date().toISOString() : null,
     rejected_at: status === "rejected" ? new Date().toISOString() : null
   } as TablesUpdate<"sessions_draft">;
 
-  if (!draft.production_session_id) {
+  if (!draft.production_session_id && productionSession) {
     (updateData as any).production_session_id = productionSession.id;
   }
 
-  const { error: updateDraftError } = await supabase.from("sessions_draft").update(updateData).eq("id", draftId);
+  const { error: updateDraftError } = await supabaseAdmin.from("sessions_draft").update(updateData).eq("id", draftId);
 
   if (updateDraftError) {
     console.error("Update session draft status error:", updateDraftError);
@@ -687,10 +630,10 @@ export async function updateCompanyInfoDraftStatus(draftId: string, status: "app
     return { data: null, error: "管理者権限が必要です" };
   }
 
-  const supabase = await createClient();
+  const supabaseAdmin = createAdminClient();
 
   // draftを取得
-  const { data: draft, error: draftError } = await supabase
+  const { data: draft, error: draftError } = await supabaseAdmin
     .from("companies_draft")
     .select("*")
     .eq("id", draftId)
@@ -713,13 +656,14 @@ export async function updateCompanyInfoDraftStatus(draftId: string, status: "app
   let productionCompany;
   if (draft.production_company_id) {
     // 既存の本番テーブルを更新
-    const productionData: TablesUpdate<"companies"> = {
+    const productionData: any = {
       name: draft.name,
       website: draft.website,
       industry: draft.industry,
       employees: draft.employees,
       location: draft.location,
       address: draft.address,
+      prefecture: (draft as any).prefecture,
       address_line1: draft.address_line1,
       address_line2: draft.address_line2,
       representative: draft.representative,
@@ -728,9 +672,9 @@ export async function updateCompanyInfoDraftStatus(draftId: string, status: "app
       logo_url: draft.logo_url,
       status: status === "approved" ? "active" : "closed",
       updated_at: new Date().toISOString()
-    } as TablesUpdate<"companies">;
+    };
 
-    const { data: updatedCompany, error: updateError } = await supabase
+    const { data: updatedCompany, error: updateError } = await supabaseAdmin
       .from("companies")
       .update(productionData)
       .eq("id", draft.production_company_id)
@@ -749,13 +693,14 @@ export async function updateCompanyInfoDraftStatus(draftId: string, status: "app
     productionCompany = updatedCompany;
   } else {
     // 新規作成（通常は発生しないが、念のため）
-    const productionData: TablesInsert<"companies"> = {
+    const productionData: any = {
       name: draft.name,
       website: draft.website,
       industry: draft.industry,
       employees: draft.employees,
       location: draft.location,
       address: draft.address,
+      prefecture: (draft as any).prefecture,
       address_line1: draft.address_line1,
       address_line2: draft.address_line2,
       representative: draft.representative,
@@ -763,9 +708,9 @@ export async function updateCompanyInfoDraftStatus(draftId: string, status: "app
       company_info: draft.company_info,
       logo_url: draft.logo_url,
       status: status === "approved" ? "active" : "closed"
-    } as TablesInsert<"companies">;
+    };
 
-    const { data: insertedCompany, error: insertError } = await supabase
+    const { data: insertedCompany, error: insertError } = await supabaseAdmin
       .from("companies")
       .insert(productionData)
       .select()
@@ -784,17 +729,33 @@ export async function updateCompanyInfoDraftStatus(draftId: string, status: "app
   }
 
   // draftのstatusを更新
+  // UNIQUE制約に対応: production_company_idが既に他のドラフトで使用されている場合、そのドラフトを更新
+  if (status === "approved" && productionCompany.id) {
+    // 同じproduction_company_idを持つ既存のドラフトを確認
+    const { data: existingDraft } = await supabaseAdmin
+      .from("companies_draft")
+      .select("id")
+      .eq("production_company_id", productionCompany.id)
+      .neq("id", draftId)
+      .maybeSingle();
+
+    if (existingDraft) {
+      // 既存のドラフトを削除（UNIQUE制約を満たすため）
+      await supabaseAdmin.from("companies_draft").delete().eq("id", existingDraft.id);
+    }
+  }
+
   const updateData: TablesUpdate<"companies_draft"> = {
     draft_status: status,
     approved_at: status === "approved" ? new Date().toISOString() : null,
     rejected_at: status === "rejected" ? new Date().toISOString() : null
   } as TablesUpdate<"companies_draft">;
 
-  if (!draft.production_company_id) {
+  if (!draft.production_company_id && productionCompany) {
     (updateData as any).production_company_id = productionCompany.id;
   }
 
-  const { error: updateDraftError } = await supabase.from("companies_draft").update(updateData).eq("id", draftId);
+  const { error: updateDraftError } = await supabaseAdmin.from("companies_draft").update(updateData).eq("id", draftId);
 
   if (updateDraftError) {
     console.error("Update company draft status error:", updateDraftError);
@@ -803,7 +764,7 @@ export async function updateCompanyInfoDraftStatus(draftId: string, status: "app
 
   revalidatePath("/admin/review");
   revalidatePath("/admin/companies");
-  revalidatePath("/studio/settings");
+  revalidatePath("/studio/settings/profile");
   return { data: productionCompany, error: null };
 }
 
@@ -831,10 +792,10 @@ export async function approveCompanyPage(draftId: string) {
     return { data: null, error: "管理者権限が必要です" };
   }
 
-  const supabase = await createClient();
+  const supabaseAdmin = createAdminClient();
 
   // draftを取得
-  const { data: draft, error: draftError } = await supabase
+  const { data: draft, error: draftError } = await supabaseAdmin
     .from("company_pages_draft")
     .select("*")
     .eq("id", draftId)
@@ -855,7 +816,7 @@ export async function approveCompanyPage(draftId: string) {
 
   // 本番テーブルを更新または作成
   // company_idで既存レコードを検索（ユニーク制約があるため）
-  const { data: existingPage, error: findError } = await supabase
+  const { data: existingPage, error: findError } = await supabaseAdmin
     .from("company_pages")
     .select("id")
     .eq("company_id", draft.company_id)
@@ -879,6 +840,7 @@ export async function approveCompanyPage(draftId: string) {
     documentary_videos: draft.documentary_videos,
     company_videos: draft.company_videos,
     benefits: draft.benefits,
+    status: "active" as any, // 承認時は公開中に設定
     updated_at: new Date().toISOString()
   } as TablesUpdate<"company_pages">;
 
@@ -886,7 +848,7 @@ export async function approveCompanyPage(draftId: string) {
 
   if (existingPage) {
     // 既存レコードを更新
-    const { data: updatedPage, error: updateError } = await supabase
+    const { data: updatedPage, error: updateError } = await supabaseAdmin
       .from("company_pages")
       .update(productionData)
       .eq("id", existingPage.id)
@@ -907,10 +869,11 @@ export async function approveCompanyPage(draftId: string) {
     // 新規作成
     const insertData: TablesInsert<"company_pages"> = {
       company_id: draft.company_id,
-      ...productionData
+      ...productionData,
+      status: "active" as any // 承認時は公開中に設定
     } as TablesInsert<"company_pages">;
 
-    const { data: insertedPage, error: insertError } = await supabase
+    const { data: insertedPage, error: insertError } = await supabaseAdmin
       .from("company_pages")
       .insert(insertData)
       .select()
@@ -929,13 +892,29 @@ export async function approveCompanyPage(draftId: string) {
   }
 
   // draftのstatusを更新
+  // UNIQUE制約に対応: production_page_idが既に他のドラフトで使用されている場合、そのドラフトを更新
+  if (productionPage.id) {
+    // 同じproduction_page_idを持つ既存のドラフトを確認
+    const { data: existingDraft } = await supabaseAdmin
+      .from("company_pages_draft")
+      .select("id")
+      .eq("production_page_id", productionPage.id)
+      .neq("id", draftId)
+      .maybeSingle();
+
+    if (existingDraft) {
+      // 既存のドラフトを削除（UNIQUE制約を満たすため）
+      await supabaseAdmin.from("company_pages_draft").delete().eq("id", existingDraft.id);
+    }
+  }
+
   const updateData: any = {
     draft_status: "approved",
     approved_at: new Date().toISOString(),
     production_page_id: productionPage.id
   };
 
-  const { error: updateError } = await supabase.from("company_pages_draft").update(updateData).eq("id", draftId);
+  const { error: updateError } = await supabaseAdmin.from("company_pages_draft").update(updateData).eq("id", draftId);
 
   if (updateError) {
     console.error("Update draft status error:", updateError);
@@ -958,10 +937,10 @@ export async function rejectCompanyPage(draftId: string) {
     return { data: null, error: "管理者権限が必要です" };
   }
 
-  const supabase = await createClient();
+  const supabaseAdmin = createAdminClient();
 
   // draftのstatusを更新
-  const { error: updateError } = await supabase
+  const { error: updateError } = await supabaseAdmin
     .from("company_pages_draft")
     .update({
       draft_status: "rejected",
@@ -984,16 +963,18 @@ export async function rejectCompanyPage(draftId: string) {
  * 審査待ち件数のサマリーを取得
  */
 export async function getReviewSummary() {
-  const [jobsResult, sessionsResult, companiesResult] = await Promise.all([
+  const [jobsResult, sessionsResult, companyPagesResult, companyInfoResult] = await Promise.all([
     getAllJobsForReview(),
     getAllSessionsForReview(),
-    getAllCompaniesForReview()
+    getAllCompaniesForReview(),
+    getAllCompanyInfoForReview()
   ]);
 
   return {
     pendingJobs: jobsResult.data?.length || 0,
     pendingSessions: sessionsResult.data?.length || 0,
-    pendingCompanies: companiesResult.data?.length || 0,
-    error: jobsResult.error || sessionsResult.error || companiesResult.error
+    pendingCompanyPages: companyPagesResult.data?.length || 0,
+    pendingCompanyInfo: companyInfoResult.data?.length || 0,
+    error: jobsResult.error || sessionsResult.error || companyPagesResult.error || companyInfoResult.error
   };
 }

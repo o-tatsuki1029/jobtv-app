@@ -71,7 +71,7 @@ export default function JobDetailView({ job }: { job: JobData }) {
             </h1>
             <div className="flex flex-wrap gap-6 text-sm md:text-base">
               <div className="flex items-center gap-2 text-gray-300">
-                <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center border border-gray-700">
+                <div className="w-10 h-10 rounded-xl bg-gray-800 flex items-center justify-center border border-gray-700">
                   <MapPin className="w-5 h-5 text-red-500" />
                 </div>
                 <div>

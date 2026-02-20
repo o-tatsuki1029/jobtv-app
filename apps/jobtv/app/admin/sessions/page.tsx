@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { MapPin, Users, ImageIcon, Filter, ExternalLink } from "lucide-react";
 import StudioButton from "@/components/studio/atoms/StudioButton";
 import StudioBadge from "@/components/studio/atoms/StudioBadge";
+import StudioLabel from "@/components/studio/atoms/StudioLabel";
+import StudioSelect from "@/components/studio/atoms/StudioSelect";
 import ErrorMessage from "@/components/studio/atoms/ErrorMessage";
 import LoadingSpinner from "@/components/studio/atoms/LoadingSpinner";
 import EmptyState from "@/components/studio/atoms/EmptyState";

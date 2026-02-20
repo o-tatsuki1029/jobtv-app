@@ -1,6 +1,10 @@
 /**
  * 審査申請の共通ロジック
  * 企業ページ、求人、説明会、企業プロフィールで使用
+ *
+ * このフックは、ドラフトテーブルのdraft_statusを"submitted"に変更する処理を共通化します。
+ * 審査中の判定は、ドラフトテーブルのdraft_statusを参照してください。
+ * 本番テーブルのstatusには"pending"は存在しません（"active"または"closed"のみ）。
  */
 
 import { useState, useCallback } from "react";
@@ -14,8 +18,9 @@ export interface SubmitForReviewOptions {
   onSave?: () => Promise<{ error?: string | null; draftId?: string | null }>;
   /**
    * 審査申請処理
+   * draft_statusを"submitted"に変更するServer Actionを呼び出す
    */
-  onSubmit: (draftId: string) => Promise<{ data: any; error: string | null }>;
+  onSubmit: (draftId: string, keepProductionActive?: boolean) => Promise<{ data: any; error: string | null }>;
   /**
    * バリデーション関数（エラーがある場合はエラーメッセージを返す）
    */
@@ -37,12 +42,7 @@ export function useDraftSubmit(options: SubmitForReviewOptions) {
   const [success, setSuccess] = useState(false);
 
   const submitForReview = useCallback(
-    async (draftId: string | null | undefined) => {
-      if (!draftId) {
-        setError("ドラフトが見つかりません。");
-        return { success: false, error: "ドラフトが見つかりません。" };
-      }
-
+    async (draftId: string | null | undefined, keepProductionActive?: boolean) => {
       // バリデーション
       if (options.validate) {
         const validationError = options.validate();
@@ -72,8 +72,15 @@ export function useDraftSubmit(options: SubmitForReviewOptions) {
           }
         }
 
-        // 審査申請
-        const result = await options.onSubmit(finalDraftId);
+        // draftIdがまだ存在しない場合はエラー
+        if (!finalDraftId) {
+          setError("ドラフトが見つかりません。");
+          setIsSubmitting(false);
+          return { success: false, error: "ドラフトが見つかりません。" };
+        }
+
+        // 審査申請（draft_statusを"submitted"に変更）
+        const result = await options.onSubmit(finalDraftId, keepProductionActive);
         if (result.error) {
           setError(result.error);
           setIsSubmitting(false);
@@ -82,17 +89,19 @@ export function useDraftSubmit(options: SubmitForReviewOptions) {
 
         setSuccess(true);
         setError(null);
+        setIsSubmitting(false);
 
         // 成功後の処理
         if (options.onSuccess) {
           await options.onSuccess();
         }
 
-        // リダイレクト
+        // リダイレクトまたはリロード
         if (options.redirectTo) {
           router.push(options.redirectTo);
         } else {
-          router.refresh();
+          // 強制的にリロードして最新状態を表示
+          window.location.reload();
         }
 
         return { success: true, error: null };
@@ -114,4 +123,3 @@ export function useDraftSubmit(options: SubmitForReviewOptions) {
     setError
   };
 }
-

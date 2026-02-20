@@ -136,7 +136,7 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
     selectionProcess: job.selection_process || "",
     companyName: company.name,
     companyLogo: company.logo_url || "",
-    coverImage: job.cover_image_url || company.cover_image_url || undefined,
+    coverImage: job.cover_image_url || undefined,
     workLocation: locationText || undefined,
     workConditions: job.employment_type || undefined
   };

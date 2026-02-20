@@ -1,32 +1,190 @@
 "use client";
 
-import React, { useCallback } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Plus, MapPin, ExternalLink, Edit, Users, ImageIcon, Filter, Clock } from "lucide-react";
+import { Plus, MapPin, ExternalLink, Users, ImageIcon, GripVertical } from "lucide-react";
 import StudioButton from "@/components/studio/atoms/StudioButton";
 import StudioBadge from "@/components/studio/atoms/StudioBadge";
 import ErrorMessage from "@/components/studio/atoms/ErrorMessage";
 import LoadingSpinner from "@/components/studio/atoms/LoadingSpinner";
 import EmptyState from "@/components/studio/atoms/EmptyState";
 import PageHeader from "@/components/studio/molecules/PageHeader";
-import FilterSortSection from "@/components/studio/molecules/FilterSortSection";
-import { getJobDrafts, getJobApplicationCounts } from "@/lib/actions/job-actions";
+import ListFilterSection from "@/components/studio/molecules/ListFilterSection";
+import { getJobDrafts, getJobApplicationCounts, reorderJobs } from "@/lib/actions/job-actions";
 import { useListPage } from "@/hooks/useListPage";
 import type { Tables } from "@jobtv-app/shared/types";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 // 型定義（DBスキーマに合わせる）
 type JobPosting = Tables<"job_postings">;
 type JobDraft = Tables<"job_postings_draft">;
 
-interface Job extends Omit<JobDraft, "available_statuses" | "draft_status"> {
-  available_statuses?: JobDraft["available_statuses"];
-  status: "draft" | "pending" | "active" | "closed";
+interface Job extends JobDraft {
+  status: "draft" | "active" | "closed";
   entryCount: number;
+}
+
+// ソータブルなリストアイテムコンポーネント
+function SortableJobItem({
+  job,
+  onEdit,
+  onApplicants,
+  isSortable
+}: {
+  job: Job;
+  onEdit: (job: Job) => void;
+  onApplicants: (job: Job) => void;
+  isSortable: boolean;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: job.id,
+    disabled: !isSortable
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 1 : 0,
+    opacity: isDragging ? 0.5 : 1
+  };
+
+  const locationText = [job.prefecture, job.location_detail]
+    .filter(Boolean)
+    .join(job.prefecture && job.location_detail ? " " : "");
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col md:flex-row transition-all hover:border-black/10"
+    >
+      {/* ドラッグハンドル */}
+      {isSortable && (
+        <div
+          {...attributes}
+          {...listeners}
+          className="hidden md:flex items-center justify-center w-10 bg-gray-50 border-r border-gray-100 cursor-grab active:cursor-grabbing"
+          title="ドラッグして並び替え"
+        >
+          <GripVertical className="w-5 h-5 text-gray-400" />
+        </div>
+      )}
+
+      {/* 左側：カバー画像セクション */}
+      <div className="md:w-64 relative bg-gray-100 border-b md:border-b-0 md:border-r border-gray-100 overflow-hidden">
+        {job.cover_image_url ? (
+          <Image src={job.cover_image_url} alt={job.title} fill className="object-cover" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <ImageIcon className="w-12 h-12 text-gray-400" />
+          </div>
+        )}
+      </div>
+
+      {/* 中央：詳細情報 */}
+      <div className="flex-1 p-4 md:p-6 flex flex-col justify-between">
+        <div>
+          <div className="flex items-center gap-2 mb-1.5">
+            {job.employment_type && (
+              <span className="text-[10px] font-black uppercase tracking-wider bg-black text-white px-2 py-0.5 rounded">
+                {job.employment_type}
+              </span>
+            )}
+            <StudioBadge
+              variant={
+                job.draft_status === "submitted"
+                  ? "neutral"
+                  : job.status === "active"
+                  ? "success"
+                  : job.status === "draft"
+                  ? "neutral"
+                  : "neutral"
+              }
+            >
+              {job.draft_status === "submitted"
+                ? "審査中"
+                : job.status === "active"
+                ? "公開中"
+                : job.status === "draft"
+                ? "下書き"
+                : "非公開"}
+            </StudioBadge>
+          </div>
+          <h3 className="text-xl font-black text-gray-900">{job.title}</h3>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-x-8 gap-y-3 mt-4">
+          {locationText && (
+            <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
+              <MapPin className="w-4 h-4" />
+              {locationText}
+            </div>
+          )}
+          {job.graduation_year && (
+            <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
+              <Users className="w-4 h-4" />
+              {job.graduation_year}年卒
+            </div>
+          )}
+          <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
+            <Users className="w-4 h-4" />
+            エントリー数: <span className="text-black font-black">{job.entryCount}</span>件
+          </div>
+        </div>
+      </div>
+
+      {/* 右側：アクションボタン */}
+      <div className="md:w-48 p-4 flex flex-col items-center justify-center gap-2 bg-gray-50/50 border-t md:border-t-0 md:border-l border-gray-100">
+        <StudioButton size="sm" fullWidth onClick={() => onApplicants(job)}>
+          予約者管理
+        </StudioButton>
+        <StudioButton
+          variant="outline"
+          size="sm"
+          fullWidth
+          icon={<ExternalLink className="w-3 h-3" />}
+          onClick={() => onEdit(job)}
+        >
+          詳細編集
+        </StudioButton>
+      </div>
+    </div>
+  );
 }
 
 export default function JobsPage() {
   const router = useRouter();
+  const [sortedJobs, setSortedJobs] = useState<Job[]>([]);
+  const [isReordering, setIsReordering] = useState(false);
+
+  // センサーの設定
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8
+      }
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates
+    })
+  );
 
   const loadJobs = useCallback(async () => {
     const { data, error: fetchError } = await getJobDrafts();
@@ -38,20 +196,20 @@ export default function JobsPage() {
       // エントリー数を取得（production_job_idがある場合のみ）
       const productionJobIds = data.filter((draft) => draft.production_job_id).map((draft) => draft.production_job_id!);
 
-      const { data: counts } =
+      const { data: countsData } =
         productionJobIds.length > 0 ? await getJobApplicationCounts(productionJobIds) : { data: {} };
+      const counts = countsData as Record<string, number>;
 
       const jobsWithCounts: Job[] = data.map((draft) => ({
         ...draft,
         id: draft.id,
         status:
-          draft.draft_status === "submitted"
-            ? "pending"
-            : draft.draft_status === "approved"
+          draft.draft_status === "approved"
             ? "active"
             : draft.draft_status === "rejected"
             ? "closed"
             : "draft",
+        draft_status: draft.draft_status,
         entryCount: draft.production_job_id ? counts?.[draft.production_job_id] || 0 : 0
       }));
 
@@ -65,53 +223,74 @@ export default function JobsPage() {
     loading,
     error,
     statusFilter,
-    sortBy,
+    graduationYearFilter,
+    availableGraduationYears,
+    availableStatuses,
     setStatusFilter,
-    setSortBy,
+    setGraduationYearFilter,
     setError
   } = useListPage<Job>({
     loadData: loadJobs,
-    statusMapper: (job) => job.status,
-    sortOptions: [
-      { value: "updated_at_desc", label: "更新日（新しい順）" },
-      { value: "updated_at_asc", label: "更新日（古い順）" },
-      { value: "created_at_desc", label: "作成日（新しい順）" },
-      { value: "created_at_asc", label: "作成日（古い順）" },
-      { value: "title_asc", label: "タイトル（あいうえお順）" },
-      { value: "title_desc", label: "タイトル（逆順）" }
-    ],
-    filterOptions: [
-      { value: "all", label: "全て" },
-      { value: "draft", label: "下書き" },
-      { value: "pending", label: "審査中" },
-      { value: "active", label: "公開中" },
-      { value: "closed", label: "非公開" }
-    ]
+    statusMapper: (job) => {
+      // draft_statusがsubmittedの場合は"submitted"を返す
+      if (job.draft_status === "submitted") {
+        return "submitted";
+      }
+      return job.status;
+    },
+    graduationYearMapper: (job) => job.graduation_year,
+    sortOptions: [],
+    filterOptions: []
   });
+
+  // filteredJobsが更新されたらsortedJobsも更新
+  useEffect(() => {
+    setSortedJobs(filteredJobs);
+  }, [filteredJobs]);
 
   const handleEdit = (job: Job) => {
     router.push(`/studio/jobs/${job.id}`);
+  };
+
+  const handleApplicants = (job: Job) => {
+    router.push(`/studio/jobs/${job.id}/applicants`);
   };
 
   const handleCreate = () => {
     router.push("/studio/jobs/new");
   };
 
-  // 日付フォーマット関数
-  const formatDate = (dateString: string | null | undefined) => {
-    if (!dateString) return { month: "", day: "", weekday: "", time: "" };
-    const date = new Date(dateString);
-    const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
-    const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
-    const hours = date.getHours().toString().padStart(2, "0");
-    const minutes = date.getMinutes().toString().padStart(2, "0");
-    return {
-      month: months[date.getMonth()],
-      day: date.getDate().toString(),
-      weekday: weekdays[date.getDay()],
-      time: `${hours}:${minutes}`
-    };
+  // ドラッグ終了時の処理
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = sortedJobs.findIndex((j) => j.id === active.id);
+      const newIndex = sortedJobs.findIndex((j) => j.id === over.id);
+
+      const newSortedJobs = arrayMove(sortedJobs, oldIndex, newIndex);
+      setSortedJobs(newSortedJobs);
+
+      // サーバーに反映
+      setIsReordering(true);
+      const orders = newSortedJobs.map((job, index) => ({
+        id: job.id,
+        display_order: index
+      }));
+
+      const result = await reorderJobs(orders);
+      if (result.error) {
+        alert(`並び替えの保存に失敗しました: ${result.error}`);
+        // 失敗した場合は元の順序に戻す
+        setSortedJobs(filteredJobs);
+      }
+      setIsReordering(false);
+    }
   };
+
+  // 並び替えが可能かどうか（公開済みの求人が複数ある場合）
+  const publishedJobs = sortedJobs.filter((j) => j.production_job_id);
+  const isSortable = publishedJobs.length > 1;
 
   return (
     <div className="space-y-10 animate-in fade-in duration-300">
@@ -127,144 +306,49 @@ export default function JobsPage() {
         }
       />
 
-      {/* フィルター・ソート */}
+      {/* フィルター */}
       {!loading && filteredJobs.length > 0 && (
-        <FilterSortSection
-          filters={[
-            {
-              label: "公開ステータス",
-              value: statusFilter,
-              onChange: setStatusFilter,
-              options: [
-                { value: "all", label: "全て" },
-                { value: "draft", label: "下書き" },
-                { value: "pending", label: "審査中" },
-                { value: "active", label: "公開中" },
-                { value: "closed", label: "非公開" }
-              ]
-            },
-            {
-              label: "並び順",
-              value: sortBy,
-              onChange: setSortBy,
-              options: [
-                { value: "updated_at_desc", label: "更新日（新しい順）" },
-                { value: "updated_at_asc", label: "更新日（古い順）" },
-                { value: "created_at_desc", label: "作成日（新しい順）" },
-                { value: "created_at_asc", label: "作成日（古い順）" },
-                { value: "title_asc", label: "タイトル（あいうえお順）" },
-                { value: "title_desc", label: "タイトル（逆順）" }
-              ]
-            }
-          ]}
+        <ListFilterSection
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
+          availableStatuses={availableStatuses}
+          graduationYearFilter={graduationYearFilter}
+          onGraduationYearFilterChange={setGraduationYearFilter}
+          availableGraduationYears={availableGraduationYears}
         />
+      )}
+
+      {/* 並び替え中のローディング表示 */}
+      {isReordering && (
+        <div className="flex items-center justify-center py-2 bg-blue-50 text-blue-600 text-xs font-bold rounded-lg border border-blue-100 animate-pulse">
+          並び替えを保存中...
+        </div>
       )}
 
       {loading ? (
         <LoadingSpinner />
-      ) : filteredJobs.length === 0 && statusFilter === "all" ? (
+      ) : sortedJobs.length === 0 && statusFilter === "all" ? (
         <EmptyState title="求人がまだ登録されていません" description="新規求人を作成して始めましょう" />
       ) : (
-        <div className="space-y-4">
-          {filteredJobs.length === 0 ? (
-            <EmptyState title="条件に一致する求人がありません" />
-          ) : (
-            filteredJobs.map((job) => {
-              // 都道府県と詳細を組み合わせて表示
-              const locationText = [job.prefecture, job.location_detail]
-                .filter(Boolean)
-                .join(job.prefecture && job.location_detail ? " " : "");
-
-              const createdDate = formatDate(job.created_at);
-
-              return (
-                <div
-                  key={job.id}
-                  className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col md:flex-row transition-all hover:border-black/10"
-                >
-                  {/* 左側：カバー画像セクション */}
-                  <div className="md:w-64 relative bg-gray-100 border-b md:border-b-0 md:border-r border-gray-100 overflow-hidden">
-                    {job.cover_image_url ? (
-                      <Image src={job.cover_image_url} alt={job.title} fill className="object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <ImageIcon className="w-12 h-12 text-gray-400" />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* 中央：詳細情報 */}
-                  <div className="flex-1 p-4 md:p-6 flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1.5">
-                        {job.employment_type && (
-                          <span className="text-[10px] font-black uppercase tracking-wider bg-black text-white px-2 py-0.5 rounded">
-                            {job.employment_type}
-                          </span>
-                        )}
-                        <StudioBadge
-                          variant={
-                            job.status === "active"
-                              ? "success"
-                              : job.status === "pending"
-                              ? "neutral"
-                              : job.status === "draft"
-                              ? "neutral"
-                              : "neutral"
-                          }
-                        >
-                          {job.status === "active"
-                            ? "公開中"
-                            : job.status === "pending"
-                            ? "審査中"
-                            : job.status === "draft"
-                            ? "下書き"
-                            : "非公開"}
-                        </StudioBadge>
-                      </div>
-                      <h3 className="text-xl font-black text-gray-900">{job.title}</h3>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-x-8 gap-y-3 mt-4">
-                      {locationText && (
-                        <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
-                          <MapPin className="w-4 h-4" />
-                          {locationText}
-                        </div>
-                      )}
-                      {job.graduation_year && (
-                        <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
-                          <Users className="w-4 h-4" />
-                          {job.graduation_year}年卒
-                        </div>
-                      )}
-                      <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
-                        <Users className="w-4 h-4" />
-                        エントリー数: <span className="text-black font-black">{job.entryCount}</span>件
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 右側：アクションボタン */}
-                  <div className="md:w-48 p-4 flex flex-col items-center justify-center gap-2 bg-gray-50/50 border-t md:border-t-0 md:border-l border-gray-100">
-                    <StudioButton size="sm" fullWidth onClick={() => router.push(`/studio/jobs/${job.id}/applicants`)}>
-                      予約者管理
-                    </StudioButton>
-                    <StudioButton
-                      variant="outline"
-                      size="sm"
-                      fullWidth
-                      icon={<ExternalLink className="w-3 h-3" />}
-                      onClick={() => handleEdit(job)}
-                    >
-                      詳細編集
-                    </StudioButton>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={sortedJobs.map((j) => j.id)} strategy={verticalListSortingStrategy}>
+            <div className="space-y-4">
+              {sortedJobs.length === 0 ? (
+                <EmptyState title="条件に一致する求人がありません" />
+              ) : (
+                sortedJobs.map((job) => (
+                  <SortableJobItem
+                    key={job.id}
+                    job={job}
+                    onEdit={handleEdit}
+                    onApplicants={handleApplicants}
+                    isSortable={isSortable}
+                  />
+                ))
+              )}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
     </div>
   );

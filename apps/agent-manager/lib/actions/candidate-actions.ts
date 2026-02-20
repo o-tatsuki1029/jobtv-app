@@ -14,7 +14,7 @@ type InterviewNote = InterviewNoteWithRelations;
 
 export interface CandidateData extends Partial<TablesInsert<"candidates">> {
   id?: string;
-  assigned_to_profile?: Pick<Profile, "id" | "full_name" | "email"> | null;
+  assigned_to_profile?: Pick<Profile, "id" | "first_name" | "last_name" | "email"> | null;
 }
 
 /**
@@ -30,7 +30,8 @@ export async function getCandidates() {
       *,
       assigned_to_profile:profiles!candidates_assigned_to_fkey(
         id,
-        full_name,
+        first_name,
+        last_name,
         email
       )
     `,
@@ -58,7 +59,8 @@ export async function getCandidate(id: string) {
       *,
       assigned_to_profile:profiles!candidates_assigned_to_fkey(
         id,
-        full_name,
+        first_name,
+        last_name,
         email
       )
     `,
@@ -114,14 +116,17 @@ export async function createCandidate(data: Omit<CandidateData, "id">) {
   // 既存の求職者を確認
   const { data: existingCandidate } = await supabase
     .from("candidates")
-    .select("id, full_name")
+    .select("id, first_name, last_name")
     .eq("email", data.email)
     .single();
 
   if (existingCandidate) {
+    const candidateName = existingCandidate.first_name && existingCandidate.last_name
+      ? `${existingCandidate.last_name} ${existingCandidate.first_name}`
+      : data.email;
     return {
       data: null,
-      error: `このメールアドレス（${data.email}）は既に登録されています。求職者「${existingCandidate.full_name}」を編集してください。`,
+      error: `このメールアドレス（${data.email}）は既に登録されています。求職者「${candidateName}」を編集してください。`,
     };
   }
 
@@ -260,7 +265,7 @@ export async function getCandidateApplicationsDetail(candidateId: string) {
         // プロファイルを取得
         const { data: profiles } = await supabase
           .from("profiles")
-          .select("id, email, full_name, role")
+          .select("id, email, first_name, last_name, role")
           .in("id", userIds);
 
         for (const progress of progressHistory) {

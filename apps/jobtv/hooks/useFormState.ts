@@ -13,7 +13,7 @@ export interface UseFormStateReturn {
   setSaving: (saving: boolean) => void;
   setError: (error: string | null) => void;
   setFieldError: (field: string, error: string | undefined) => void;
-  setFieldErrors: (errors: Record<string, string>) => void;
+  setFieldErrors: (errors: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => void;
   clearFieldErrors: () => void;
   clearAllErrors: () => void;
 }

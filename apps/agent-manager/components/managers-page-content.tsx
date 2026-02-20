@@ -30,9 +30,10 @@ export async function ManagersPageContent() {
   // サーバーコンポーネントで管理者データをフェッチ
   const { data: managers, error: managersError } = await supabase
     .from("profiles")
-    .select("id, email, full_name, role")
+    .select("id, email, first_name, last_name, role")
     .in("role", ["admin", "RA", "CA", "MRK"])
-    .order("full_name")
+    .order("last_name")
+    .order("first_name")
     .order("email");
 
   if (managersError) {

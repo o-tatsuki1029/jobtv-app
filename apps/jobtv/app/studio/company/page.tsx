@@ -1,24 +1,25 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Building, Image as ImageIcon, Globe, Loader2, CheckCircle2, Video, Copy, Check } from "lucide-react";
-import StudioBadge from "@/components/studio/atoms/StudioBadge";
+import React, { useState } from "react";
+import { Building, Image as ImageIcon, Globe, Loader2 } from "lucide-react";
 import StudioFormField from "@/components/studio/molecules/StudioFormField";
 import StudioPreviewModal from "@/components/studio/organisms/StudioPreviewModal";
+import SubmitReviewModal from "@/components/studio/organisms/SubmitReviewModal";
 import StudioImageUpload from "@/components/studio/molecules/StudioImageUpload";
-import StudioVideoList from "@/components/studio/molecules/StudioVideoList";
 import StudioSnsFields from "@/components/studio/molecules/StudioSnsFields";
 import StudioBenefitsSection from "@/components/studio/molecules/StudioBenefitsSection";
 import SectionCard from "@/components/studio/molecules/SectionCard";
 import { useCompanyProfile } from "@/hooks/useCompanyProfile";
-import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
-import { useDraftSubmit } from "@/hooks/useDraftSubmit";
-import { uploadCompanyPageDraftCoverImage, submitCompanyPageForReview } from "@/lib/actions/company-page-actions";
-import { getCompanyProfileWithPage } from "@/lib/actions/company-profile-actions";
-import { dbToCompanyData } from "@/components/company";
-import { extractSnsAccountNames } from "@/utils/sns-url-utils";
-import { validateMaxLength } from "@jobtv-app/shared/utils/validation";
+import {
+  uploadCompanyPageDraftCoverImage,
+  submitCompanyPageForReview,
+  toggleCompanyPageStatus
+} from "@/lib/actions/company-page-actions";
+import { validateRequired, validateMaxLength } from "@jobtv-app/shared/utils/validation";
 import DraftActionButtons from "@/components/studio/molecules/DraftActionButtons";
+import { useStudioEditor } from "@/hooks/useStudioEditor";
+import StudioEditorStatusSection from "@/components/studio/molecules/StudioEditorStatusSection";
+import StudioEditorAlerts from "@/components/studio/molecules/StudioEditorAlerts";
 
 export default function CompanyPageManagement() {
   const {
@@ -26,122 +27,106 @@ export default function CompanyPageManagement() {
     companyId,
     draftId,
     draftStatus,
+    productionPageId,
+    productionStatus,
     isLoading,
     isSaving,
-    saveStatus,
     errorMessage,
     snsAccountNames,
     setCompany,
     setSnsAccountNames,
     handleSave,
-    setErrorMessage,
-    setSaveStatus,
     hasChanges: hasChangesFromHook
   } = useCompanyProfile();
 
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [previewDevice, setPreviewDevice] = useState<"desktop" | "mobile">("desktop");
-  const [isCopied, setIsCopied] = useState(false);
   const [taglineError, setTaglineError] = useState<string | null>(null);
+  const [descriptionError, setDescriptionError] = useState<string | null>(null);
   const [isCoverImageUploading, setIsCoverImageUploading] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<{
-    coverImage?: string;
-  }>({});
 
-  // ページ離脱時の警告
-  useUnsavedChanges(hasChangesFromHook);
-
-  // 審査申請の共通ロジック
+  // 共通スタジオエディターフックの使用
   const {
+    isReadOnly,
+    showUnderReviewAlert,
+    showOlderVersionAlert,
+    handleToggleStatus,
     submitForReview,
-    isSubmitting,
-    error: submitError
-  } = useDraftSubmit({
+    isSubmittingReview,
+    isPreviewOpen,
+    setIsPreviewOpen,
+    previewDevice,
+    setPreviewDevice,
+    error: studioError,
+    setError: setStudioError,
+    isSubmitModalOpen,
+    setIsSubmitModalOpen
+  } = useStudioEditor({
+    type: "company_page",
+    id: companyId || "new",
+    data: companyId
+      ? {
+          id: companyId,
+          draft_status: draftStatus || undefined,
+          production_status: productionStatus || undefined,
+          production_id: productionPageId
+        }
+      : null,
     onSave: async () => {
       await handleSave();
-      return { error: null };
+      // handleSave内でdraftIdも更新されるため、useCompanyProfileから取得
+      return { error: null, draftId: draftId };
     },
-    onSubmit: async (draftId) => {
-      return await submitCompanyPageForReview(draftId);
+    onSubmit: async (id: string, keepProductionActive?: boolean) => {
+      return await submitCompanyPageForReview(id, keepProductionActive);
+    },
+    onToggleStatus: async (id, status) => {
+      return await toggleCompanyPageStatus(id, status);
     },
     validate: () => {
-      if (taglineError) {
+      if (taglineError || descriptionError) {
         return "入力内容を確認してください";
       }
-      return null;
-    },
-    onSuccess: async () => {
-      // データを再取得して更新
-      const refreshResult = await getCompanyProfileWithPage();
-      if (refreshResult.data) {
-        const updatedCompanyData = dbToCompanyData(refreshResult.data);
-        const snsNames = extractSnsAccountNames(updatedCompanyData.snsUrls);
-        setCompany(updatedCompanyData);
+      // 必須項目のチェック
+      if (!company.tagline || company.tagline.trim() === "") {
+        return "キャッチコピーは必須項目です";
       }
-      setSaveStatus("success");
-      setTimeout(() => setSaveStatus("idle"), 3000);
+      if (!company.description || company.description.trim() === "") {
+        return "会社紹介文は必須項目です";
+      }
+      return null;
     }
   });
 
-  // 審査申請ハンドラー
-  const handleSubmitForReview = async () => {
-    await submitForReview(draftId);
-  };
-
-  // submitErrorも表示する
-  useEffect(() => {
-    if (submitError) {
-      setErrorMessage(submitError);
-      setSaveStatus("error");
-    }
-  }, [submitError, setErrorMessage, setSaveStatus]);
+  // エラーメッセージの統合（useCompanyProfileのerrorMessageとuseStudioEditorのerrorを統合）
+  const displayError = errorMessage || studioError;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    if (isReadOnly) return;
     const { name, value } = e.target;
 
-    // キャッチコピーのバリデーション（32字以内）
+    // キャッチコピーのバリデーション（必須、32字以内）
     if (name === "tagline") {
-      const error = validateMaxLength(value, 32, "キャッチコピー");
-      setTaglineError(error);
+      const requiredError = validateRequired(value, "キャッチコピー");
+      const maxLengthError = validateMaxLength(value, 32, "キャッチコピー");
+      setTaglineError(requiredError || maxLengthError || null);
+    }
+
+    // 会社紹介文のバリデーション（必須、3000字以内）
+    if (name === "description") {
+      const requiredError = validateRequired(value, "会社紹介文");
+      const maxLengthError = validateMaxLength(value, 3000, "会社紹介文");
+      setDescriptionError(requiredError || maxLengthError || null);
     }
 
     setCompany((prev) => ({ ...prev, [name]: value }));
-
-    // フィールドエラーをクリア
-    if (fieldErrors[name as keyof typeof fieldErrors]) {
-      setFieldErrors((prev) => ({ ...prev, [name]: undefined }));
-    }
   };
 
   // 画像アップロードハンドラー（カバー画像のみ）
   const handleImageUpload = (url: string) => {
     setCompany((prev) => ({ ...prev, coverImage: url }));
-    if (fieldErrors.coverImage) {
-      setFieldErrors((prev) => ({ ...prev, coverImage: undefined }));
-    }
   };
 
   const handleSnsChange = (platform: "x" | "instagram" | "tiktok" | "youtube", value: string) => {
     setSnsAccountNames((prev) => ({ ...prev, [platform]: value }));
-  };
-
-  const handleVideoError = (error: string) => {
-    setErrorMessage(error);
-    setSaveStatus("error");
-  };
-
-  const handleCopyUrl = async () => {
-    if (!companyId) return;
-
-    const companyUrl = `${window.location.origin}/company/${companyId}`;
-    try {
-      await navigator.clipboard.writeText(companyUrl);
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
-    } catch (error) {
-      console.error("Failed to copy URL:", error);
-      setErrorMessage("URLのコピーに失敗しました");
-    }
   };
 
   if (isLoading) {
@@ -154,6 +139,9 @@ export default function CompanyPageManagement() {
 
   return (
     <div className="space-y-10 pb-24">
+      {/* 共通警告メッセージ */}
+      <StudioEditorAlerts showUnderReviewAlert={showUnderReviewAlert} showOlderVersionAlert={showOlderVersionAlert} />
+
       {/* プレビューモーダル */}
       <StudioPreviewModal
         isOpen={isPreviewOpen}
@@ -163,36 +151,36 @@ export default function CompanyPageManagement() {
         companyData={company}
       />
 
+      {/* 審査申請確認モーダル */}
+      <SubmitReviewModal
+        isOpen={isSubmitModalOpen}
+        onClose={() => setIsSubmitModalOpen(false)}
+        onSubmit={(keepProductionActive) => {
+          submitForReview(keepProductionActive);
+        }}
+        isSubmitting={isSubmittingReview}
+        hasProduction={!!productionPageId}
+      />
+
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-black tracking-tight">企業ページ管理</h1>
           <p className="text-gray-500 font-medium">求職者に表示される企業プロフィールの編集と公開設定を行います。</p>
         </div>
-        {/* 公開ステータス表示 */}
-        {company.status && (
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-500 font-medium">公開ステータス:</span>
-            <StudioBadge
-              variant={company.status === "active" ? "success" : company.status === "pending" ? "neutral" : "neutral"}
-            >
-              {company.status === "active" ? "公開中" : company.status === "pending" ? "審査中" : "非公開"}
-            </StudioBadge>
-          </div>
-        )}
+        {/* 審査ステータスと公開設定トグル（ヘッダー右側） */}
+        <StudioEditorStatusSection
+          draftStatus={draftStatus}
+          productionStatus={productionStatus || undefined}
+          onToggleStatus={handleToggleStatus}
+          hasProduction={!!productionPageId}
+          disabled={isSaving}
+        />
       </div>
 
-      {/* 保存ステータス表示 */}
-      {saveStatus === "success" && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3">
-          <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
-          <p className="text-sm font-bold text-green-800">保存が完了しました</p>
-        </div>
-      )}
-
-      {(saveStatus === "error" || errorMessage) && errorMessage && (
+      {displayError && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
           <span className="text-red-600 font-bold">×</span>
-          <p className="text-sm font-bold text-red-800">{errorMessage}</p>
+          <p className="text-sm font-bold text-red-800">{displayError}</p>
         </div>
       )}
 
@@ -207,17 +195,12 @@ export default function CompanyPageManagement() {
                 value={company.tagline || ""}
                 onChange={handleChange}
                 placeholder="求職者の心を掴むキャッチコピーを入力"
+                required
+                maxLength={32}
+                showCharCount
                 error={taglineError || undefined}
+                disabled={isReadOnly}
               />
-              {company.tagline !== undefined && company.tagline !== null && (
-                <p
-                  className={`text-[10px] text-right -mt-4 ${
-                    taglineError ? "text-red-500 font-bold" : "text-gray-400"
-                  }`}
-                >
-                  {company.tagline.length}/32文字
-                </p>
-              )}
               <StudioFormField
                 label="会社紹介文"
                 name="description"
@@ -225,84 +208,31 @@ export default function CompanyPageManagement() {
                 value={company.description}
                 onChange={handleChange}
                 rows={12}
-                placeholder="会社紹介文を入力(3000字以内)"
+                placeholder="会社紹介文を入力"
+                required
                 maxLength={3000}
                 showCharCount
+                error={descriptionError || undefined}
+                disabled={isReadOnly}
               />
-            </div>
-          </SectionCard>
-
-          {/* 動画管理 */}
-          <SectionCard icon={<Video className="w-5 h-5 text-gray-400" />} title="動画管理">
-            <div className="p-8 space-y-8">
-              <StudioVideoList
-                label="メインビデオ"
-                videos={company.mainVideo ? [{ id: "main", title: "メインビデオ", video: company.mainVideo }] : []}
-                onChange={(videos) => {
-                  setCompany((prev) => ({ ...prev, mainVideo: videos[0]?.video || undefined }));
-                }}
-                onError={handleVideoError}
-                maxSelection={1}
-              />
-              <p className="text-[10px] text-gray-400 -mt-4">
-                企業ページ上部に表示されるメイン動画です。MP4, WebM形式 (最大50MB)。
-              </p>
-              <div className="pt-4 border-t border-gray-100">
-                <StudioVideoList
-                  label="ショート動画"
-                  videos={company.shortVideos}
-                  onChange={(videos) => setCompany((prev) => ({ ...prev, shortVideos: videos }))}
-                  onError={handleVideoError}
-                />
-              </div>
-              <div className="pt-4 border-t border-gray-100">
-                <StudioVideoList
-                  label="動画"
-                  videos={company.documentaryVideos || []}
-                  onChange={(videos) => setCompany((prev) => ({ ...prev, documentaryVideos: videos }))}
-                  onError={handleVideoError}
-                />
-              </div>
             </div>
           </SectionCard>
 
           {/* 福利厚生・制度 */}
-          <StudioBenefitsSection
-            company={company}
-            setCompany={setCompany}
-            setErrorMessage={setErrorMessage}
-            setSaveStatus={setSaveStatus}
-          />
+          <div className={isReadOnly ? "opacity-60 pointer-events-none" : ""}>
+            <StudioBenefitsSection
+              company={company}
+              setCompany={setCompany}
+              setErrorMessage={setStudioError}
+              setSaveStatus={() => {}}
+            />
+          </div>
         </div>
 
         <div className="space-y-8">
-          {/* 企業ページURL */}
-          {companyId && (
-            <SectionCard icon={<Globe className="w-5 h-5 text-gray-400" />} title="企業ページURL">
-              <div className="p-6 space-y-4">
-                <div className="flex items-center gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                  <input
-                    type="text"
-                    value={`${typeof window !== "undefined" ? window.location.origin : ""}/company/${companyId}`}
-                    readOnly
-                    className="flex-1 text-sm font-mono text-gray-700 bg-transparent border-none outline-none"
-                  />
-                  <button
-                    onClick={handleCopyUrl}
-                    className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors flex-shrink-0"
-                    aria-label="URLをコピー"
-                  >
-                    {isCopied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
-                  </button>
-                </div>
-                <p className="text-[10px] text-gray-400">このURLをコピーして、求職者に共有できます</p>
-              </div>
-            </SectionCard>
-          )}
-
           {/* カバー画像 */}
           <SectionCard icon={<ImageIcon className="w-5 h-5 text-gray-400" />} title="カバー画像">
-            <div className="p-8 space-y-8">
+            <div className={`p-8 space-y-8 ${isReadOnly ? "opacity-60 pointer-events-none" : ""}`}>
               <div className="space-y-2">
                 <StudioImageUpload
                   label=""
@@ -311,8 +241,7 @@ export default function CompanyPageManagement() {
                   onUploadComplete={handleImageUpload}
                   onUploadingChange={setIsCoverImageUploading}
                   onError={(error) => {
-                    setErrorMessage(error);
-                    setSaveStatus("error");
+                    setStudioError(error);
                   }}
                   aspectRatio="wide"
                   helperText="1200x400px 以上を推奨"
@@ -321,14 +250,13 @@ export default function CompanyPageManagement() {
                     return result;
                   }}
                 />
-                {fieldErrors.coverImage && <p className="text-xs text-red-500 font-bold">{fieldErrors.coverImage}</p>}
               </div>
             </div>
           </SectionCard>
 
           {/* 外部リンク */}
           <SectionCard icon={<Globe className="w-5 h-5 text-gray-400" />} title="外部リンク">
-            <div className="p-6 space-y-4">
+            <div className={`p-6 space-y-4 ${isReadOnly ? "opacity-60 pointer-events-none" : ""}`}>
               <StudioSnsFields accountNames={snsAccountNames} onChange={handleSnsChange} />
             </div>
           </SectionCard>
@@ -338,12 +266,18 @@ export default function CompanyPageManagement() {
       {/* 画面下部のボタン */}
       <DraftActionButtons
         onPreview={() => setIsPreviewOpen(true)}
-        onSubmitForReview={handleSubmitForReview}
-        isSubmitting={isSubmitting}
-        isSubmitDisabled={isSaving || isCoverImageUploading || !!taglineError}
-        showSubmitButton={!!(draftId && draftStatus !== "submitted" && draftStatus !== "approved")}
-        publicPageUrl={companyId ? `/company/${companyId}` : undefined}
+        showPreviewButton={true}
+        onSubmitForReview={() => setIsSubmitModalOpen(true)}
+        isSubmitting={isSubmittingReview}
+        isSubmitDisabled={isSaving || isCoverImageUploading || !!taglineError || !!descriptionError}
+        showSubmitButton={!isReadOnly}
         hasChanges={hasChangesFromHook()}
+        showActualPageButton={!!productionPageId && company.status === "active"}
+        onViewActualPage={() => {
+          if (companyId) {
+            window.open(`/company/${companyId}`, "_blank");
+          }
+        }}
       />
     </div>
   );

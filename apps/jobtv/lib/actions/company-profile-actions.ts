@@ -47,7 +47,7 @@ export async function getCompanyProfile(): Promise<{
 
 /**
  * 企業プロフィールと企業ページ情報を同時に取得（ログイン中のユーザーの企業IDを使用）
- * デフォルトでは本番テーブル（company_pages）の内容を表示し、編集可能なドラフトがある場合はドラフトの内容を優先
+ * スタジオ管理画面用：ドラフトテーブルを優先的に参照し、本番のステータス情報も付加
  */
 export async function getCompanyProfileWithPage(): Promise<{
   data: (CompanyRow & { job_postings?: any[] }) | null;
@@ -64,39 +64,86 @@ export async function getCompanyProfileWithPage(): Promise<{
       return { data: null, error: "企業IDが見つかりません" };
     }
 
-    // まず本番テーブル（company_pages）からデータを取得（デフォルト）
-    const productionResult = await getCompanyPage();
-    if (productionResult.error) {
-      // 本番テーブルにデータがない場合はエラーを無視（新規作成可能なため）
-      console.error("Get company page error:", productionResult.error);
-    }
-
-    // 次にドラフトテーブルから編集可能なドラフト（draftまたはrejected）を取得
+    // ドラフトテーブルから最新の情報を取得（唯一のソース）
     const draftResult = await getCompanyPageDraft();
-    if (draftResult.error) {
-      // ドラフト情報の取得エラーは無視（新規作成可能なため）
+    if (draftResult.error && !draftResult.error.includes("下書きが見つかりません")) {
       console.error("Get company page draft error:", draftResult.error);
     }
 
-    // デフォルトは本番テーブルの内容を使用
-    let pageData = productionResult.data || {};
+    // 本番テーブルから現在のステータス情報を取得（トグルボタン用）
+    const productionResult = await getCompanyPage();
+    const productionStatus = productionResult.data?.status || null;
+    const productionPageId = productionResult.data?.id || null;
 
-    // 編集可能なドラフト（draftまたはrejected）がある場合は、ドラフトの内容を優先
-    if (draftResult.data && (draftResult.data.draft_status === "draft" || draftResult.data.draft_status === "rejected")) {
-      pageData = draftResult.data;
+    // 表示に使用するデータはドラフトのみ
+    let pageData = draftResult.data || {};
+
+    // 承認済みのドラフト（トグルボタン表示用）
+    const supabase = await createClient();
+    let approvedDraftStatus: string | null = null;
+    let approvedDraftId: string | null = null;
+
+    // 現在のデータが承認済みか、または別に承認済みドラフトがあるか確認
+    if (draftResult.data?.draft_status === "approved") {
+      approvedDraftStatus = "approved";
+      approvedDraftId = draftResult.data.id;
+    } else if (productionPageId) {
+      // 本番ページIDに紐づく承認済みドラフトを探す
+      const { data: approvedDraft } = await supabase
+        .from("company_pages_draft")
+        .select("id, draft_status")
+        .eq("production_page_id", productionPageId)
+        .eq("draft_status", "approved")
+        .maybeSingle();
+      if (approvedDraft) {
+        approvedDraftStatus = approvedDraft.draft_status;
+        approvedDraftId = approvedDraft.id;
+      }
     }
+
+    // 不要なフィールドを除外
+    const { id: pageId, status: pageStatus, ...pageDataWithoutId } = pageData as any;
+
+    // ドラフト情報を決定
+    const finalDraftStatus = draftResult.data?.draft_status || approvedDraftStatus;
+    const finalDraftId = draftResult.data?.id || approvedDraftId;
 
     // companiesとページデータをマージ
     const mergedData = {
       ...(companyResult.data || {}),
-      ...pageData,
-      // ドラフト情報を追加
-      draft_id: draftResult.data?.id,
-      draft_status: draftResult.data?.draft_status,
-      production_page_id: draftResult.data?.production_page_id || productionResult.data?.id
+      ...pageDataWithoutId,
+      id: companyResult.data?.id, // 会社IDを維持
+      status: productionStatus, // 公開設定トグル用に本番ステータスを設定
+      draft_id: finalDraftId,
+      draft_status: finalDraftStatus,
+      production_page_id: draftResult.data?.production_page_id || productionPageId,
+      production_status: productionStatus, // 本番ページのステータス（トグル表示用）
+      videos: [] // スタジオ用でも初期値として空配列を持たせる
     };
 
-    return { data: mergedData as CompanyRow & { job_postings?: any[]; draft_id?: string; draft_status?: string; production_page_id?: string }, error: null };
+    // スタジオ用でも動画情報を取得してマージ（プレビュー用）
+    const { data: studioVideos } = await supabase
+      .from("videos")
+      .select("*")
+      .eq("company_id", companyId)
+      .eq("status", "active")
+      .order("display_order", { ascending: true });
+
+    if (studioVideos) {
+      (mergedData as any).videos = studioVideos;
+    }
+
+    return {
+      data: mergedData as CompanyRow & {
+        job_postings?: any[];
+        draft_id?: string;
+        draft_status?: string;
+        production_page_id?: string;
+        production_status?: "active" | "closed" | null;
+        videos?: any[];
+      },
+      error: null
+    };
   } catch (error) {
     console.error("Get company profile with page error:", error);
     return {
@@ -137,12 +184,13 @@ export async function getCompanyProfileById(id: string): Promise<{
       // ページ情報の取得エラーは無視
     }
 
-    // 求人情報を取得（status='active'のもののみ）
+    // 求人情報を取得（status='active'のもののみ、display_order順）
     const { data: jobsData, error: jobsError } = await supabase
       .from("job_postings")
       .select("*")
       .eq("company_id", id)
       .eq("status", "active")
+      .order("display_order", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: false });
 
     if (jobsError) {
@@ -150,14 +198,56 @@ export async function getCompanyProfileById(id: string): Promise<{
       // 求人の取得エラーは無視して企業情報のみ返す
     }
 
-    // 企業データに求人情報とページ情報を追加
+    // 動画情報を取得（status='active'のもののみ）
+    const { data: videosData, error: videosError } = await supabase
+      .from("videos")
+      .select("*")
+      .eq("company_id", id)
+      .eq("status", "active")
+      .order("display_order", { ascending: true });
+
+    if (videosError) {
+      console.error("Get company videos error:", videosError);
+      // 動画の取得エラーは無視
+    }
+
+    // 説明会情報を取得（status='active'のもののみ）
+    const { data: sessionsData, error: sessionsError } = await supabase
+      .from("sessions")
+      .select(
+        `
+        *,
+        session_dates (
+          id,
+          event_date,
+          start_time,
+          end_time,
+          capacity
+        )
+      `
+      )
+      .eq("company_id", id)
+      .eq("status", "active")
+      .order("display_order", { ascending: true, nullsFirst: false });
+
+    if (sessionsError) {
+      console.error("Get company sessions error:", sessionsError);
+      // 説明会の取得エラーは無視
+    }
+
+    // 企業データに求人情報とページ情報、動画情報、説明会情報を追加
     const result = {
       ...companyData,
       ...(pageResult.data || {}),
-      job_postings: jobsData || []
+      job_postings: jobsData || [],
+      videos: videosData || [],
+      sessions: sessionsData || []
     };
 
-    return { data: result as CompanyRow & { job_postings?: any[]; company_page?: any }, error: null };
+    return {
+      data: result as CompanyRow & { job_postings?: any[]; company_page?: any; videos?: any[]; sessions?: any[] },
+      error: null
+    };
   } catch (error) {
     console.error("Get company profile by id error:", error);
     return {

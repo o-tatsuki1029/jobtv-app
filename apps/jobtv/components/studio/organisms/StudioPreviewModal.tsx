@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useEffect } from "react";
-import { X, Monitor, Smartphone } from "lucide-react";
+import { Monitor, Smartphone } from "lucide-react";
 import Logo from "@/components/header/Logo";
 import StudioButton from "../atoms/StudioButton";
 
@@ -91,12 +91,12 @@ export default function StudioPreviewModal({
               </button>
             </div>
 
-            <button
+            <StudioButton
               onClick={onClose}
-              className="p-2 hover:bg-white/10 rounded-full text-gray-400 hover:text-white transition-colors border border-transparent hover:border-gray-800"
+              variant="outline"
             >
-              <X className="w-6 h-6" />
-            </button>
+              プレビューを閉じる
+            </StudioButton>
           </div>
         </div>
       </div>

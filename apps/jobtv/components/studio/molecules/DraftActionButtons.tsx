@@ -6,18 +6,18 @@
 "use client";
 
 import React from "react";
-import { Eye, ExternalLink, Send, Loader2 } from "lucide-react";
+import { Eye, Send, Loader2, ExternalLink } from "lucide-react";
 import StudioButton from "@/components/studio/atoms/StudioButton";
 
 export interface DraftActionButtonsProps {
   /**
    * プレビューを開く処理
    */
-  onPreview: () => void;
+  onPreview?: () => void;
   /**
    * 審査申請処理
    */
-  onSubmitForReview: () => void | Promise<void>;
+  onSubmitForReview: () => void | Promise<any>;
   /**
    * 審査申請中かどうか
    */
@@ -31,10 +31,6 @@ export interface DraftActionButtonsProps {
    */
   showSubmitButton?: boolean;
   /**
-   * 実際のページのURL（オプション）
-   */
-  publicPageUrl?: string;
-  /**
    * 審査申請ボタンのラベル
    */
   submitLabel?: string;
@@ -42,6 +38,18 @@ export interface DraftActionButtonsProps {
    * 変更があるかどうか（変更がない場合はボタンを無効化）
    */
   hasChanges?: boolean;
+  /**
+   * 実際のページを開く処理（公開中の場合のみ表示）
+   */
+  onViewActualPage?: () => void;
+  /**
+   * 実際のページを表示するかどうか
+   */
+  showActualPageButton?: boolean;
+  /**
+   * プレビューボタンを表示するかどうか
+   */
+  showPreviewButton?: boolean;
 }
 
 export default function DraftActionButtons({
@@ -50,27 +58,27 @@ export default function DraftActionButtons({
   isSubmitting = false,
   isSubmitDisabled = false,
   showSubmitButton = true,
-  publicPageUrl,
   submitLabel = "審査申請",
-  hasChanges = true
+  hasChanges = true,
+  onViewActualPage,
+  showActualPageButton = false,
+  showPreviewButton = false
 }: DraftActionButtonsProps) {
   // 変更がない場合はボタンを無効化
   const isDisabled = isSubmitting || isSubmitDisabled || !hasChanges;
 
   return (
     <div className="fixed bottom-0 left-0 md:left-64 right-0 bg-white border-t border-gray-200 px-6 py-4 flex items-center justify-end gap-4 shadow-lg z-10">
-      {publicPageUrl && (
-        <StudioButton
-          variant="outline"
-          icon={<ExternalLink className="w-4 h-4" />}
-          onClick={() => window.open(publicPageUrl, "_blank")}
-        >
+      {showActualPageButton && onViewActualPage && (
+        <StudioButton variant="outline" icon={<ExternalLink className="w-4 h-4" />} onClick={onViewActualPage}>
           実際のページを見る
         </StudioButton>
       )}
-      <StudioButton variant="outline" icon={<Eye className="w-4 h-4" />} onClick={onPreview}>
-        プレビュー
-      </StudioButton>
+      {showPreviewButton && onPreview && (
+        <StudioButton variant="outline" icon={<Eye className="w-4 h-4" />} onClick={onPreview}>
+          プレビュー
+        </StudioButton>
+      )}
       {showSubmitButton && (
         <StudioButton
           variant="primary"
@@ -84,4 +92,3 @@ export default function DraftActionButtons({
     </div>
   );
 }
-

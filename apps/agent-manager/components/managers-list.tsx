@@ -34,15 +34,17 @@ export function ManagersList({ managers: initialManagers }: ManagersListProps) {
   const [managers] = useState<Manager[]>(initialManagers);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<{
-    full_name: string;
+    first_name: string;
+    last_name: string;
     role: string;
-  }>({ full_name: "", role: "admin" });
+  }>({ first_name: "", last_name: "", role: "admin" });
   const router = useRouter();
 
   const handleEdit = (manager: Manager) => {
     setEditingId(manager.id);
     setEditForm({
-      full_name: manager.full_name || "",
+      first_name: manager.first_name || "",
+      last_name: manager.last_name || "",
       role: manager.role || "admin",
     });
   };
@@ -52,7 +54,8 @@ export function ManagersList({ managers: initialManagers }: ManagersListProps) {
     const { error } = await supabase
       .from("profiles")
       .update({
-        full_name: editForm.full_name || null,
+        first_name: editForm.first_name || null,
+        last_name: editForm.last_name || null,
         role: editForm.role,
       })
       .eq("id", id);
@@ -70,7 +73,7 @@ export function ManagersList({ managers: initialManagers }: ManagersListProps) {
 
   const handleCancel = () => {
     setEditingId(null);
-    setEditForm({ full_name: "", role: "admin" });
+    setEditForm({ first_name: "", last_name: "", role: "admin" });
   };
 
   return (
@@ -106,19 +109,35 @@ export function ManagersList({ managers: initialManagers }: ManagersListProps) {
                       />
                     </div>
                     <div className="grid gap-2">
-                      <Label htmlFor={`name-${manager.id}`}>
-                        氏名 <span className="text-red-500">*</span>
+                      <Label htmlFor={`last-name-${manager.id}`}>
+                        姓 <span className="text-red-500">*</span>
                       </Label>
                       <Input
-                        id={`name-${manager.id}`}
-                        value={editForm.full_name}
+                        id={`last-name-${manager.id}`}
+                        value={editForm.last_name}
                         onChange={(e) =>
                           setEditForm({
                             ...editForm,
-                            full_name: e.target.value,
+                            last_name: e.target.value,
                           })
                         }
-                        placeholder="氏名を入力"
+                        placeholder="山田"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor={`first-name-${manager.id}`}>
+                        名 <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id={`first-name-${manager.id}`}
+                        value={editForm.first_name}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            first_name: e.target.value,
+                          })
+                        }
+                        placeholder="太郎"
                       />
                     </div>
                     <div className="grid gap-2">
@@ -159,7 +178,9 @@ export function ManagersList({ managers: initialManagers }: ManagersListProps) {
                   <div className="flex items-center justify-between">
                     <div className="space-y-1">
                       <p className="font-medium">
-                        {manager.full_name || manager.email || "不明"}
+                        {manager.last_name && manager.first_name
+                          ? `${manager.last_name} ${manager.first_name}`
+                          : manager.email || "不明"}
                       </p>
                       <p className="text-sm text-muted-foreground">
                         {manager.email}

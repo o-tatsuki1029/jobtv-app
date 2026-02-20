@@ -8,7 +8,9 @@ const nextConfig: NextConfig = {
     serverActions: {
       // 動画ファイルアップロードに対応するため、ボディサイズ上限を50MBに設定
       bodySizeLimit: 50 * 1024 * 1024 // 50MB in bytes
-    }
+    },
+    // Middleware（proxy.ts）でのリクエストボディサイズ上限を50MBに設定
+    middlewareClientMaxBodySize: 50 * 1024 * 1024 // 50MB in bytes
   },
   images: {
     remotePatterns: ALLOWED_IMAGE_HOSTS.map((hostname) => ({

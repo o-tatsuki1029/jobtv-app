@@ -88,19 +88,15 @@ export default async function AdminSessionDetailPage({ params }: SessionDetailPa
             <p className="text-muted-foreground">説明会情報の審査</p>
           </div>
         </div>
-        {sessionData.status === "pending" && (
-          <ApprovalActions
-            onApprove={() => approveSession(id)}
-            onReject={() => rejectSession(id)}
-          />
-        )}
+        {/* 審査中の判定はドラフトテーブルのdraft_statusを参照 */}
+        {/* このページは本番テーブルから取得しているため、審査機能は別ページで実装 */}
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-6">
         <div>
           <div className="flex items-center gap-2 mb-4">
-            <StudioBadge variant={sessionData.status === "pending" ? "neutral" : "success"}>
-              {sessionData.status === "pending" ? "審査中" : sessionData.status === "active" ? "公開中" : "終了"}
+            <StudioBadge variant={sessionData.status === "active" ? "success" : "neutral"}>
+              {sessionData.status === "active" ? "公開中" : "終了"}
             </StudioBadge>
             {sessionData.companies && (
               <span className="text-sm text-gray-600 font-medium">企業: {sessionData.companies.name}</span>

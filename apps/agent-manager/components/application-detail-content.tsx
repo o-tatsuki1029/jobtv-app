@@ -67,7 +67,7 @@ export async function ApplicationDetailContent({
     if (userIds.length > 0) {
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("id, email, full_name")
+        .select("id, email, first_name, last_name")
         .in("id", userIds);
 
       // 進捗履歴に操作者情報をマージ

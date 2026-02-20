@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { primaryButtonClass } from "@/constants/navigation";
 import { checkCandidateExists } from "@/lib/actions/session-entry-actions";
+import { validateKatakana } from "@jobtv-app/shared/utils/validation";
 
 export interface EventEntryFormData {
   last_name: string;
@@ -40,6 +41,21 @@ export function EventEntryForm({
   const [step, setStep] = useState<"email" | "details">("email");
   const [checkingEmail, setCheckingEmail] = useState(false);
   const [isExistingUser, setIsExistingUser] = useState(false);
+  const [lastNameKanaError, setLastNameKanaError] = useState<string | null>(null);
+  const [firstNameKanaError, setFirstNameKanaError] = useState<string | null>(null);
+
+  // カタカナバリデーション
+  // カタカナバリデーション
+  useEffect(() => {
+    setLastNameKanaError(validateKatakana(formData.last_name_kana, "姓（カナ）"));
+  }, [formData.last_name_kana]);
+
+  useEffect(() => {
+    setFirstNameKanaError(validateKatakana(formData.first_name_kana, "名（カナ）"));
+  }, [formData.first_name_kana]);
+
+  // ボタンの有効/無効を判定
+  const hasKanaError = lastNameKanaError !== null || firstNameKanaError !== null;
 
   const handleNext = async () => {
     if (!formData.email) {
@@ -177,9 +193,12 @@ export function EventEntryForm({
                 required
                 value={formData.last_name_kana}
                 onChange={onChange}
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500 transition-all"
+                className={`w-full px-4 py-3 bg-gray-50 border rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500 transition-all ${
+                  lastNameKanaError ? "border-red-500" : "border-gray-300"
+                }`}
                 placeholder="ヤマダ"
               />
+              {lastNameKanaError && <p className="text-[10px] text-red-500 font-bold mt-1">{lastNameKanaError}</p>}
             </div>
 
             <div>
@@ -193,9 +212,12 @@ export function EventEntryForm({
                 required
                 value={formData.first_name_kana}
                 onChange={onChange}
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500 transition-all"
+                className={`w-full px-4 py-3 bg-gray-50 border rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500 transition-all ${
+                  firstNameKanaError ? "border-red-500" : "border-gray-300"
+                }`}
                 placeholder="タロウ"
               />
+              {firstNameKanaError && <p className="text-[10px] text-red-500 font-bold mt-1">{firstNameKanaError}</p>}
             </div>
           </div>
 
@@ -295,7 +317,7 @@ export function EventEntryForm({
 
         <button
           type="submit"
-          disabled={loading || !selectedEventId}
+          disabled={loading || !selectedEventId || hasKanaError}
           className={`w-full ${primaryButtonClass} py-4 text-base disabled:opacity-50 disabled:cursor-not-allowed`}
         >
           {loading ? "送信中..." : "申し込みを確定する"}

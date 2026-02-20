@@ -23,9 +23,8 @@ const emptyCompanyData: CompanyData = {
   established: "",
   website: "",
   companyInfo: "",
+  status: undefined,
   programs: [],
-  shortVideos: [],
-  documentaryVideos: [],
   benefits: [],
   jobs: [],
   events: []
@@ -43,6 +42,8 @@ export function useCompanyProfile() {
   const [companyId, setCompanyId] = useState<string>("");
   const [draftId, setDraftId] = useState<string | null>(null);
   const [draftStatus, setDraftStatus] = useState<string | null>(null);
+  const [productionPageId, setProductionPageId] = useState<string | null>(null);
+  const [productionStatus, setProductionStatus] = useState<"active" | "closed" | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle");
@@ -77,6 +78,8 @@ export function useCompanyProfile() {
           setCompanyId(result.data.id);
           setDraftId((result.data as any).draft_id || null);
           setDraftStatus((result.data as any).draft_status || null);
+          setProductionPageId((result.data as any).production_page_id || null);
+          setProductionStatus(((result.data as any).production_status as "active" | "closed" | null) || null);
           setSnsAccountNames(snsNames);
           setInitialSnsAccountNames(snsNames);
         } else {
@@ -123,6 +126,8 @@ export function useCompanyProfile() {
           setCompanyId(refreshResult.data.id);
           setDraftId((refreshResult.data as any).draft_id || null);
           setDraftStatus((refreshResult.data as any).draft_status || null);
+          setProductionPageId((refreshResult.data as any).production_page_id || null);
+          setProductionStatus(((refreshResult.data as any).production_status as "active" | "closed" | null) || null);
           setSnsAccountNames(snsNames);
           setInitialSnsAccountNames(snsNames);
         }
@@ -142,7 +147,6 @@ export function useCompanyProfile() {
     const companyFieldsToCompare: (keyof CompanyData)[] = [
       "description",
       "tagline",
-      "mainVideo",
       "logo",
       "coverImage",
       "representative",
@@ -163,20 +167,13 @@ export function useCompanyProfile() {
       snsAccountNames.tiktok !== initialSnsAccountNames.tiktok ||
       snsAccountNames.youtube !== initialSnsAccountNames.youtube;
 
-    // 動画の変更をチェック
-    const shortVideosChanged = formUtils.hasObjectChanges(
-      { shortVideos: company.shortVideos },
-      { shortVideos: initialCompany.shortVideos }
-    );
-    const documentaryVideosChanged = formUtils.hasObjectChanges(
-      { documentaryVideos: company.documentaryVideos },
-      { documentaryVideos: initialCompany.documentaryVideos }
-    );
-
     // 福利厚生の変更をチェック
-    const benefitsChanged = formUtils.hasObjectChanges({ benefits: company.benefits }, { benefits: initialCompany.benefits });
+    const benefitsChanged = formUtils.hasObjectChanges(
+      { benefits: company.benefits },
+      { benefits: initialCompany.benefits }
+    );
 
-    return formUtils.hasChanges(companyChanged, snsChanged, shortVideosChanged, documentaryVideosChanged, benefitsChanged);
+    return formUtils.hasChanges(companyChanged, snsChanged, benefitsChanged);
   }, [company, initialCompany, snsAccountNames, initialSnsAccountNames]);
 
   return {
@@ -184,6 +181,8 @@ export function useCompanyProfile() {
     companyId,
     draftId,
     draftStatus,
+    productionPageId,
+    productionStatus,
     isLoading,
     isSaving,
     saveStatus,

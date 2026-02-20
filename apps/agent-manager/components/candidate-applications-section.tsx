@@ -292,13 +292,13 @@ export function CandidateApplicationsSection({
                                   <User className="h-3 w-3" />
                                   実施者:{" "}
                                   {note.interviewerProfile
-                                    ? note.interviewerProfile.full_name ||
-                                      note.interviewerProfile.email ||
-                                      "不明"
+                                    ? note.interviewerProfile.last_name && note.interviewerProfile.first_name
+                                      ? `${note.interviewerProfile.last_name} ${note.interviewerProfile.first_name}`
+                                      : note.interviewerProfile.email || "不明"
                                     : note.profiles
-                                    ? note.profiles.full_name ||
-                                      note.profiles.email ||
-                                      "不明"
+                                    ? note.profiles.last_name && note.profiles.first_name
+                                      ? `${note.profiles.last_name} ${note.profiles.first_name}`
+                                      : note.profiles.email || "不明"
                                     : "不明"}
                                   {(note.interviewerProfile?.role ||
                                     note.profiles?.role) && (

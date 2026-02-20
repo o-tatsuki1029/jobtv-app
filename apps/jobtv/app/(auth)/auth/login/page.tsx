@@ -83,12 +83,26 @@ export default function LoginPage() {
           </form>
         </div>
 
-        <p className="mt-8 text-center text-gray-600 text-sm">
-          アカウントをお持ちではありませんか？{" "}
-          <Link href="/auth/signup" className="text-red-500 hover:text-red-400 font-semibold transition-colors">
-            無料で登録
-          </Link>
-        </p>
+        <div className="mt-8 space-y-4">
+          <p className="text-center text-gray-600 text-sm">
+            アカウントをお持ちではありませんか？{" "}
+            <Link href="/auth/signup" className="text-red-500 hover:text-red-400 font-semibold transition-colors">
+              無料で登録
+            </Link>
+          </p>
+          
+          <div className="pt-4 border-t border-gray-200">
+            <p className="text-center text-gray-500 text-xs mb-2">
+              管理者の方はこちら
+            </p>
+            <Link 
+              href="/admin/login" 
+              className="block text-center text-blue-600 hover:text-blue-500 text-sm font-medium transition-colors"
+            >
+              管理者ログイン →
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   );

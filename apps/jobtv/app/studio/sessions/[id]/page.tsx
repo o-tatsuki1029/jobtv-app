@@ -2,38 +2,51 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Calendar, ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { Calendar, Plus, Trash2 } from "lucide-react";
+import StudioButton from "@/components/studio/atoms/StudioButton";
 import StudioBadge from "@/components/studio/atoms/StudioBadge";
 import StudioFormField from "@/components/studio/molecules/StudioFormField";
 import StudioLabel from "@/components/studio/atoms/StudioLabel";
 import StudioSelect from "@/components/studio/atoms/StudioSelect";
 import StudioPreviewModal from "@/components/studio/organisms/StudioPreviewModal";
+import SubmitReviewModal from "@/components/studio/organisms/SubmitReviewModal";
 import StudioImageUpload from "@/components/studio/molecules/StudioImageUpload";
 import LoadingSpinner from "@/components/studio/atoms/LoadingSpinner";
 import ErrorMessage from "@/components/studio/atoms/ErrorMessage";
+import StudioBackButton from "@/components/studio/atoms/StudioBackButton";
 import {
   getSessionDraft,
   createSessionDraft,
   updateSessionDraft,
   uploadSessionDraftCoverImage,
-  getSessionDates,
-  saveSessionDates,
-  submitSessionForReview
+  getSessionDatesDraft,
+  saveSessionDatesDraft,
+  submitSessionForReview,
+  toggleSessionStatus
 } from "@/lib/actions/session-actions";
-import { useFormState } from "@/hooks/useFormState";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
-import { useDraftSubmit } from "@/hooks/useDraftSubmit";
+import { hasFieldChanges, hasObjectChanges, hasChanges } from "@/utils/form-utils";
 import { validateRequired, validateMaxLength } from "@jobtv-app/shared/utils/validation";
 import type { Tables } from "@jobtv-app/shared/types";
+import type { SessionData } from "@/components/SessionDetailView";
 import DraftActionButtons from "@/components/studio/molecules/DraftActionButtons";
+import { useStudioEditor } from "@/hooks/useStudioEditor";
+import StudioEditorStatusSection from "@/components/studio/molecules/StudioEditorStatusSection";
+import StudioEditorAlerts from "@/components/studio/molecules/StudioEditorAlerts";
 
 // 型定義（DBスキーマに合わせる）
 type SessionDraft = Tables<"sessions_draft">;
 
-interface Session extends Omit<SessionDraft, "draft_status"> {
-  draft_status?: SessionDraft["draft_status"];
-  production_session_id?: string | null;
+interface Session extends Omit<SessionDraft, "draft_status" | "production_session_id"> {
+  draft_status?: "draft" | "submitted" | "approved" | "rejected"; // ドラフトステータス
+  production_session_id?: string | null | undefined;
+  production_status?: "active" | "closed" | null; // 本番テーブルのstatus
   cover_image_url: string | null;
+  status?: "draft" | "active" | "closed"; // 表示用のstatus（draft_statusから変換）
+  companies?: {
+    name: string;
+    logo_url: string | null;
+  };
 }
 
 // 種類の選択肢
@@ -61,23 +74,113 @@ export default function SessionEditPage() {
   const [initialSession, setInitialSession] = useState<Session | null>(null);
   const [sessionDates, setSessionDates] = useState<SessionDate[]>([]);
   const [initialSessionDates, setInitialSessionDates] = useState<SessionDate[]>([]);
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [previewDevice, setPreviewDevice] = useState<"desktop" | "mobile">("desktop");
   const [isCoverImageUploading, setIsCoverImageUploading] = useState(false);
-  const [dateErrors, setDateErrors] = useState<Record<number, { event_date?: string; start_time?: string; end_time?: string }>>({});
-  
+  const [dateErrors, setDateErrors] = useState<
+    Record<number, { event_date?: string; start_time?: string; end_time?: string }>
+  >({});
+
+  // 共通スタジオエディターフック
   const {
     loading,
-    saving,
-    error,
-    fieldErrors,
     setLoading,
+    saving,
     setSaving,
+    error,
     setError,
-    setFieldError,
+    fieldErrors,
     setFieldErrors,
-    clearFieldErrors
-  } = useFormState();
+    isSubmittingReview,
+    isPreviewOpen,
+    setIsPreviewOpen,
+    previewDevice,
+    setPreviewDevice,
+    isReadOnly,
+    showUnderReviewAlert,
+    showOlderVersionAlert,
+    handleToggleStatus,
+    submitForReview,
+    isSubmitModalOpen,
+    setIsSubmitModalOpen
+  } = useStudioEditor({
+    type: "session",
+    id: sessionId,
+    data: selectedSession
+      ? {
+          id: selectedSession.id,
+          draft_status: selectedSession.draft_status as string | undefined,
+          production_status: (selectedSession.production_status || undefined) as string | undefined,
+          production_id: selectedSession.production_session_id
+        }
+      : null,
+    onSave: async () => {
+      if (!selectedSession) {
+        return { error: "説明会データが見つかりません" };
+      }
+
+      const sessionData = {
+        title: selectedSession.title,
+        type: selectedSession.type,
+        location_type: selectedSession.location_type,
+        location_detail: selectedSession.location_detail,
+        capacity: selectedSession.capacity || null,
+        graduation_year: selectedSession.graduation_year || null,
+        description: selectedSession.description,
+        cover_image_url: selectedSession.cover_image_url || null
+      };
+
+      let draftId = selectedSession.id;
+
+      // 新規作成または既存のdraftを更新
+      if (isNew || !draftId) {
+        const createResult = await createSessionDraft(sessionData);
+        if (createResult.error) {
+          return { error: createResult.error };
+        }
+        draftId = createResult.data?.id || "";
+        if (createResult.data) {
+          setSelectedSession({ ...selectedSession, id: draftId });
+        }
+      } else {
+        const updateResult = await updateSessionDraft(draftId, sessionData);
+        if (updateResult.error) {
+          return { error: updateResult.error };
+        }
+      }
+
+      // 日程を保存
+      if (draftId) {
+        const datesToSave = sessionDates.map((date) => ({
+          event_date: date.event_date,
+          start_time: date.start_time,
+          end_time: date.end_time,
+          capacity: date.capacity || null
+        }));
+
+        const datesResult = await saveSessionDatesDraft(draftId, datesToSave);
+        if (datesResult.error) {
+          return { error: datesResult.error };
+        }
+      }
+
+      return { error: null, draftId };
+    },
+    onSubmit: async (id, keepProductionActive) => {
+      return await submitSessionForReview(id, keepProductionActive);
+    },
+    onToggleStatus: async (id, status) => {
+      return await toggleSessionStatus(selectedSession?.production_session_id || "", status);
+    },
+    validate: () => {
+      if (!validateRequiredFields()) {
+        return "必須項目を入力してください";
+      }
+      if (Object.keys(fieldErrors).length > 0 || Object.keys(dateErrors).length > 0 || hasCharacterLimitErrors()) {
+        return "入力内容を確認してください";
+      }
+      return null;
+    },
+    redirectTo: "/studio/sessions"
+  });
 
   // 変更検知関数
   const hasSessionChanges = useCallback((): boolean => {
@@ -90,6 +193,7 @@ export default function SessionEditPage() {
       "location_type",
       "location_detail",
       "capacity",
+      "graduation_year",
       "description",
       "cover_image_url"
     ];
@@ -98,13 +202,13 @@ export default function SessionEditPage() {
     const fieldChanged = hasFieldChanges(selectedSession, initialSession, fieldsToCompare);
 
     // 日程の変更をチェック
-    const datesChanged = hasArrayChanges(sessionDates, initialSessionDates);
+    const datesChanged = hasObjectChanges(sessionDates, initialSessionDates);
 
     return hasChanges(fieldChanged, datesChanged);
   }, [selectedSession, initialSession, sessionDates, initialSessionDates]);
 
   // ページ離脱時の警告
-  const { handleNavigation } = useUnsavedChanges(hasSessionChanges);
+  useUnsavedChanges(hasSessionChanges);
 
   // 説明会データを取得
   useEffect(() => {
@@ -114,6 +218,9 @@ export default function SessionEditPage() {
         const today = new Date();
         const defaultDate = today.toISOString().split("T")[0];
 
+        // デフォルトの卒年度（2028年のみ）
+        const defaultGraduationYear = 2028;
+
         const newSession: Session = {
           id: "",
           company_id: "",
@@ -122,16 +229,22 @@ export default function SessionEditPage() {
           location_type: "",
           location_detail: "",
           capacity: null,
-          status: "pending",
+          graduation_year: defaultGraduationYear,
+          status: "active",
+          draft_status: undefined,
           cover_image_url: null,
           description: "",
+          display_order: 0,
           created_by: "",
           created_at: "",
-          updated_at: ""
+          updated_at: "",
+          submitted_at: null,
+          approved_at: null,
+          rejected_at: null
         };
         setSelectedSession(newSession);
         setInitialSession(JSON.parse(JSON.stringify(newSession)));
-        
+
         // 初期日程を1つ追加
         const initialDate: SessionDate = {
           event_date: defaultDate,
@@ -156,14 +269,15 @@ export default function SessionEditPage() {
         if (data) {
           const sessionData = {
             ...data,
-            cover_image_url: data.cover_image_url || null
+            cover_image_url: data.cover_image_url || null,
+            production_session_id: data.production_session_id || undefined,
+            production_status: (data as any).production_status || undefined
           } as Session;
           setSelectedSession(sessionData);
           setInitialSession(JSON.parse(JSON.stringify(sessionData)));
 
-          // 日程も取得（production_session_idがある場合のみ）
-          const sessionIdForDates = data.production_session_id || sessionId;
-          const { data: datesData } = await getSessionDates(sessionIdForDates);
+          // 日程も取得（ドラフトIDを使用）
+          const { data: datesData } = await getSessionDatesDraft(sessionId);
           if (datesData) {
             const dates: SessionDate[] = datesData.map((d: any) => ({
               id: d.id,
@@ -184,68 +298,56 @@ export default function SessionEditPage() {
     };
 
     loadSession();
-  }, [sessionId, isNew]);
+  }, [sessionId, isNew, setLoading, setError]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    if (isReadOnly) return;
     const { name, value } = e.target;
     if (selectedSession) {
-      if (name === "capacity") {
+      if (name === "capacity" || name === "graduation_year") {
         setSelectedSession({ ...selectedSession, [name]: value ? parseInt(value, 10) : null });
       } else {
         setSelectedSession({ ...selectedSession, [name]: value });
       }
 
-      // 必須項目と文字数制限のチェック
+      // バリデーション
       const newErrors: Partial<typeof fieldErrors> = {};
+      let error: string | null = null;
 
-      // 必須項目のチェック
       if (name === "title") {
-        const error = validateRequired(value, "タイトル");
+        error = validateRequired(value, "タイトル") || validateMaxLength(value, 30, "タイトル");
         if (error) newErrors.title = error;
-      }
-      if (name === "type") {
-        const error = validateRequired(value, "種類");
+      } else if (name === "type") {
+        error = validateRequired(value, "種類");
         if (error) newErrors.type = error;
-      }
-      if (name === "location_type") {
-        const error = validateRequired(value, "場所タイプ");
+      } else if (name === "location_type") {
+        error = validateRequired(value, "場所タイプ");
         if (error) newErrors.location_type = error;
-      }
-      if (name === "location_detail") {
-        const error = validateRequired(value, "場所詳細");
+      } else if (name === "location_detail") {
+        error = validateRequired(value, "場所詳細") || validateMaxLength(value, 32, "場所詳細");
         if (error) newErrors.location_detail = error;
-      }
-      if (name === "description") {
-        const error = validateRequired(value, "説明文");
+      } else if (name === "description") {
+        error = validateRequired(value, "説明文") || validateMaxLength(value, 2000, "説明文");
         if (error) newErrors.description = error;
-      }
-
-      // 文字数制限のチェック
-      if (name === "title") {
-        const error = validateMaxLength(value, 30, "タイトル");
-        if (error) newErrors.title = error;
-      }
-      if (name === "description") {
-        const error = validateMaxLength(value, 2000, "説明文");
-        if (error) newErrors.description = error;
+      } else if (name === "graduation_year") {
+        error = validateRequired(value, "対象卒年度");
+        if (error) newErrors.graduation_year = error;
       }
 
       // フィールドエラーを更新
-      setFieldErrors((prev) => {
-        const updated = { ...prev };
-        if (newErrors[name as keyof typeof newErrors]) {
-          updated[name as keyof typeof updated] = newErrors[name as keyof typeof updated] as string;
-        } else if (updated[name as keyof typeof updated]) {
-          // エラーが解消された場合は削除
-          delete updated[name as keyof typeof updated];
-        }
-        return updated;
-      });
+      const updatedFieldErrors = { ...fieldErrors };
+      if (newErrors[name as keyof typeof newErrors]) {
+        updatedFieldErrors[name] = newErrors[name as keyof typeof newErrors] as string;
+      } else {
+        delete updatedFieldErrors[name];
+      }
+      setFieldErrors(updatedFieldErrors);
     }
   };
 
   // 日程の変更を処理
   const handleDateChange = (index: number, field: keyof SessionDate, value: string | number | null) => {
+    if (isReadOnly) return;
     const newDates = [...sessionDates];
     newDates[index] = { ...newDates[index], [field]: value };
     setSessionDates(newDates);
@@ -295,7 +397,7 @@ export default function SessionEditPage() {
     }
     const newDates = sessionDates.filter((_, i) => i !== index);
     setSessionDates(newDates);
-    
+
     // エラーも削除
     const newErrors = { ...dateErrors };
     delete newErrors[index];
@@ -330,7 +432,7 @@ export default function SessionEditPage() {
   const validateRequiredFields = (): boolean => {
     if (!selectedSession) return false;
 
-    const errors: typeof fieldErrors = {};
+    const errors: any = {};
     const dateErrs: typeof dateErrors = {};
 
     const titleError = validateRequired(selectedSession.title, "タイトル");
@@ -342,11 +444,16 @@ export default function SessionEditPage() {
     const locationTypeError = validateRequired(selectedSession.location_type, "場所タイプ");
     if (locationTypeError) errors.location_type = locationTypeError;
 
-    const locationDetailError = validateRequired(selectedSession.location_detail, "場所詳細");
+    const locationDetailError =
+      validateRequired(selectedSession.location_detail, "場所詳細") ||
+      validateMaxLength(selectedSession.location_detail || "", 32, "場所詳細");
     if (locationDetailError) errors.location_detail = locationDetailError;
 
     const descriptionError = validateRequired(selectedSession.description, "説明文");
     if (descriptionError) errors.description = descriptionError;
+
+    const graduationYearError = validateRequired(selectedSession.graduation_year?.toString(), "対象卒年度");
+    if (graduationYearError) errors.graduation_year = graduationYearError;
 
     // 日程のバリデーション
     if (sessionDates.length === 0) {
@@ -374,113 +481,6 @@ export default function SessionEditPage() {
     return Object.keys(errors).length === 0 && Object.keys(dateErrs).length === 0;
   };
 
-
-  const handleBack = () => {
-    handleNavigation("/studio/sessions");
-  };
-
-  // 審査申請の共通ロジック
-  const { submitForReview, isSubmitting, error: submitError } = useDraftSubmit({
-    onSave: async () => {
-      if (!selectedSession) {
-        return { error: "説明会データが見つかりません" };
-      }
-
-      const sessionData = {
-        title: selectedSession.title,
-        type: selectedSession.type,
-        location_type: selectedSession.location_type,
-        location_detail: selectedSession.location_detail,
-        capacity: selectedSession.capacity || null,
-        description: selectedSession.description,
-        cover_image_url: selectedSession.cover_image_url || null
-      };
-
-      let draftId = selectedSession.id;
-
-      // 新規作成または既存のdraftを更新
-      if (isNew || !draftId) {
-        const createResult = await createSessionDraft(sessionData);
-        if (createResult.error) {
-          return { error: createResult.error };
-        }
-        draftId = createResult.data?.id || "";
-        if (createResult.data) {
-          setSelectedSession({ ...selectedSession, id: draftId });
-        }
-      } else {
-        const updateResult = await updateSessionDraft(draftId, sessionData);
-        if (updateResult.error) {
-          return { error: updateResult.error };
-        }
-      }
-
-      // 日程を保存
-      if (draftId) {
-        const datesToSave = sessionDates.map((date) => ({
-          event_date: date.event_date,
-          start_time: date.start_time,
-          end_time: date.end_time,
-          capacity: date.capacity || null
-        }));
-
-        const datesResult = await saveSessionDates(draftId, datesToSave);
-        if (datesResult.error) {
-          return { error: datesResult.error };
-        }
-      }
-
-      return { error: null, draftId };
-    },
-    onSubmit: async (draftId) => {
-      return await submitSessionForReview(draftId);
-    },
-    validate: () => {
-      if (!validateRequiredFields()) {
-        return "必須項目を入力してください";
-      }
-      if (Object.keys(fieldErrors).length > 0 || Object.keys(dateErrors).length > 0 || hasCharacterLimitErrors()) {
-        return "入力内容を確認してください";
-      }
-      return null;
-    },
-    redirectTo: "/studio/sessions"
-  });
-
-  const handleSubmitForReview = async () => {
-    if (!selectedSession) {
-      setError("説明会データが見つかりません");
-      return;
-    }
-
-    // バリデーション
-    if (!validateRequiredFields()) {
-      setError("必須項目を入力してください");
-      return;
-    }
-
-    if (Object.keys(fieldErrors).length > 0 || Object.keys(dateErrors).length > 0 || hasCharacterLimitErrors()) {
-      setError("入力内容を確認してください");
-      return;
-    }
-
-    // 審査申請（onSave内で保存処理が実行される）
-    const currentDraftId = selectedSession.id;
-    if (!currentDraftId && !isNew) {
-      setError("ドラフトIDが見つかりません");
-      return;
-    }
-
-    await submitForReview(currentDraftId || undefined);
-  };
-
-  // submitErrorも表示する
-  useEffect(() => {
-    if (submitError) {
-      setError(submitError);
-    }
-  }, [submitError]);
-
   if (loading) {
     return (
       <div className="min-h-screen">
@@ -497,50 +497,79 @@ export default function SessionEditPage() {
     );
   }
 
+  // プレビュー用のデータを変換
+  const locationText = [selectedSession.location_type, selectedSession.location_detail]
+    .filter(Boolean)
+    .join(selectedSession.location_type && selectedSession.location_detail ? " / " : "");
+
+  const previewData = {
+    id: selectedSession.id || "",
+    title: selectedSession.title || "",
+    type: selectedSession.type || "",
+    dates: sessionDates.map((d) => ({
+      date: d.event_date,
+      time: `${d.start_time}〜${d.end_time}`,
+      capacity: d.capacity
+    })),
+    location: locationText || "",
+    status: "受付中" as const,
+    description: selectedSession.description || "",
+    capacity: selectedSession.capacity,
+    companyName: selectedSession.companies?.name || "サンプル株式会社",
+    companyLogo:
+      selectedSession.companies?.logo_url ||
+      "https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=200&h=200&fit=crop",
+    companyId: selectedSession.company_id || "",
+    coverImage: selectedSession.cover_image_url || undefined
+  };
+
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-300 pb-24">
+      {/* 共通警告メッセージ */}
+      <StudioEditorAlerts showUnderReviewAlert={showUnderReviewAlert} showOlderVersionAlert={showOlderVersionAlert} />
+
       {/* プレビューモーダル */}
       <StudioPreviewModal
         isOpen={isPreviewOpen}
         onClose={() => setIsPreviewOpen(false)}
         device={previewDevice}
         setDevice={setPreviewDevice}
-        companyData={{}}
+        companyData={previewData}
         previewUrl="/studio/sessions/preview-content"
+      />
+
+      {/* 審査申請確認モーダル */}
+      <SubmitReviewModal
+        isOpen={isSubmitModalOpen}
+        onClose={() => setIsSubmitModalOpen(false)}
+        onSubmit={(keepProductionActive) => {
+          submitForReview(keepProductionActive);
+        }}
+        isSubmitting={isSubmittingReview}
+        hasProduction={!!selectedSession.production_session_id}
       />
 
       <ErrorMessage message={error || ""} />
 
-      {/* 審査中（submitted）の場合は編集不可 */}
-      {(() => {
-        const isReadOnly = selectedSession?.draft_status === "submitted";
-        
-        return (
-          <>
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <button onClick={handleBack} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-            <ArrowLeft className="w-6 h-6" />
-          </button>
+          <StudioBackButton href="/studio/sessions" />
           <div>
             <h1 className="text-3xl font-black tracking-tight text-gray-900">
-              {isNew ? "新規説明会作成" : "説明会を編集"}
+              {isNew ? "新規説明会・インターンシップ作成" : "説明会・インターンシップを編集"}
             </h1>
-            <p className="text-gray-500 font-medium">説明会の詳細情報を入力してください。</p>
+            <p className="text-gray-500 font-medium">説明会・インターンシップの詳細情報を入力してください。</p>
           </div>
         </div>
-        {/* 公開ステータス表示 */}
+        {/* 審査ステータスと公開設定トグル（ヘッダー右側） */}
         {!isNew && (
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-500 font-medium">公開ステータス:</span>
-            <StudioBadge
-              variant={
-                selectedSession.status === "active" ? "success" : selectedSession.status === "pending" ? "neutral" : "neutral"
-              }
-            >
-              {selectedSession.status === "active" ? "公開中" : selectedSession.status === "pending" ? "審査中" : "終了"}
-            </StudioBadge>
-          </div>
+          <StudioEditorStatusSection
+            draftStatus={selectedSession.draft_status}
+            productionStatus={selectedSession.production_status || (selectedSession.status as any)}
+            onToggleStatus={handleToggleStatus}
+            hasProduction={!!selectedSession.production_session_id}
+            disabled={saving}
+          />
         )}
       </div>
 
@@ -569,7 +598,13 @@ export default function SessionEditPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <StudioLabel required>種類</StudioLabel>
-                  <StudioSelect name="type" value={selectedSession.type || ""} onChange={handleChange} required disabled={isReadOnly}>
+                  <StudioSelect
+                    name="type"
+                    value={selectedSession.type || ""}
+                    onChange={handleChange}
+                    required
+                    disabled={isReadOnly}
+                  >
                     <option value="">選択してください</option>
                     {SESSION_TYPES.map((type) => (
                       <option key={type} value={type}>
@@ -578,6 +613,22 @@ export default function SessionEditPage() {
                     ))}
                   </StudioSelect>
                   {fieldErrors.type && <p className="text-xs text-red-500 font-bold">{fieldErrors.type}</p>}
+                </div>
+                <div className="space-y-2">
+                  <StudioLabel required>対象卒年度</StudioLabel>
+                  <StudioSelect
+                    name="graduation_year"
+                    value={selectedSession.graduation_year?.toString() || ""}
+                    onChange={handleChange}
+                    required
+                    disabled={isReadOnly}
+                  >
+                    <option value="">選択してください</option>
+                    <option value="2028">2028年卒</option>
+                  </StudioSelect>
+                  {fieldErrors.graduation_year && (
+                    <p className="text-xs text-red-500 font-bold">{fieldErrors.graduation_year}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <StudioLabel required>場所タイプ</StudioLabel>
@@ -599,7 +650,7 @@ export default function SessionEditPage() {
                     <p className="text-xs text-red-500 font-bold">{fieldErrors.location_type}</p>
                   )}
                 </div>
-                <div className="md:col-span-2 space-y-2">
+                <div className="space-y-2">
                   <StudioFormField
                     label="場所詳細"
                     name="location_detail"
@@ -607,6 +658,8 @@ export default function SessionEditPage() {
                     onChange={handleChange}
                     placeholder="例：オンライン (Zoom) / 六本木オフィス"
                     required
+                    maxLength={32}
+                    showCharCount={true}
                     error={fieldErrors.location_detail}
                     disabled={isReadOnly}
                   />
@@ -658,7 +711,9 @@ export default function SessionEditPage() {
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <div className="space-y-1">
-                      <StudioLabel required className="text-xs">開催日</StudioLabel>
+                      <StudioLabel required className="text-xs">
+                        開催日
+                      </StudioLabel>
                       <input
                         type="date"
                         value={date.event_date || ""}
@@ -672,7 +727,9 @@ export default function SessionEditPage() {
                       )}
                     </div>
                     <div className="space-y-1">
-                      <StudioLabel required className="text-xs">開始時間</StudioLabel>
+                      <StudioLabel required className="text-xs">
+                        開始時間
+                      </StudioLabel>
                       <input
                         type="time"
                         value={date.start_time || ""}
@@ -686,7 +743,9 @@ export default function SessionEditPage() {
                       )}
                     </div>
                     <div className="space-y-1">
-                      <StudioLabel className="text-xs">終了時間</StudioLabel>
+                      <StudioLabel required className="text-xs">
+                        終了時間
+                      </StudioLabel>
                       <input
                         type="time"
                         value={date.end_time || ""}
@@ -730,7 +789,7 @@ export default function SessionEditPage() {
               </div>
               <p className="text-sm text-gray-500 mt-1">説明会詳細ページの上部に表示される画像を設定できます</p>
             </div>
-            <div className="p-6">
+            <div className={`p-6 ${isReadOnly ? "opacity-60 pointer-events-none" : ""}`}>
               <StudioImageUpload
                 label=""
                 type="cover"
@@ -749,32 +808,36 @@ export default function SessionEditPage() {
                 customUploadFunction={async (file: File) => {
                   return await uploadSessionDraftCoverImage(file, selectedSession.id || undefined);
                 }}
-                disabled={isReadOnly}
               />
             </div>
           </div>
         </div>
       </div>
 
-      {/* 画面下部のボタン */}
-      <DraftActionButtons
-        onPreview={() => setIsPreviewOpen(true)}
-        onSubmitForReview={handleSubmitForReview}
-        isSubmitting={isSubmitting || saving}
-        isSubmitDisabled={
-          isCoverImageUploading ||
-          Object.keys(fieldErrors).length > 0 ||
-          Object.keys(dateErrors).length > 0 ||
-          hasCharacterLimitErrors()
-        }
-        showSubmitButton={selectedSession?.draft_status !== "submitted"}
-        publicPageUrl={selectedSession.production_session_id ? `/session/${selectedSession.production_session_id}` : undefined}
-        hasChanges={hasSessionChanges()}
-      />
-          </>
-        );
-      })()}
+      <div className="space-y-4">
+        <DraftActionButtons
+          onPreview={() => setIsPreviewOpen(true)}
+          showPreviewButton={true}
+          onSubmitForReview={() => setIsSubmitModalOpen(true)}
+          isSubmitting={isSubmittingReview}
+          isSubmitDisabled={
+            isCoverImageUploading ||
+            Object.keys(fieldErrors).length > 0 ||
+            Object.keys(dateErrors).length > 0 ||
+            hasCharacterLimitErrors()
+          }
+          showSubmitButton={!isReadOnly}
+          hasChanges={hasSessionChanges()}
+          showActualPageButton={
+            !!selectedSession.production_session_id && selectedSession.production_status === "active"
+          }
+          onViewActualPage={() => {
+            if (selectedSession.production_session_id) {
+              window.open(`/session/${selectedSession.production_session_id}`, "_blank");
+            }
+          }}
+        />
+      </div>
     </div>
   );
 }
-

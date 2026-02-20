@@ -27,12 +27,17 @@ export async function getUserCompanyId(
     return { companyId: "", error: "認証が必要です" };
   }
 
-  // 管理者の場合はエラーを返す（Server Actionから呼ばれる場合はリダイレクトしない）
+  // 管理者の場合
   if (userInfo.role === "admin" || userInfo.isAdmin) {
+    // 管理者が企業IDを持っている場合はそれを返す（テスト用など）
+    if (userInfo.companyId) {
+      return { companyId: userInfo.companyId, error: null };
+    }
+    
     if (shouldRedirect) {
       redirect("/admin");
     }
-    return { companyId: "", error: "管理者はこの機能を使用できません" };
+    return { companyId: "", error: "管理者は企業IDが設定されていないためこの機能を使用できません" };
   }
 
   // 企業ユーザーの場合
@@ -65,9 +70,14 @@ export async function checkCompanyEditPermission(companyId: string): Promise<{
     return { allowed: false, error: "認証が必要です" };
   }
 
-  // 管理者の場合はエラーを返す（Server Actionから呼ばれる場合はリダイレクトしない）
+  // 管理者の場合
   if (userInfo.role === "admin" || userInfo.isAdmin) {
-    return { allowed: false, error: "管理者はこの機能を使用できません" };
+    // 管理者は自分の企業IDを持っていれば編集可能
+    if (userInfo.companyId === companyId) {
+      return { allowed: true, error: null };
+    }
+    // または管理者は全ての企業を編集可能（必要に応じて）
+    return { allowed: true, error: null };
   }
 
   // 企業ユーザーの場合

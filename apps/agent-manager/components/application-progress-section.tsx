@@ -98,9 +98,9 @@ export function ApplicationProgressSection({
                     <span className="flex items-center gap-1">
                       <User className="h-3 w-3" />
                       操作者:{" "}
-                      {progress.profiles.full_name ||
-                        progress.profiles.email ||
-                        "不明"}
+                      {progress.profiles.last_name && progress.profiles.first_name
+                        ? `${progress.profiles.last_name} ${progress.profiles.first_name}`
+                        : progress.profiles.email || "不明"}
                     </span>
                   )}
                 </div>
