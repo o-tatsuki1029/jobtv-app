@@ -12,8 +12,8 @@ export const SITE_DESCRIPTION =
 // URL関連
 import { getSiteUrl, getFullSiteUrl } from "@jobtv-app/shared/utils/dev-config";
 
-// プロトコルなしのサイトURL（環境変数から取得、デフォルトはlocalhost:3002）
-const SITE_URL_WITHOUT_PROTOCOL = getSiteUrl(3002);
+// プロトコルなしのサイトURL（環境変数から取得、デフォルトはlocalhost:3000）
+const SITE_URL_WITHOUT_PROTOCOL = getSiteUrl(3000);
 
 // プロトコル付きのサイトURL（メタデータなどで使用）
 export const SITE_URL = `https://${SITE_URL_WITHOUT_PROTOCOL}`;

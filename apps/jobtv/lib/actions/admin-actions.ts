@@ -62,8 +62,43 @@ export async function getAllJobsForReview() {
     return { data: null, error: draftsError.message };
   }
 
+  // 企業IDのリストを取得
+  const companyIds = [...new Set((drafts || []).map((draft: any) => draft.company_id).filter(Boolean))];
+
+  // 企業ページ情報を一括取得（ドラフトと本番の両方を取得）
+  const companyPagesMap = new Map<string, { cover_image_url?: string | null }>();
+  if (companyIds.length > 0) {
+    // 本番の企業ページ情報を取得
+    const { data: companyPages } = await supabaseAdmin
+      .from("company_pages")
+      .select("company_id, cover_image_url")
+      .in("company_id", companyIds)
+      .eq("status", "active");
+
+    if (companyPages) {
+      companyPages.forEach((page: any) => {
+        companyPagesMap.set(page.company_id, { cover_image_url: page.cover_image_url });
+      });
+    }
+
+    // ドラフトの企業ページ情報も取得（本番がない場合のフォールバック）
+    const { data: companyPageDrafts } = await supabaseAdmin
+      .from("company_pages_draft")
+      .select("company_id, cover_image_url")
+      .in("company_id", companyIds);
+
+    if (companyPageDrafts) {
+      companyPageDrafts.forEach((draft: any) => {
+        if (!companyPagesMap.has(draft.company_id)) {
+          companyPagesMap.set(draft.company_id, { cover_image_url: draft.cover_image_url });
+        }
+      });
+    }
+  }
+
   // ドラフトデータと企業データをマージ
   const mergedData = (drafts || []).map((draft: any) => {
+    const companyPage = companyPagesMap.get(draft.company_id);
     const merged = {
       ...draft.companies,
       ...draft,
@@ -79,6 +114,8 @@ export async function getAllJobsForReview() {
       selection_process: draft.selection_process,
       cover_image_url: draft.cover_image_url,
       available_statuses: draft.available_statuses,
+      // 企業のカバー画像を追加
+      company_cover_image_url: companyPage?.cover_image_url || null,
       // 審査用のID（draftのID） - 重要: このIDを使ってプレビューを開く
       draft_id: draft.id,
       production_job_id: draft.production_job_id,
@@ -116,8 +153,43 @@ export async function getAllSessionsForReview() {
     return { data: null, error: draftsError.message };
   }
 
+  // 企業IDのリストを取得
+  const companyIds = [...new Set((drafts || []).map((draft: any) => draft.company_id).filter(Boolean))];
+
+  // 企業ページ情報を一括取得（ドラフトと本番の両方を取得）
+  const companyPagesMap = new Map<string, { cover_image_url?: string | null }>();
+  if (companyIds.length > 0) {
+    // 本番の企業ページ情報を取得
+    const { data: companyPages } = await supabaseAdmin
+      .from("company_pages")
+      .select("company_id, cover_image_url")
+      .in("company_id", companyIds)
+      .eq("status", "active");
+
+    if (companyPages) {
+      companyPages.forEach((page: any) => {
+        companyPagesMap.set(page.company_id, { cover_image_url: page.cover_image_url });
+      });
+    }
+
+    // ドラフトの企業ページ情報も取得（本番がない場合のフォールバック）
+    const { data: companyPageDrafts } = await supabaseAdmin
+      .from("company_pages_draft")
+      .select("company_id, cover_image_url")
+      .in("company_id", companyIds);
+
+    if (companyPageDrafts) {
+      companyPageDrafts.forEach((draft: any) => {
+        if (!companyPagesMap.has(draft.company_id)) {
+          companyPagesMap.set(draft.company_id, { cover_image_url: draft.cover_image_url });
+        }
+      });
+    }
+  }
+
   // ドラフトデータと企業データをマージ
   const mergedData = (drafts || []).map((draft: any) => {
+    const companyPage = companyPagesMap.get(draft.company_id);
     const merged = {
       ...draft.companies,
       ...draft,
@@ -129,6 +201,8 @@ export async function getAllSessionsForReview() {
       capacity: draft.capacity,
       description: draft.description,
       cover_image_url: draft.cover_image_url,
+      // 企業のカバー画像を追加
+      company_cover_image_url: companyPage?.cover_image_url || null,
       // 審査用のID（draftのID） - 重要: このIDを使ってプレビューを開く
       draft_id: draft.id,
       production_session_id: draft.production_session_id,
@@ -155,8 +229,8 @@ export async function getAllCompanyInfoForReview() {
     .select(
       `
       *,
-      companies!company_id(id, name, logo_url, website, industry, employees, location, address, address_line1, address_line2, representative, established, company_info),
-      production:companies!production_company_id(id, name, logo_url, website, industry, employees, location, address, address_line1, address_line2, representative, established, company_info)
+      companies!company_id(id, name, logo_url, website, industry, employees, prefecture, address_line1, address_line2, representative, established, company_info),
+      production:companies!production_company_id(id, name, logo_url, website, industry, employees, prefecture, address_line1, address_line2, representative, established, company_info)
     `
     )
     .eq("draft_status", "submitted")
@@ -199,7 +273,7 @@ export async function getAllCompaniesForReview() {
     .select(
       `
       *,
-      companies!company_id(id, name, logo_url, website, industry, employees, location, address, address_line1, address_line2, representative, established, company_info),
+      companies!company_id(id, name, logo_url, website, industry, employees, prefecture, address_line1, address_line2, representative, established, company_info),
       production:company_pages!production_page_id(*)
     `
     )
@@ -661,8 +735,6 @@ export async function updateCompanyInfoDraftStatus(draftId: string, status: "app
       website: draft.website,
       industry: draft.industry,
       employees: draft.employees,
-      location: draft.location,
-      address: draft.address,
       prefecture: (draft as any).prefecture,
       address_line1: draft.address_line1,
       address_line2: draft.address_line2,
@@ -698,8 +770,6 @@ export async function updateCompanyInfoDraftStatus(draftId: string, status: "app
       website: draft.website,
       industry: draft.industry,
       employees: draft.employees,
-      location: draft.location,
-      address: draft.address,
       prefecture: (draft as any).prefecture,
       address_line1: draft.address_line1,
       address_line2: draft.address_line2,

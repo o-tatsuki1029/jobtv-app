@@ -1,16 +1,18 @@
-import Header from "@/components/header/Header";
-import Footer from "@/components/Footer";
+import MainLayoutClient from "@/components/main/MainLayoutClient";
+import { HeaderAuthProvider } from "@/components/header/HeaderAuthContext";
+import { getHeaderAuthInfo } from "@/lib/actions/auth-actions";
 
-export default function MainLayout({
+export default async function MainLayout({
   children
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const result = await getHeaderAuthInfo();
+  const initialAuthInfo = result.error || !result.data ? null : result.data;
+
   return (
-    <>
-      <Header />
-      <main>{children}</main>
-      <Footer />
-    </>
+    <HeaderAuthProvider initialAuthInfo={initialAuthInfo}>
+      <MainLayoutClient>{children}</MainLayoutClient>
+    </HeaderAuthProvider>
   );
 }

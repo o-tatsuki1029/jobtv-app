@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getCandidate } from "@/lib/actions/candidate-actions";
+import { getCandidate, type CandidateData } from "@/lib/actions/candidate-actions";
 import {
   Dialog,
   DialogContent,
@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/dialog";
 import { CandidateForm } from "@/components/candidate-form";
 import { useRouter } from "next/navigation";
-import type { Tables } from "@jobtv-app/shared/types";
 
 interface CandidateDetailModalProps {
   candidateId: string | null;
@@ -19,14 +18,12 @@ interface CandidateDetailModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-type Candidate = Tables<"candidates">;
-
 export function CandidateDetailModal({
   candidateId,
   open,
   onOpenChange,
 }: CandidateDetailModalProps) {
-  const [candidate, setCandidate] = useState<Candidate | null>(null);
+  const [candidate, setCandidate] = useState<CandidateData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -50,7 +47,7 @@ export function CandidateDetailModal({
       if (fetchError || !data || !data.id) {
         throw new Error(fetchError || "データの取得に失敗しました");
       }
-      setCandidate(data as Candidate);
+      setCandidate(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "エラーが発生しました");
     } finally {
@@ -87,7 +84,7 @@ export function CandidateDetailModal({
                 last_name: candidate.last_name,
                 first_name_kana: candidate.first_name_kana,
                 last_name_kana: candidate.last_name_kana,
-                email: candidate.email,
+                email: candidate.profiles?.email ?? "",
                 phone: candidate.phone || "",
                 notes: candidate.notes || "",
               }}

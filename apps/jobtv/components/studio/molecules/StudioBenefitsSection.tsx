@@ -1,11 +1,13 @@
 "use client";
 
 import React from "react";
-import { Gift, Plus, Trash2 } from "lucide-react";
+import { Lightbulb, Plus, Trash2 } from "lucide-react";
 import type { CompanyData } from "@/components/company";
 import StudioButton from "../atoms/StudioButton";
 import StudioFormField from "./StudioFormField";
 import SectionCard from "./SectionCard";
+import { validateMaxLength } from "@jobtv-app/shared/utils/validation";
+import { TITLE_MAX_LENGTH } from "@/constants/validation";
 
 interface StudioBenefitsSectionProps {
   company: CompanyData;
@@ -24,7 +26,7 @@ export default function StudioBenefitsSection({
 }: StudioBenefitsSectionProps) {
   const addBenefit = () => {
     if ((company.benefits || []).length >= MAX_BENEFITS) {
-      setErrorMessage("福利厚生・制度は最大6個まで登録できます");
+      setErrorMessage("おすすめポイントは最大6個まで登録できます");
       setSaveStatus("error");
       return;
     }
@@ -46,8 +48,11 @@ export default function StudioBenefitsSection({
   };
 
   return (
-    <SectionCard icon={<Gift className="w-5 h-5 text-gray-400" />} title="福利厚生・制度">
+    <SectionCard icon={<Lightbulb className="w-5 h-5 text-gray-400" />} title="おすすめポイント">
       <div className="p-8 space-y-4">
+        <p className="text-sm text-gray-500">
+          福利厚生・独自制度・働く環境の魅力など、就活生に伝えたいポイントを簡潔に記載してください。
+        </p>
         <div className="flex items-center justify-end">
           <StudioButton
             variant="outline"
@@ -60,7 +65,7 @@ export default function StudioBenefitsSection({
           </StudioButton>
         </div>
         {(company.benefits || []).length >= MAX_BENEFITS && (
-          <p className="text-[10px] text-gray-400">福利厚生・制度は最大6個まで登録できます</p>
+          <p className="text-[10px] text-gray-400">おすすめポイントは最大6個まで登録できます</p>
         )}
         {company.benefits && company.benefits.length > 0 ? (
           <div className="space-y-3">
@@ -68,10 +73,13 @@ export default function StudioBenefitsSection({
               <div key={index} className="flex items-center gap-3">
                 <div className="flex-1">
                   <StudioFormField
-                    label={`福利厚生・制度を入力(${index + 1}/${MAX_BENEFITS})`}
+                    label={`おすすめポイントを入力(${index + 1}/${MAX_BENEFITS})`}
                     name={`benefit-${index}`}
                     value={benefit}
                     onChange={(e) => updateBenefit(index, e.target.value)}
+                    maxLength={TITLE_MAX_LENGTH}
+                    showCharCount
+                    error={validateMaxLength(benefit, TITLE_MAX_LENGTH, "おすすめポイント") || undefined}
                   />
                 </div>
                 <button
@@ -86,8 +94,8 @@ export default function StudioBenefitsSection({
           </div>
         ) : (
           <div className="text-center py-8">
-            <p className="text-sm text-gray-500">福利厚生項目が登録されていません</p>
-            <p className="text-xs text-gray-400 mt-1">「項目を追加」ボタンから福利厚生を追加してください</p>
+            <p className="text-sm text-gray-500">おすすめポイントが登録されていません</p>
+            <p className="text-xs text-gray-400 mt-1">「項目を追加」ボタンからおすすめポイントを追加してください</p>
           </div>
         )}
       </div>

@@ -51,8 +51,8 @@ export async function JobApplicationsContent({
         id,
         first_name,
         last_name,
-        email,
-        phone
+        phone,
+        profiles!profiles_candidate_id_fkey (email)
       )
     `,
     )
@@ -94,10 +94,10 @@ export async function JobApplicationsContent({
   type Candidate = Tables<"candidates">;
 
   interface ApplicationWithCandidate extends ApplicationRow {
-    candidates: Pick<
+    candidates: (Pick<
       Candidate,
-      "id" | "first_name" | "last_name" | "email" | "phone"
-    > | null;
+      "id" | "first_name" | "last_name" | "phone"
+    > & { profiles: { email: string | null } | null }) | null;
   }
 
   const groupedApplications =
@@ -177,9 +177,9 @@ export async function JobApplicationsContent({
                                       : "不明"}
                                   </p>
                                 </div>
-                                {application.candidates?.email && (
+                                {application.candidates?.profiles?.email && (
                                   <p className="text-sm text-muted-foreground">
-                                    メール: {application.candidates.email}
+                                    メール: {application.candidates.profiles.email}
                                   </p>
                                 )}
                                 {application.candidates?.phone && (

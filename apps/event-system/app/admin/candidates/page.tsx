@@ -11,13 +11,13 @@ import CandidateCSVExport from "@/components/ui/csv/CandidateCSVExport";
 import CandidateCSVImport from "@/components/ui/csv/CandidateCSVImport";
 import CandidateTableActions from "@/components/ui/table/CandidateTableActions";
 import Button from "@/components/ui/Button";
-import { Candidate } from "@/types/candidate.types";
+import { Candidate, CandidateWithEmail } from "@/types/candidate.types";
 import { useModal } from "@/hooks/useModal";
 import { usePagination } from "@/hooks/usePagination";
 import { useSort } from "@/hooks/useSort";
 import { useCandidates } from "@/hooks/useCandidates";
 
-const headers: { label: string; key: keyof Candidate }[] = [
+const headers: { label: string; key: keyof CandidateWithEmail }[] = [
   { label: "姓", key: "last_name" },
   { label: "名", key: "first_name" },
   { label: "姓カナ", key: "last_name_kana" },
@@ -33,12 +33,12 @@ export default function CandidatesPage() {
   const pagination = usePagination(); // ページネーションの状態を管理（現在のページ、ページサイズ、総件数）
 
   // テーブルのソート状態を管理（ソートキーと昇順/降順）
-  const sort = useSort<keyof Candidate>({
-    initialKey: "last_name" as keyof Candidate, // 初期ソートは姓
+  const sort = useSort<keyof CandidateWithEmail>({
+    initialKey: "last_name" as keyof CandidateWithEmail, // 初期ソートは姓
     initialAsc: true, // 昇順
   });
 
-  const [editingCandidate, setEditingCandidate] = useState<Candidate | null>(
+  const [editingCandidate, setEditingCandidate] = useState<CandidateWithEmail | null>(
     null
   );
   const [keyword, setKeyword] = useState("");
@@ -72,7 +72,7 @@ export default function CandidatesPage() {
 
   // 編集モーダルを開く処理: 選択した学生を編集状態に設定してモーダルを開く
   const handleEditClick = useCallback(
-    (candidate: Candidate) => {
+    (candidate: CandidateWithEmail) => {
       setEditingCandidate(candidate);
       modal.open();
     },
@@ -81,8 +81,8 @@ export default function CandidatesPage() {
 
   // ソート処理: テーブルの列をクリックしたときにソートを実行し、1ページ目に戻る
   const handleSort = useCallback(
-    (key: keyof Candidate) => {
-      sort.handleSort(key as keyof Candidate);
+    (key: keyof CandidateWithEmail) => {
+      sort.handleSort(key as keyof CandidateWithEmail);
       pagination.resetPage(); // ソート変更時は1ページ目から表示
     },
     [sort, pagination]
@@ -136,7 +136,7 @@ export default function CandidatesPage() {
       <div className="my-5 flex justify-end gap-2 font-semibold">
         <CandidateCSVExport
           keyword={keyword}
-          sortKey={sort.sortKey as keyof Candidate}
+          sortKey={sort.sortKey as keyof CandidateWithEmail}
           sortAsc={sort.sortAsc}
         />
         <CandidateCSVImport />
@@ -170,13 +170,13 @@ export default function CandidatesPage() {
         headers={headers}
         data={displayData}
         isLoading={isLoading}
-        sortKey={sort.sortKey as keyof Candidate}
+        sortKey={sort.sortKey as keyof CandidateWithEmail}
         sortAsc={sort.sortAsc}
         onSort={handleSort}
         renderActions={(row) => {
           const candidate = candidates.find(
             (c) => c.id === (row as { id: string }).id
-          ) as Candidate;
+          ) as CandidateWithEmail;
           return (
             <CandidateTableActions
               candidate={candidate}

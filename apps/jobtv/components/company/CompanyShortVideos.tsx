@@ -4,6 +4,8 @@ import React, { useState } from "react";
 import ShortVideoSection from "@/components/ShortVideoSection";
 import VideoModal from "@/components/VideoModal";
 import type { CompanyData } from "./types";
+import { useMainTheme } from "./CompanyPageThemeContext";
+import { cn } from "@jobtv-app/shared/utils/cn";
 
 interface CompanyShortVideosProps {
   company: CompanyData;
@@ -15,12 +17,13 @@ export default function CompanyShortVideos({ company }: CompanyShortVideosProps)
     title: string;
     thumbnail?: string;
   } | null>(null);
+  const { classes } = useMainTheme();
 
   if (!company.shortVideos || company.shortVideos.length === 0) return null;
 
   return (
     <section>
-      <h2 className="text-lg md:text-xl font-bold mb-4 md:mb-6 flex items-center gap-2">
+      <h2 className={cn("text-lg md:text-xl font-bold mb-4 md:mb-6 flex items-center gap-2", classes.textPrimary)}>
         <span className="w-1.5 h-5 md:h-6 bg-red-600 rounded-full" />
         ショート動画
       </h2>
@@ -31,7 +34,6 @@ export default function CompanyShortVideos({ company }: CompanyShortVideosProps)
           title: v.title,
           thumbnail: v.thumbnail || null,
           channel: "ショート動画",
-          likes: 0,
           duration: "0:00",
           videoUrl: v.video
         }))}

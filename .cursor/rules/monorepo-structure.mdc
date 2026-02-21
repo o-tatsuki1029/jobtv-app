@@ -1,0 +1,168 @@
+---
+alwaysApply: true
+description: Monorepo構成、パッケージ管理、共通パッケージの使用方法に関するルール
+---
+
+## プロジェクト概要
+
+このプロジェクトは Next.js ベースの Monorepo で、3 つのアプリケーションを含んでいます：
+
+- **jobtv**: JobTV アプリケーション (port 3000)
+- **event-system**: イベント管理システム (port 3001)
+- **agent-manager**: エージェント管理システム (port 3002)
+
+## Monorepo 構成
+
+### パッケージマネージャーとツール
+
+- **パッケージマネージャー**: pnpm
+- **タスクランナー**: Turbo
+- **ワークスペース構成**: `pnpm-workspace.yaml`で定義
+  - `apps/*`: 各アプリケーション
+  - `packages/shared`: 共通パッケージ
+
+### 共通パッケージ（@jobtv-app/shared）
+
+共通パッケージには以下の機能が含まれます：
+
+#### Supabase クライアント
+
+- `@jobtv-app/shared/supabase/server`: サーバーサイドクライアント
+- `@jobtv-app/shared/supabase/client`: クライアントサイドクライアント
+- `@jobtv-app/shared/supabase/admin`: 管理者クライアント
+
+#### 型定義
+
+- `@jobtv-app/shared/types`: すべての型定義
+- `@jobtv-app/shared/types/database`: データベース型（自動生成）
+- `@jobtv-app/shared/types/database-extensions`: 拡張型
+- `@jobtv-app/shared/types/common-helpers`: 共通ヘルパー型
+
+#### 認証
+
+- `@jobtv-app/shared/auth`: 認証ヘルパー
+- `@jobtv-app/shared/auth/client`: クライアント認証
+
+#### ユーティリティ
+
+- `@jobtv-app/shared/utils/dev-config`: 開発環境設定
+- `@jobtv-app/shared/utils/cn`: クラス名マージ
+- `@jobtv-app/shared/utils/validation`: バリデーション
+
+### 各アプリでの共通パッケージ使用
+
+各アプリの`lib`ディレクトリで共通パッケージから必要な機能を再エクスポートします：
+
+```typescript
+// apps/{app-name}/lib/supabase/server.ts
+export { createClient } from "@jobtv-app/shared/supabase/server";
+
+// apps/{app-name}/lib/supabase/client.ts
+export { createClient } from "@jobtv-app/shared/supabase/client";
+```
+
+## 開発ワークフロー
+
+### 開発サーバーの起動
+
+```bash
+# 全アプリを並列起動
+pnpm dev
+
+# 個別のアプリを起動
+pnpm --filter agent-manager dev
+pnpm --filter event-system dev
+pnpm --filter jobtv dev
+```
+
+### ビルド
+
+```bash
+# 全アプリをビルド
+pnpm build
+
+# 個別のアプリをビルド
+pnpm --filter agent-manager build
+pnpm --filter event-system build
+pnpm --filter jobtv build
+```
+
+### マイグレーション管理
+
+```bash
+# 新しいマイグレーションの作成
+supabase migration new <migration_name>
+
+# マイグレーションの適用
+supabase db push
+
+# マイグレーション履歴の確認
+supabase migration list
+```
+
+**重要**: マイグレーションは`jobtv-app/supabase/migrations/`で一元管理してください。
+
+### 型定義の生成
+
+```bash
+# 共通型定義を生成（マイグレーション適用後に実行）
+pnpm types
+```
+
+このコマンドは`packages/shared/types/database.types.ts`を自動生成します。
+
+## 環境変数の管理
+
+### 環境変数の配置
+
+- **共通設定**: ルートの`.env.local`（開発環境用の設定など）
+- **アプリ固有設定**: `apps/{app-name}/.env.local`（Supabase の URL やキーなど）
+
+### 重要な注意事項
+
+- Supabase の環境変数（`NEXT_PUBLIC_SUPABASE_URL`、`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`）は各アプリで個別に設定してください
+- ルートに共通で設定すると問題が発生する可能性があります
+- `NEXT_PUBLIC_SITE_URL`はプロトコル（`http://`や`https://`）を含めないでください
+- **シークレット（API キー・サービスロール鍵など）は `NEXT_PUBLIC_` を付けない**。クライアントに露出するため
+
+### 開発環境設定の統一管理
+
+開発環境用の設定（`SKIP_ZEROTRUST_CHECK`、`NODE_TLS_REJECT_UNAUTHORIZED`）は共通パッケージ（`@jobtv-app/shared/utils/dev-config`）で統一管理されています。
+
+## ディレクトリ構成
+
+### 各アプリの標準構成
+
+```
+apps/{app-name}/
+├── app/                    # Next.js App Router
+├── components/             # コンポーネント
+│   └── ui/                # 共有UIコンポーネント
+├── lib/                   # ライブラリとユーティリティ
+│   ├── actions/           # Server Actions
+│   └── supabase/          # Supabaseクライアント（共通パッケージから再エクスポート）
+├── types/                 # アプリ固有型定義（オプション）
+├── hooks/                 # カスタムフック（必要に応じて）
+├── utils/                 # ユーティリティ関数（必要に応じて）
+└── package.json
+```
+
+### 共通パッケージの構成
+
+```
+packages/shared/
+├── actions/               # 共通Server Actions
+├── auth/                  # 認証関連
+├── supabase/              # Supabaseクライアント
+├── types/                 # 型定義
+├── utils/                 # ユーティリティ
+└── package.json
+```
+
+## ベストプラクティス
+
+1. **共通機能は共通パッケージに配置**: 複数アプリで使用する機能は`packages/shared`に配置
+2. **型定義の一元管理**: データベース型は`packages/shared/types`で一元管理
+3. **Supabase クライアントの統一**: 全アプリで同じクライアント実装を使用
+4. **環境変数の適切な管理**: 共通設定とアプリ固有設定を分離
+5. **依存関係の管理**: 共通パッケージの変更は全アプリに影響することを意識

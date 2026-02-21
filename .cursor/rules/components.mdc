@@ -1,0 +1,18 @@
+---
+alwaysApply: true
+description: コンポーネントの分類、配置、命名規則に関するルール
+---
+
+## コンポーネントの整理
+
+### コンポーネントの分類
+
+- Server Components: デフォルト（ディレクティブ不要）
+- Client Components: 先頭に`"use client"`ディレクティブを必須で含める
+- インタラクティブな機能（useState、useEffect、イベントハンドラなど）が必要な場合のみ Client Component を使用
+
+### コンポーネントの配置
+
+- 共有 UI コンポーネント: `components/ui/`ディレクトリに配置
+- 機能固有のコンポーネント: `components/`に説明的な名前で配置
+- コンポーネント命名: PascalCase を使用（例: `CandidateForm.tsx`）

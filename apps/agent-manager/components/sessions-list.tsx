@@ -110,7 +110,7 @@ export function SessionsList({ sessions }: SessionsListProps) {
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  {session.status === "pending" && (
+                  {(session.status as unknown as string) === "pending" && (
                     <>
                       <Button
                         variant="default"

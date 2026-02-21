@@ -1,45 +1,24 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Logo from "./Logo";
 import Navigation from "./Navigation";
 import GuestActions from "./GuestActions";
 import MenuToggleButton from "./MenuToggleButton";
 import MobileNavigation from "./MobileNavigation";
+import RecruiterMenu from "./RecruiterMenu";
 import UserMenu from "./UserMenu";
 import HeaderContainer from "./HeaderContainer";
-import { createClient } from "@/lib/supabase/client";
-import { User } from "@supabase/supabase-js";
+import MainThemeToggle from "./MainThemeToggle";
+import { useHeaderAuth } from "./HeaderAuthContext";
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const supabase = createClient();
-
-    const getUser = async () => {
-      const {
-        data: { user }
-      } = await supabase.auth.getUser();
-      setUser(user);
-      setLoading(false);
-    };
-
-    getUser();
-
-    const {
-      data: { subscription }
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
+  const authInfo = useHeaderAuth();
+  const user = authInfo?.user ?? null;
+  const role = authInfo?.role ?? null;
+  const recruiterMenuInfo = authInfo?.recruiterMenuInfo ?? null;
+  const isRecruiter = !!user && role === "recruiter";
 
   return (
     <HeaderContainer>
@@ -49,28 +28,43 @@ export default function Header() {
         <Navigation />
       </div>
 
-      {/* Right side actions */}
-      <div className="flex items-center gap-4">
-        {!loading && (
+      {/* Right side actions（レイアウトでロール取得済みのため遅延なし） */}
+      <div className="flex items-center gap-2 md:gap-4">
+        <MainThemeToggle />
+        {user ? (
+          isRecruiter ? (
+            <MenuToggleButton
+              isOpen={isMenuOpen}
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="p-2 text-white hover:text-red-500 transition-colors"
+            />
+          ) : (
+            <UserMenu userName={user.email?.split("@")[0] || "ユーザー"} />
+          )
+        ) : (
           <>
-            {user ? (
-              <UserMenu userName={user.email?.split("@")[0] || "ユーザー"} />
-            ) : (
-              <>
-                <GuestActions className="hidden xl:flex" />
-                <MenuToggleButton
-                  isOpen={isMenuOpen}
-                  onClick={() => setIsMenuOpen(!isMenuOpen)}
-                  className="flex xl:hidden"
-                />
-              </>
-            )}
+            <GuestActions className="hidden xl:flex" />
+            <MenuToggleButton
+              isOpen={isMenuOpen}
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="flex xl:hidden"
+            />
           </>
         )}
       </div>
 
-      {/* Mobile menu - アニメーションのために常時レンダリング */}
-      {!user && !loading && <MobileNavigation isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />}
+      {/* ゲスト用モバイルメニュー */}
+      {!user && <MobileNavigation isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />}
+
+      {/* リクルーター用ハンバーガーメニュー */}
+      {isRecruiter && (
+        <RecruiterMenu
+          isOpen={isMenuOpen}
+          onClose={() => setIsMenuOpen(false)}
+          userName={user?.email?.split("@")[0] || "ユーザー"}
+          menuInfo={recruiterMenuInfo}
+        />
+      )}
     </HeaderContainer>
   );
 }

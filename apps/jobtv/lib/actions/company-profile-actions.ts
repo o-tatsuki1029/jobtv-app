@@ -46,6 +46,42 @@ export async function getCompanyProfile(): Promise<{
 }
 
 /**
+ * スタジオ一覧用：企業カバー画像のみ取得（軽量）
+ * 求人・説明会一覧でカバー画像のフォールバックに使う。getCompanyProfileWithPage よりクエリが少ない。
+ */
+export async function getCompanyCoverImageForStudio(): Promise<{
+  data: { cover_image_url: string | null } | null;
+  error: string | null;
+}> {
+  try {
+    const { companyId, error: companyIdError } = await getUserCompanyId();
+    if (companyIdError) return { data: null, error: companyIdError };
+
+    const supabase = await createClient();
+    const { data: draft } = await supabase
+      .from("company_pages_draft")
+      .select("cover_image_url")
+      .eq("company_id", companyId)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (draft?.cover_image_url) return { data: { cover_image_url: draft.cover_image_url }, error: null };
+
+    const { data: prod } = await supabase
+      .from("company_pages")
+      .select("cover_image_url")
+      .eq("company_id", companyId)
+      .maybeSingle();
+
+    return { data: prod ? { cover_image_url: prod.cover_image_url } : { cover_image_url: null }, error: null };
+  } catch (error) {
+    console.error("Get company cover image error:", error);
+    return { data: null, error: "カバー画像の取得に失敗しました" };
+  }
+}
+
+/**
  * 企業プロフィールと企業ページ情報を同時に取得（ログイン中のユーザーの企業IDを使用）
  * スタジオ管理画面用：ドラフトテーブルを優先的に参照し、本番のステータス情報も付加
  */
@@ -165,16 +201,20 @@ export async function getCompanyProfileById(id: string): Promise<{
   try {
     const supabase = await createClient();
 
-    // 企業情報を取得
+    // 企業情報を取得（0件の場合は .single() がエラーになるため .maybeSingle() を使用）
     const { data: companyData, error: companyError } = await supabase
       .from("companies")
       .select("*")
       .eq("id", id)
-      .single();
+      .maybeSingle();
 
     if (companyError) {
       console.error("Get company profile by id error:", companyError);
       return { data: null, error: companyError.message };
+    }
+
+    if (!companyData) {
+      return { data: null, error: "企業が見つかりません" };
     }
 
     // 企業ページ情報を取得（getCompanyPageByIdを使用）

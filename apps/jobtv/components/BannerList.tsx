@@ -2,6 +2,9 @@
 
 import Image from "next/image";
 import HorizontalScrollContainer from "./HorizontalScrollContainer";
+import { useMainTheme } from "@/components/company/CompanyPageThemeContext";
+import { cn } from "@jobtv-app/shared/utils/cn";
+import { HORIZONTAL_CARD_ASPECT_RATIO_16_9_CLASS, HORIZONTAL_CARD_WIDTH } from "@/constants/card-layout";
 
 interface Banner {
   id: string;
@@ -15,13 +18,22 @@ interface BannerListProps {
 }
 
 export default function BannerList({ banners }: BannerListProps) {
+  const { classes } = useMainTheme();
+
   return (
-    <div className="w-full py-6">
-      <HorizontalScrollContainer ignoreParentPadding={true} scrollAmount={500}>
-        <div className="flex gap-5 min-w-max px-4 pb-6">
+    <div className="mx-4">
+      <HorizontalScrollContainer scrollAmount={500}>
+        <div className="flex gap-5 pt-6 pb-12">
           {banners.map((banner) => (
             <a key={banner.id} href={banner.link || "#"} className="flex-shrink-0 group">
-              <div className="relative aspect-[16/9] w-[250px] sm:w-[300px] md:w-[350px] overflow-hidden rounded-xl bg-gray-800 shadow-md group-hover:shadow-xl transition-shadow duration-300">
+              <div
+                className={cn(
+                  "relative overflow-hidden rounded-xl shadow-md group-hover:shadow-xl transition-shadow duration-300",
+                  HORIZONTAL_CARD_ASPECT_RATIO_16_9_CLASS,
+                  HORIZONTAL_CARD_WIDTH.banner,
+                  classes.videoThumbPlaceholder
+                )}
+              >
                 <Image
                   src={banner.image}
                   alt={banner.title}

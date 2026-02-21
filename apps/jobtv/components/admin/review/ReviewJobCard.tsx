@@ -27,12 +27,13 @@ export default function ReviewJobCard({
     .join(job.prefecture && job.location_detail ? " " : "");
 
   const draftId = job.draft_id || job.id;
+  const coverImage = job.cover_image_url || (job as any).company_cover_image_url;
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col md:flex-row transition-all hover:border-black/10">
       <div className="md:w-64 relative bg-blue-50 border-b md:border-b-0 md:border-r border-blue-100 overflow-hidden min-h-[160px]">
-        {job.cover_image_url ? (
-          <Image src={job.cover_image_url} alt={job.title} fill className="object-cover" />
+        {coverImage ? (
+          <Image src={coverImage} alt={job.title} fill className="object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <ImageIcon className="w-12 h-12 text-blue-400" />

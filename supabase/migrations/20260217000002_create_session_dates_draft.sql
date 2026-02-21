@@ -118,3 +118,4 @@ COMMENT ON COLUMN session_dates_draft.start_time IS '開始時間';
 COMMENT ON COLUMN session_dates_draft.end_time IS '終了時間';
 COMMENT ON COLUMN session_dates_draft.capacity IS '定員（この日程の定員、NULLの場合は説明会の定員を使用）';
 
+

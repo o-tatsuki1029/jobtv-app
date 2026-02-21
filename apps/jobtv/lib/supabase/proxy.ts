@@ -35,17 +35,31 @@ export async function updateSession(request: NextRequest) {
 
   const user = data.user;
 
-  // 公開ルートの定義
-  const publicRoutes = ["/auth", "/company", "/api/auth", "/lp"];
+  // 公開ルートの定義（未ログインでもアクセス可能）
+  const publicRoutes = [
+    "/auth",
+    "/company",
+    "/job",
+    "/session",
+    "/api/auth",
+    "/lp",
+    "/admin/login",
+    "/studio/login",
+  ];
   const isPublicRoute =
     publicRoutes.some((route) => request.nextUrl.pathname.startsWith(route)) || request.nextUrl.pathname === "/";
 
   if (!user && !isPublicRoute) {
-    // ユーザーがおらず、公開ルートでもない場合はログインページへリダイレクト
     const url = request.nextUrl.clone();
-    url.pathname = "/auth/login";
-    // 元のURLをリダイレクト先として保持したい場合はクエリパラメータを追加することも可能
-    // url.searchParams.set('next', request.nextUrl.pathname)
+
+    if (request.nextUrl.pathname.startsWith("/admin")) {
+      url.pathname = "/admin/login";
+    } else if (request.nextUrl.pathname.startsWith("/studio")) {
+      url.pathname = "/studio/login";
+    } else {
+      url.pathname = "/auth/login";
+    }
+
     return NextResponse.redirect(url);
   }
 

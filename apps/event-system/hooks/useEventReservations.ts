@@ -75,9 +75,9 @@ export function useEventReservations(
             last_name_kana,
             first_name_kana,
             phone,
-            email,
             school_name,
-            gender
+            gender,
+            profiles!profiles_candidate_id_fkey(email)
           )
         `
         )

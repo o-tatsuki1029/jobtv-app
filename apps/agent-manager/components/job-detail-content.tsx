@@ -34,7 +34,7 @@ export async function JobDetailContent({ jobId }: JobDetailContentProps) {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>求人情報</CardTitle>
-            {job.status === "pending" && <JobStatusActions jobId={job.id} />}
+            {(job.status as unknown as string) === "pending" && job.id ? <JobStatusActions jobId={job.id} /> : null}
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -50,7 +50,7 @@ export async function JobDetailContent({ jobId }: JobDetailContentProps) {
                   ? "募集中"
                   : job.status === "closed"
                     ? "募集終了"
-                    : job.status === "pending"
+                    : (job.status as unknown as string) === "pending"
                       ? "審査中"
                       : job.status}
               </Badge>

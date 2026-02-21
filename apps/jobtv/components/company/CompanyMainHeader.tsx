@@ -3,20 +3,27 @@
 import Image from "next/image";
 import VideoPlayer from "@/components/VideoPlayer";
 import type { CompanyData } from "./types";
+import { useMainTheme } from "./CompanyPageThemeContext";
+import { cn } from "@jobtv-app/shared/utils/cn";
+import { HORIZONTAL_CARD_ASPECT_RATIO_16_9_CLASS } from "@/constants/card-layout";
 
 interface CompanyMainHeaderProps {
   company: CompanyData;
+  /** エントリーするボタン押下時のコールバック（モーダルを開く等） */
+  onEntryClick?: () => void;
 }
 
-export default function CompanyMainHeader({ company }: CompanyMainHeaderProps) {
+export default function CompanyMainHeader({ company, onEntryClick }: CompanyMainHeaderProps) {
+  const { classes } = useMainTheme();
+
   return (
     <section className="-mx-4 md:mx-0">
       {company.mainVideo && (
-        <div className="overflow-hidden md:rounded-lg shadow-2xl border-y md:border border-gray-800 bg-black">
+        <div className={cn("overflow-hidden md:rounded-lg shadow-2xl border-y md:border bg-black", classes.headerVideoBorder)}>
           <VideoPlayer
             src={company.mainVideo}
             poster={company.coverImage || undefined}
-            className="w-full aspect-video"
+            className={cn("w-full", HORIZONTAL_CARD_ASPECT_RATIO_16_9_CLASS)}
           />
         </div>
       )}
@@ -26,22 +33,26 @@ export default function CompanyMainHeader({ company }: CompanyMainHeaderProps) {
         } px-4 md:px-0 flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6`}
       >
         <div className="flex items-center gap-4 md:gap-5">
-          <div className="relative w-12 h-12 md:w-16 md:h-16 flex-shrink-0 bg-white rounded-md border border-gray-800 overflow-hidden">
+          <div className={cn("relative w-12 h-12 md:w-16 md:h-16 flex-shrink-0 bg-white rounded-md overflow-hidden shadow-sm", classes.headerLogoBorder)}>
             {company.logo ? (
               <Image src={company.logo} alt={company.name} fill className="object-contain" />
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                <span className="text-gray-400 font-bold text-lg">{company.name.charAt(0)}</span>
+              <div className={cn("w-full h-full flex items-center justify-center", classes.logoPlaceholderBg)}>
+                <span className={cn("font-bold text-lg", classes.logoPlaceholderText)}>{company.name.charAt(0)}</span>
               </div>
             )}
           </div>
           <div>
-            <h1 className="text-lg md:text-2xl font-bold text-white mb-0.5">{company.name}</h1>
-            <p className="text-gray-400 text-[10px] md:text-sm font-medium">{company.industry}</p>
+            <h1 className={cn("text-lg md:text-2xl font-bold mb-0.5", classes.textPrimary)}>{company.name}</h1>
+            <p className={cn("text-[10px] md:text-sm font-medium", classes.textMuted)}>{company.industry}</p>
           </div>
         </div>
         <div className="flex-shrink-0">
-          <button className="w-full md:w-auto px-6 py-3 bg-gradient-to-br from-red-600 to-pink-600 hover:from-red-500 hover:to-pink-500 text-white rounded-md font-bold text-base transition-all transform active:scale-[0.9] cursor-pointer">
+          <button
+            type="button"
+            onClick={onEntryClick}
+            className="w-full md:w-auto px-6 py-3 bg-gradient-to-br from-red-600 to-pink-600 hover:from-red-500 hover:to-pink-500 text-white rounded-md font-bold text-base transition-colors duration-150 active:opacity-90 cursor-pointer"
+          >
             エントリーする
           </button>
         </div>

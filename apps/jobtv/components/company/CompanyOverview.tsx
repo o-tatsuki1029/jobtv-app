@@ -1,21 +1,29 @@
+"use client";
+
 import type { CompanyData } from "./types";
+import { useMainTheme } from "./CompanyPageThemeContext";
+import { cn } from "@jobtv-app/shared/utils/cn";
 
 interface CompanyOverviewProps {
   company: CompanyData;
 }
 
 export default function CompanyOverview({ company }: CompanyOverviewProps) {
-  // 住所を結合（addressLine1とaddressLine2を改行で結合）
-  const combinedAddress = [company.addressLine1, company.addressLine2].filter(Boolean).join("\n");
+  const { classes } = useMainTheme();
 
-  // 会社概要は基本的な情報なので、最低限の情報があれば表示
-  // ただし、すべての情報が空の場合は非表示
+  // 住所を結合（prefecture + addressLine1 + addressLine2）
+  const fullAddress = [
+    company.prefecture,
+    company.addressLine1,
+    company.addressLine2
+  ].filter(Boolean).join(" ");
+
+  // 会社概要は基本的な情報＋企業情報テキスト。最低限の情報があれば表示
   const hasOverviewData =
     company.name ||
     company.representative ||
     company.established ||
-    company.address ||
-    combinedAddress ||
+    fullAddress ||
     company.employees ||
     company.industry ||
     company.website ||
@@ -25,21 +33,22 @@ export default function CompanyOverview({ company }: CompanyOverviewProps) {
 
   return (
     <section>
-      <h2 className="text-lg md:text-xl font-bold mb-4 md:mb-6 flex items-center gap-2">
+      <h2 className={cn("text-lg md:text-xl font-bold mb-4 md:mb-6 flex items-center gap-2", classes.textPrimary)}>
         <span className="w-1.5 h-5 md:h-6 bg-red-600 rounded-full" />
         会社概要
       </h2>
-      <div className="bg-gray-800/50 rounded-lg overflow-hidden max-w-3xl px-4">
-        <dl className="divide-y divide-gray-800">
+      <div className={cn("rounded-lg overflow-hidden max-w-3xl px-4", classes.overviewCardBg)}>
+        <dl className={classes.overviewDivide}>
           {[
             { label: "会社名", value: company.name },
-            { label: "代表者", value: company.representative },
-            { label: "設立", value: company.established },
-            { label: "所在地", value: company.address },
-            { label: "住所", value: combinedAddress, isMultiline: true },
+            { label: "代表者名", value: company.representative },
+            { label: "設立年月", value: company.established },
+            { label: "本社所在地", value: fullAddress },
             { label: "従業員数", value: company.employees },
-            { label: "事業内容", value: company.industry },
-            { label: "企業情報", value: company.companyInfo, isMultiline: true },
+            { label: "業界区分", value: company.industry },
+            ...(company.companyInfo
+              ? [{ label: "企業情報", value: company.companyInfo, isMultiline: true as const }]
+              : []),
             {
               label: "公式サイト",
               value: company.website,
@@ -49,14 +58,14 @@ export default function CompanyOverview({ company }: CompanyOverviewProps) {
             .filter((item) => item.value) // 値がある項目のみ表示
             .map((item, idx) => (
             <div key={idx} className="flex flex-col sm:flex-row p-4 md:p-6 gap-1 md:gap-6">
-              <dt className="sm:w-32 flex-shrink-0 text-gray-500 text-xs md:text-sm font-medium">{item.label}</dt>
-              <dd className="text-sm md:text-base text-gray-200">
+              <dt className={cn("sm:w-32 flex-shrink-0 text-xs md:text-sm font-medium", classes.overviewLabel)}>{item.label}</dt>
+              <dd className={cn("text-sm md:text-base", classes.overviewValue)}>
                 {item.isLink ? (
                   <a
                     href={item.value}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-400 hover:underline flex items-center gap-1"
+                    className={cn("hover:underline flex items-center gap-1", classes.linkColor)}
                   >
                     {item.value}
                     <svg className="w-3 h-3 md:w-3.5 md:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

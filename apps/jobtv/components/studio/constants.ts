@@ -9,7 +9,7 @@ import {
   Shield,
   CheckCircle,
   Bell,
-  MessageSquare,
+  // MessageSquare, // チャット用（後々追加）
   UserCog
 } from "lucide-react";
 
@@ -17,7 +17,7 @@ export const STUDIO_NAVIGATION = [
   { name: "ダッシュボード", href: "/studio", icon: LayoutDashboard },
   { name: "お知らせ", href: "/studio/notifications", icon: Bell },
   { name: "候補者管理", href: "/studio/candidates", icon: Users },
-  { name: "チャット", href: "/studio/chat", icon: MessageSquare },
+  // { name: "チャット", href: "/studio/chat", icon: MessageSquare }, // 後々追加
   { name: "企業ページ管理", href: "/studio/company", icon: Building },
   { name: "求人管理", href: "/studio/jobs", icon: Briefcase },
   { name: "説明会・インターン管理", href: "/studio/sessions", icon: Calendar },
@@ -32,5 +32,9 @@ export const ADMIN_NAVIGATION = [
   { name: "ダッシュボード", href: "/admin", icon: LayoutDashboard },
   { name: "審査管理", href: "/admin/review", icon: CheckCircle },
   { name: "お知らせ管理", href: "/admin/notifications", icon: Bell },
-  { name: "管理者アカウント", href: "/admin/users", icon: UserCog }
+  { name: "企業アカウント管理", href: "/admin/company-accounts", icon: Building }
+];
+
+export const ADMIN_BOTTOM_NAVIGATION = [
+  { name: "設定", href: "/admin/settings/user", icon: Settings }
 ];

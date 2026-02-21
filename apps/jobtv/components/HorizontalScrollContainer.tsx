@@ -2,43 +2,33 @@
 
 import { useRef, useState, useEffect, ReactNode } from "react";
 
+/**
+ * 横スクロール用コンテナ。左右矢印で 1 コンテンツずつスナップする。
+ * children は「flex のラッパー div」1 つで、その直下の子要素が 1 コンテンツ単位（BannerList / ShortVideoSection 等を想定）。
+ */
 interface HorizontalScrollContainerProps {
   children: ReactNode;
   className?: string;
   scrollAmount?: number;
-  ignoreParentPadding?: boolean;
 }
 
 export default function HorizontalScrollContainer({
   children,
   className = "",
-  scrollAmount = 400,
-  ignoreParentPadding = false
+  scrollAmount = 400
 }: HorizontalScrollContainerProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setIsMobile(window.innerWidth < 768);
-
-      const handleResize = () => {
-        setIsMobile(window.innerWidth < 768);
-      };
-
-      window.addEventListener("resize", handleResize);
-      return () => window.removeEventListener("resize", handleResize);
-    }
-  }, []);
-
+  /** スクロール位置から左右矢印の表示可否を更新。端は 1px 以上余っていればスクロール可能とみなす。 */
   const checkScrollability = () => {
     const container = scrollContainerRef.current;
     if (!container) return;
 
-    setCanScrollLeft(container.scrollLeft > 0);
-    setCanScrollRight(container.scrollLeft < container.scrollWidth - container.clientWidth - 10);
+    const maxScrollLeft = container.scrollWidth - container.clientWidth;
+    setCanScrollLeft(container.scrollLeft > 1);
+    setCanScrollRight(container.scrollLeft < maxScrollLeft - 1);
   };
 
   useEffect(() => {
@@ -55,61 +45,98 @@ export default function HorizontalScrollContainer({
     };
   }, [children]);
 
+  /**
+   * 矢印クリック時: 次の/前の 1 コンテンツの左端がスクロールコンテナ（要素）の左端に合う位置へスクロール（スナップ）。
+   * アイテムが無い場合は scrollAmount で固定量スクロール。
+   * 位置は getBoundingClientRect でコンテナ要素基準の内容座標に変換して使用（offsetLeft は offsetParent に依存するためビューポートずれの原因になる）。
+   */
   const scroll = (direction: "left" | "right") => {
     const container = scrollContainerRef.current;
     if (!container) return;
 
-    container.scrollBy({
-      left: direction === "left" ? -scrollAmount : scrollAmount,
+    const inner = container.firstElementChild as HTMLElement | null;
+    const items = inner ? (Array.from(inner.children) as HTMLElement[]) : [];
+
+    if (items.length === 0) {
+      container.scrollBy({
+        left: direction === "left" ? -scrollAmount : scrollAmount,
+        behavior: "smooth"
+      });
+      return;
+    }
+
+    const scrollLeft = container.scrollLeft;
+    const maxScrollLeft = container.scrollWidth - container.clientWidth;
+    const containerLeft = container.getBoundingClientRect().left;
+
+    /** 各アイテムの左端を「スクロールコンテナの内容」座標に変換（ビューポートに依存しない）。 */
+    const itemLefts = items.map((el) => el.getBoundingClientRect().left - containerLeft + scrollLeft);
+
+    /** 現在「どのアイテムにいるか」: コンテナの見えている左端より左に左端があるアイテムのうち最も右のもの。 */
+    let currentIndex = 0;
+    for (let i = 0; i < itemLefts.length; i++) {
+      if (itemLefts[i] <= scrollLeft) currentIndex = i;
+    }
+
+    /** 左矢印なら 1 つ前、右矢印なら 1 つ次のインデックス（端でクランプ）。 */
+    const targetIndex =
+      direction === "left" ? Math.max(0, currentIndex - 1) : Math.min(items.length - 1, currentIndex + 1);
+    /** そのアイテムの左端をコンテナ左端に合わせる（要素基準）。0〜maxScrollLeft にクランプ。 */
+    const targetLeft = Math.max(0, Math.min(maxScrollLeft, targetIndex === 0 ? 0 : itemLefts[targetIndex]));
+
+    container.scrollTo({
+      left: targetLeft,
       behavior: "smooth"
     });
   };
 
   return (
-    <div className={`relative ${ignoreParentPadding ? "-mx-4 md:-mx-0" : ""} ${className}`}>
-      {/* 左矢印 - 縦型バー */}
-      <div
-        className={`absolute left-0 top-0 bottom-0 w-6 md:w-8 z-20 transition-all duration-300 ${
-          canScrollLeft ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-        }`}
-      >
-        <div className="absolute inset-0 bg-black/90" />
+    <div className={`flex items-center min-w-0 min-h-[5rem] ${className}`}>
+      {/* 左矢印 - スロット幅は常時確保、矢印はフェードのみ */}
+      <div className="flex-shrink-0 w-6 md:w-8 mr-2 flex items-center justify-center">
         <button
           onClick={() => scroll("left")}
-          className="absolute left-0 top-0 bottom-0 w-full flex items-center justify-center hover:bg-black/95 transition-colors"
+          className={`w-6 md:w-8 min-h-[5rem] flex items-center justify-center rounded-md bg-black/90 hover:bg-black/95 transition-opacity duration-300 ${
+            canScrollLeft ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
           aria-label="左にスクロール"
+          tabIndex={canScrollLeft ? 0 : -1}
         >
-          <svg className="w-6 h-6 md:w-8 md:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg
+            className="w-6 h-6 md:w-8 md:h-8 text-white flex-shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
       </div>
 
-      {/* スクロールコンテナ */}
+      {/* スクロールコンテナ（残り幅を取得、画面幅超過時はここが狭まる） */}
       <div
         ref={scrollContainerRef}
-        className="overflow-x-auto px-0 hide-scrollbar transition-all duration-300"
-        style={{
-          paddingLeft: canScrollLeft ? (isMobile ? "1.5rem" : "2rem") : "0",
-          paddingRight: canScrollRight ? (isMobile ? "1.5rem" : "2rem") : "0"
-        }}
+        className="flex-1 min-w-0 overflow-x-auto hide-scrollbar transition-all duration-300"
       >
         {children}
       </div>
 
-      {/* 右矢印 - 縦型バー */}
-      <div
-        className={`absolute right-0 top-0 bottom-0 w-6 md:w-8 z-20 transition-all duration-300 ${
-          canScrollRight ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-        }`}
-      >
-        <div className="absolute inset-0 bg-black/90" />
+      {/* 右矢印 - スロット幅は常時確保、矢印はフェードのみ */}
+      <div className="flex-shrink-0 w-6 md:w-8 ml-2 flex items-center justify-center">
         <button
           onClick={() => scroll("right")}
-          className="absolute right-0 top-0 bottom-0 w-full flex items-center justify-center hover:bg-black/95 transition-colors"
+          className={`w-6 md:w-8 min-h-[5rem] flex items-center justify-center rounded-md bg-black/90 hover:bg-black/95 transition-opacity duration-300 ${
+            canScrollRight ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
           aria-label="右にスクロール"
+          tabIndex={canScrollRight ? 0 : -1}
         >
-          <svg className="w-6 h-6 md:w-8 md:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg
+            className="w-6 h-6 md:w-8 md:h-8 text-white flex-shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
         </button>

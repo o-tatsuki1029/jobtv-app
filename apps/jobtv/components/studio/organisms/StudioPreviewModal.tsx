@@ -3,6 +3,7 @@
 import React, { useRef, useEffect } from "react";
 import { Monitor, Smartphone } from "lucide-react";
 import Logo from "@/components/header/Logo";
+import { HEADER_HEIGHT_CLASS } from "@/constants/header-layout";
 import StudioButton from "../atoms/StudioButton";
 
 interface StudioPreviewModalProps {
@@ -57,7 +58,9 @@ export default function StudioPreviewModal({
   return (
     <div className="fixed inset-0 z-[100] bg-black flex flex-col animate-in fade-in duration-300 h-full">
       {/* プレビューヘッダー */}
-      <div className="bg-background text-foreground border-b border-gray-800 h-16 md:h-18 flex items-center flex-shrink-0 pt-[env(safe-area-inset-top)]">
+      <div
+        className={`bg-background text-foreground border-b border-gray-800 ${HEADER_HEIGHT_CLASS} flex items-center flex-shrink-0 pt-[env(safe-area-inset-top)]`}
+      >
         <div className="container mx-auto px-4 md:px-6 flex items-center justify-between">
           <div className="flex items-center gap-6">
             <Logo disableLink />

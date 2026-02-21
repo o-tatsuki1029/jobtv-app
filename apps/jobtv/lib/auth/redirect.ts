@@ -1,4 +1,4 @@
-import type { UserRole } from "@jobtv-app/shared/auth/types";
+import type { UserRole } from "@jobtv-app/shared/auth";
 
 /**
  * jobtv アプリ固有のリダイレクト先を取得
@@ -18,4 +18,5 @@ export function getRedirectPathByRole(
       return "/auth/login";
   }
 }
+
 

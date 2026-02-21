@@ -23,7 +23,7 @@ export interface CandidateData {
 }
 
 /**
- * 予約者情報（候補者情報を含む）
+ * 予約者情報（候補者情報と profiles の email を含む）
  */
 export interface ReservationWithCandidate extends SessionReservation {
   candidates: {
@@ -32,10 +32,10 @@ export interface ReservationWithCandidate extends SessionReservation {
     last_name_kana: string;
     first_name_kana: string;
     phone: string;
-    email: string;
     school_name: string | null;
     gender: string | null;
     graduation_year: number | null;
+    profiles: { email: string | null } | null;
   } | null;
 }
 
@@ -60,7 +60,7 @@ export async function getSessionDateReservationCount(sessionDateId: string) {
 }
 
 /**
- * 複数の日程の予約数を一括取得
+ * 複数の日程の予約数を一括取得（未ログインでも可。RPC で件数のみ返す）
  */
 export async function getSessionDateReservationCounts(sessionDateIds: string[]) {
   const supabase = await createClient();
@@ -69,25 +69,22 @@ export async function getSessionDateReservationCounts(sessionDateIds: string[]) 
     return { data: {}, error: null };
   }
 
-  const { data, error } = await supabase
-    .from("session_reservations")
-    .select("session_date_id")
-    .in("session_date_id", sessionDateIds)
-    .eq("status", "reserved");
+  const { data, error } = await supabase.rpc("get_public_session_date_reservation_counts", {
+    session_date_ids: sessionDateIds
+  });
 
   if (error) {
     console.error("Get session date reservation counts error:", error);
     return { data: null, error: error.message };
   }
 
-  // 各日程IDごとに予約数をカウント
   const counts: Record<string, number> = {};
   sessionDateIds.forEach((id) => {
     counts[id] = 0;
   });
-  data?.forEach((reservation) => {
-    if (reservation.session_date_id) {
-      counts[reservation.session_date_id] = (counts[reservation.session_date_id] || 0) + 1;
+  (data as { session_date_id: string; reservation_count: number }[] | null)?.forEach((row) => {
+    if (row.session_date_id) {
+      counts[row.session_date_id] = Number(row.reservation_count) || 0;
     }
   });
 
@@ -149,10 +146,10 @@ export async function getSessionDateReservations(sessionDateId: string) {
         last_name_kana,
         first_name_kana,
         phone,
-        email,
         school_name,
         gender,
-        graduation_year
+        graduation_year,
+        profiles!profiles_candidate_id_fkey (email)
       )
     `
     )
@@ -204,10 +201,10 @@ export async function getSessionReservations(sessionId: string) {
         last_name_kana,
         first_name_kana,
         phone,
-        email,
         school_name,
         gender,
-        graduation_year
+        graduation_year,
+        profiles!profiles_candidate_id_fkey (email)
       )
     `
     )
@@ -348,18 +345,17 @@ export async function createSessionReservation(sessionDateId: string, candidateD
   const supabase = await createClient();
 
   try {
-    // 1. 候補者を作成または取得
-    const { data: existingCandidate } = await supabase
-      .from("candidates")
-      .select("id")
+    // 1. 候補者を作成または取得（メールは profiles で検索）
+    const { data: profileByEmail } = await supabase
+      .from("profiles")
+      .select("candidate_id")
       .eq("email", candidateData.email)
       .maybeSingle();
 
-    let candidateId: string;
+    let candidateId: string | null = profileByEmail?.candidate_id ?? null;
 
-    if (existingCandidate) {
+    if (candidateId) {
       // 既存の候補者を更新
-      candidateId = existingCandidate.id;
       const { error: updateError } = await supabase
         .from("candidates")
         .update({
@@ -380,7 +376,7 @@ export async function createSessionReservation(sessionDateId: string, candidateD
         return { data: null, error: "候補者情報の更新に失敗しました" };
       }
     } else {
-      // 新規候補者を作成
+      // 新規候補者を作成（email は candidates に持たない。予約時点では profile 未作成のため、候補者のみ作成）
       const { data: newCandidate, error: candidateError } = await supabase
         .from("candidates")
         .insert({
@@ -389,7 +385,6 @@ export async function createSessionReservation(sessionDateId: string, candidateD
           last_name_kana: candidateData.last_name_kana,
           first_name_kana: candidateData.first_name_kana,
           phone: candidateData.phone,
-          email: candidateData.email,
           school_name: candidateData.school_name || null,
           gender: candidateData.gender || null,
           graduation_year: candidateData.graduation_year || null

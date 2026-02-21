@@ -26,17 +26,19 @@ async function CandidateHeaderInner() {
       const supabase = getAdminClient();
       const { data: candidate, error } = await supabase
         .from("candidates")
-        .select("email, last_name, first_name")
+        .select("last_name, first_name, profiles!profiles_candidate_id_fkey(email)")
         .eq("id", candidateId)
         .single();
 
       if (error) {
         console.error("Failed to fetch candidate info:", error);
       } else if (candidate) {
-        email = candidate.email || "";
-        name = candidate.last_name && candidate.first_name
-          ? `${candidate.last_name} ${candidate.first_name}`
-          : candidate.last_name || candidate.first_name || ROLE_LABELS.candidate;
+        const c = candidate as { last_name: string | null; first_name: string | null; profiles: { email: string | null } | { email: string | null }[] | null };
+        const profile = Array.isArray(c.profiles) ? c.profiles[0] : c.profiles;
+        email = profile?.email ?? "";
+        name = c.last_name && c.first_name
+          ? `${c.last_name} ${c.first_name}`
+          : c.last_name || c.first_name || ROLE_LABELS.candidate;
       }
     } catch (error) {
       console.error("Error fetching candidate info:", error);

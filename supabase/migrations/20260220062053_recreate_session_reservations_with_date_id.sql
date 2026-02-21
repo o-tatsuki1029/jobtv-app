@@ -85,3 +85,4 @@ CREATE POLICY "Candidates can cancel their own reservations"
   USING (candidate_id = auth.uid())
   WITH CHECK (candidate_id = auth.uid());
 
+

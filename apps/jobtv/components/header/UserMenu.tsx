@@ -42,7 +42,7 @@ export default function UserMenu({ userName = "ユーザー", userAvatar }: User
   }, [isMenuOpen]);
 
   return (
-    <div className="relative flex items-center gap-3" ref={menuRef}>
+    <div className="relative flex items-center gap-3" ref={menuRef} style={{ minWidth: "200px" }}>
       {/* メッセージアイコン */}
       <button className="relative p-2 text-white hover:text-red-500 transition-colors" aria-label="メッセージ">
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -114,7 +114,7 @@ export default function UserMenu({ userName = "ユーザー", userAvatar }: User
                     return;
                   }
                   
-                  router.push("/login");
+                  router.push("/auth/login");
                   router.refresh();
                 } catch (error) {
                   console.error("Logout error:", error);

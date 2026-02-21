@@ -142,3 +142,4 @@ COMMENT ON TABLE videos_draft IS '動画下書きテーブル（審査用）';
 COMMENT ON COLUMN videos.category IS 'main: メインビデオ, short: ショート動画, documentary: 動画';
 COMMENT ON COLUMN videos_draft.category IS 'main: メインビデオ, short: ショート動画, documentary: 動画';
 
+

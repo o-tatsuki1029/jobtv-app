@@ -7,11 +7,11 @@ interface CandidateInfoDisplayProps {
     last_name?: string | null;
     first_name_kana?: string | null;
     last_name_kana?: string | null;
-    email?: string | null;
     phone?: string | null;
     notes?: string | null;
     graduation_year?: number | null;
     assigned_to?: string | null;
+    profiles?: { email: string | null } | null;
   };
 }
 
@@ -30,7 +30,7 @@ export function CandidateInfoDisplay({ candidate }: CandidateInfoDisplayProps) {
           <p className="text-sm font-medium text-muted-foreground">
             メールアドレス
           </p>
-          <p className="text-sm mt-1">{candidate.email || "未設定"}</p>
+          <p className="text-sm mt-1">{candidate.profiles?.email ?? "未設定"}</p>
         </div>
 
         {candidate.phone && (

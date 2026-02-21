@@ -1,10 +1,6 @@
-"use client";
-
-import HeroSection from "@/components/HeroSection";
-import ProgramSection from "@/components/ProgramSection";
-import ShortVideoSection from "@/components/ShortVideoSection";
-import BannerList from "@/components/BannerList";
-import AccountList from "@/components/AccountList";
+import MainPageContent from "@/components/main/MainPageContent";
+import { getCompaniesByIndustry, type CompanyWithPage } from "@/lib/actions/company-list-actions";
+import { INDUSTRIES } from "@/constants/company-options";
 
 // サンプルデータ
 const banners = [
@@ -114,100 +110,12 @@ const documentaryPrograms = [
   }
 ];
 
-const companyPrograms = [
-  {
-    id: "7",
-    title: "企業紹介動画 - 私たちの働き方",
-    thumbnail: "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=400&h=711&fit=crop",
-    channel: "企業説明",
-    likes: 125000
-  },
-  {
-    id: "8",
-    title: "2025年新卒採用説明会",
-    thumbnail: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=400&h=711&fit=crop",
-    channel: "企業説明",
-    likes: 89000
-  },
-  {
-    id: "9",
-    title: "職場見学ツアー - オフィス紹介",
-    thumbnail: "https://images.unsplash.com/photo-1497366216548-37526070297c?w=400&h=711&fit=crop",
-    channel: "企業説明",
-    likes: 156000
-  },
-  {
-    id: "10",
-    title: "職種紹介 - 営業職の1日",
-    thumbnail: "https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=711&fit=crop",
-    channel: "企業説明",
-    likes: 234000
-  },
-  {
-    id: "11",
-    title: "福利厚生・制度のご紹介",
-    thumbnail: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=400&h=711&fit=crop",
-    channel: "企業説明",
-    likes: 178000
-  },
-  {
-    id: "12",
-    title: "採用プロセス完全解説",
-    thumbnail: "https://images.unsplash.com/photo-1551434678-e076c223a692?w=400&h=711&fit=crop",
-    channel: "企業説明",
-    likes: 98000
-  },
-  {
-    id: "13",
-    title: "社員インタビュー - 新入社員の声",
-    thumbnail: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=400&h=711&fit=crop",
-    channel: "企業説明",
-    likes: 145000
-  },
-  {
-    id: "14",
-    title: "キャリアパス 成長ストーリー",
-    thumbnail: "https://images.unsplash.com/photo-1551434678-e076c223a692?w=400&h=711&fit=crop",
-    channel: "企業説明",
-    likes: 167000
-  },
-  {
-    id: "15",
-    title: "企業理念・ビジョン",
-    thumbnail: "https://images.unsplash.com/photo-1497366216548-37526070297c?w=400&h=711&fit=crop",
-    channel: "企業説明",
-    likes: 198000
-  },
-  {
-    id: "16",
-    title: "インターンシップ体験談",
-    thumbnail: "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=400&h=711&fit=crop",
-    channel: "企業説明",
-    likes: 112000
-  },
-  {
-    id: "17",
-    title: "リモートワークの様子",
-    thumbnail: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=400&h=711&fit=crop",
-    channel: "企業説明",
-    likes: 223000
-  },
-  {
-    id: "18",
-    title: "チームワークの魅力",
-    thumbnail: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=400&h=711&fit=crop",
-    channel: "企業説明",
-    likes: 189000
-  }
-];
-
 const shortVideos = [
   {
     id: "s1",
     title: "社員の1日 - エンジニア編",
     thumbnail: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=400&h=711&fit=crop",
     channel: "社員インタビュー",
-    likes: 125000,
     duration: "0:30"
   },
   {
@@ -215,7 +123,6 @@ const shortVideos = [
     title: "オフィスツアー 30秒",
     thumbnail: "https://images.unsplash.com/photo-1497366216548-37526070297c?w=400&h=711&fit=crop",
     channel: "職場紹介",
-    likes: 89000,
     duration: "0:45"
   },
   {
@@ -223,7 +130,6 @@ const shortVideos = [
     title: "先輩社員のメッセージ",
     thumbnail: "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=400&h=711&fit=crop",
     channel: "社員インタビュー",
-    likes: 156000,
     duration: "1:00"
   },
   {
@@ -231,7 +137,6 @@ const shortVideos = [
     title: "チームワークの魅力",
     thumbnail: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=400&h=711&fit=crop",
     channel: "企業文化",
-    likes: 234000,
     duration: "0:30"
   },
   {
@@ -239,7 +144,6 @@ const shortVideos = [
     title: "新入社員の声",
     thumbnail: "https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=711&fit=crop",
     channel: "新入社員",
-    likes: 178000,
     duration: "0:40"
   },
   {
@@ -247,7 +151,6 @@ const shortVideos = [
     title: "採用担当者からのメッセージ",
     thumbnail: "https://images.unsplash.com/photo-1551434678-e076c223a692?w=400&h=711&fit=crop",
     channel: "採用情報",
-    likes: 98000,
     duration: "0:25"
   },
   {
@@ -255,7 +158,6 @@ const shortVideos = [
     title: "リモートワークの様子",
     thumbnail: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=400&h=711&fit=crop",
     channel: "働き方",
-    likes: 267000,
     duration: "0:35"
   },
   {
@@ -263,7 +165,6 @@ const shortVideos = [
     title: "職種紹介 - 営業職",
     thumbnail: "https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=711&fit=crop",
     channel: "職種紹介",
-    likes: 145000,
     duration: "0:50"
   },
   {
@@ -271,7 +172,6 @@ const shortVideos = [
     title: "インターン体験談",
     thumbnail: "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=400&h=711&fit=crop",
     channel: "インターン",
-    likes: 112000,
     duration: "1:15"
   },
   {
@@ -279,7 +179,6 @@ const shortVideos = [
     title: "福利厚生のご紹介",
     thumbnail: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=400&h=711&fit=crop",
     channel: "福利厚生",
-    likes: 198000,
     duration: "0:30"
   },
   {
@@ -287,7 +186,6 @@ const shortVideos = [
     title: "キャリアパス 成長ストーリー",
     thumbnail: "https://images.unsplash.com/photo-1551434678-e076c223a692?w=400&h=711&fit=crop",
     channel: "キャリア",
-    likes: 223000,
     duration: "0:45"
   },
   {
@@ -295,7 +193,6 @@ const shortVideos = [
     title: "企業理念・ビジョン",
     thumbnail: "https://images.unsplash.com/photo-1497366216548-37526070297c?w=400&h=711&fit=crop",
     channel: "企業紹介",
-    likes: 167000,
     duration: "0:40"
   }
 ];
@@ -403,80 +300,57 @@ const accounts = [
   }
 ];
 
-export default function Home() {
-  const handleScrollToSection = (sectionId: string) => {
-    const element = document.getElementById(sectionId);
-    if (element) {
-      // モバイルとデスクトップでヘッダーの高さが異なる
-      const isMobile = window.innerWidth < 768;
-      const headerHeight = isMobile ? 64 : 72; // モバイル: h-16 = 64px, デスクトップ: h-18 = 72px
-      const elementPosition = element.getBoundingClientRect().top;
-      const offsetPosition = elementPosition + window.pageYOffset - headerHeight;
+export default async function Home() {
+  // 企業データを業界ごとに取得
+  const companiesResult = await getCompaniesByIndustry();
+  const companiesByIndustry = companiesResult.data || new Map();
 
-      window.scrollTo({
-        top: offsetPosition,
-        behavior: "smooth"
-      });
-    }
-  };
+  // 業界リストを取得（空の選択肢は除外）
+  const industries = INDUSTRIES.filter((industry) => industry.value !== "");
 
+  // セクションリストを作成（企業説明セクションは動的に追加）
   const sections = [
     { id: "short", label: "⚡ 就活Shorts" },
-    { id: "documentary", label: "📹 就活ドキュメンタリー" },
-    { id: "company", label: "🏢 企業説明" }
+    { id: "documentary", label: "📹 就活ドキュメンタリー" }
   ];
 
+  // 企業が存在する業界のセクションを追加
+  for (const industry of industries) {
+    const companies = companiesByIndustry.get(industry.value);
+    if (companies && companies.length > 0) {
+      sections.push({
+        id: `company-${industry.value}`,
+        label: industry.label
+      });
+    }
+  }
+
+  // クライアントに渡す業界別企業（Map はシリアライズ不可のため配列に変換）
+  const industrySections = industries
+    .map((industry) => {
+      const companies = companiesByIndustry.get(industry.value);
+      if (!companies || companies.length === 0) return null;
+      return {
+        value: industry.value,
+        label: industry.label,
+        companies: companies.map((c: CompanyWithPage) => ({
+          id: c.id,
+          name: c.name,
+          logo_url: c.logo_url
+        }))
+      };
+    })
+    .filter((s): s is NonNullable<typeof s> => s !== null);
+
   return (
-    <div className="min-h-screen">
-      <HeroSection
-        title={heroProgram.title}
-        description={heroProgram.description}
-        thumbnail={heroProgram.thumbnail}
-        videoUrl={heroProgram.videoUrl}
-        channel={heroProgram.channel}
-        viewers={heroProgram.viewers}
-      />
-      <div className="bg-gray-900">
-        <div className="pt-2 pb-0">
-          <BannerList banners={banners} />
-        </div>
-
-        {/* Section Navigation */}
-        <div className="container mx-auto px-4">
-          <div className="flex items-center gap-2 md:gap-3 flex-wrap">
-            {sections.map((section) => (
-              <button
-                key={section.id}
-                onClick={() => handleScrollToSection(section.id)}
-                className="px-4 py-2 md:px-6 md:py-3 font-semibold text-xs md:text-sm lg:text-base transition-all text-white bg-gray-800 hover:bg-gray-700 rounded-lg border border-gray-700 hover:border-gray-600 shadow-sm hover:shadow-md"
-              >
-                {section.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Section Content */}
-        <div id="short" className="scroll-mt-20 py-8">
-          <ShortVideoSection title="⚡ 就活Shorts" videos={shortVideos} />
-        </div>
-        <AccountList accounts={accounts} />
-        <div id="documentary" className="bg-gray-800/70 py-8 scroll-mt-20 border-y border-gray-700/50">
-          <ProgramSection title="📹 就活ドキュメンタリー" programs={documentaryPrograms} largeCards={true} />
-        </div>
-        <div id="company" className="scroll-mt-20 py-4">
-          <ProgramSection title="🏢 企業説明A" programs={companyPrograms} vertical={true} />
-        </div>
-        <div id="company2" className="scroll-mt-20 py-4">
-          <ProgramSection title="🏢 企業説明B" programs={companyPrograms} vertical={true} />
-        </div>
-        <div id="company3" className="scroll-mt-20 py-4">
-          <ProgramSection title="🏢 企業説明C" programs={companyPrograms} vertical={true} />
-        </div>
-        <div id="company4" className="scroll-mt-20 py-4">
-          <ProgramSection title="🏢 企業説明D" programs={companyPrograms} vertical={true} />
-        </div>
-      </div>
-    </div>
+    <MainPageContent
+      heroProgram={heroProgram}
+      banners={banners}
+      sections={sections}
+      shortVideos={shortVideos}
+      accounts={accounts}
+      documentaryPrograms={documentaryPrograms}
+      industrySections={industrySections}
+    />
   );
 }

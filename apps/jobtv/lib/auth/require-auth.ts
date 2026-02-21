@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import type { UserInfo, UserRole } from "@jobtv-app/shared/auth/types";
+import type { UserInfo, UserRole } from "@jobtv-app/shared/auth";
 import { getRedirectPathByRole } from "./redirect";
 
 /**
@@ -80,6 +80,24 @@ export async function requireRecruiterOrAdmin(): Promise<UserInfo> {
     redirect(getRedirectPathByRole(userInfo.role));
   }
   
+  return userInfo;
+}
+
+/**
+ * Studio（企業担当者向け）用: recruiterまたはadmin権限をチェック
+ * 未認証の場合は /studio/login にリダイレクト
+ */
+export async function requireStudioAuth(): Promise<UserInfo> {
+  const userInfo = await getUserInfoInternal();
+
+  if (!userInfo) {
+    redirect("/studio/login");
+  }
+
+  if (userInfo.role !== "recruiter" && userInfo.role !== "admin") {
+    redirect(getRedirectPathByRole(userInfo.role));
+  }
+
   return userInfo;
 }
 

@@ -30,8 +30,8 @@ export async function ApplicationDetailContent({
         id,
         first_name,
         last_name,
-        email,
-        phone
+        phone,
+        profiles!profiles_candidate_id_fkey (email)
       ),
       job_postings (
         id,
@@ -134,9 +134,9 @@ export async function ApplicationDetailContent({
                     </Link>
                   </Button>
                 </div>
-                {application.candidates?.email && (
+                {application.candidates?.profiles?.email && (
                   <p className="text-sm text-muted-foreground mt-1">
-                    {application.candidates.email}
+                    {application.candidates.profiles.email}
                   </p>
                 )}
                 {application.candidates?.phone && (

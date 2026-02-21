@@ -2,6 +2,8 @@
 
 import ProgramCard from "./ProgramCard";
 import HorizontalScrollContainer from "./HorizontalScrollContainer";
+import { useMainTheme } from "@/components/company/CompanyPageThemeContext";
+import { cn } from "@jobtv-app/shared/utils/cn";
 
 interface Program {
   id: string;
@@ -11,7 +13,6 @@ interface Program {
   time?: string;
   viewers?: number;
   isLive?: boolean;
-  likes?: number;
 }
 
 interface ProgramSectionProps {
@@ -29,6 +30,8 @@ export default function ProgramSection({
   largeCards = false,
   vertical = false
 }: ProgramSectionProps) {
+  const { classes } = useMainTheme();
+
   if (vertical) {
     return (
       <section className="mb-2 py-0">
@@ -36,7 +39,7 @@ export default function ProgramSection({
           {title && (
             <div className="mb-6">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-2xl md:text-3xl font-bold text-white">{title}</h2>
+                <h2 className={cn("text-2xl md:text-3xl font-bold", classes.textPrimary)}>{title}</h2>
                 {showMore && (
                   <a
                     href="#"
@@ -56,7 +59,7 @@ export default function ProgramSection({
               </div>
             </div>
           )}
-          <HorizontalScrollContainer ignoreParentPadding={true}>
+          <HorizontalScrollContainer>
             <div className="flex gap-4 min-w-max px-4 pb-6">
                 {programs.map((program) => (
                   <div key={program.id} className="w-[120px] sm:w-[140px] md:w-[160px] flex-shrink-0">
@@ -67,7 +70,6 @@ export default function ProgramSection({
                       time={program.time}
                       viewers={program.viewers}
                       isLive={program.isLive}
-                      likes={program.likes}
                       vertical={vertical}
                     />
                   </div>
@@ -85,7 +87,7 @@ export default function ProgramSection({
         {title && (
           <div className="mb-6">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-2xl md:text-3xl font-bold text-white">{title}</h2>
+              <h2 className={cn("text-2xl md:text-3xl font-bold", classes.textPrimary)}>{title}</h2>
               {showMore && (
                 <a
                   href="#"
@@ -103,7 +105,7 @@ export default function ProgramSection({
                 </a>
               )}
             </div>
-            <div className="border-b border-gray-700"></div>
+            <div className={cn("border-b", classes.sectionBorder)} />
           </div>
         )}
         <div
@@ -122,7 +124,6 @@ export default function ProgramSection({
               time={program.time}
               viewers={program.viewers}
               isLive={program.isLive}
-              likes={program.likes}
               vertical={vertical}
             />
           ))}

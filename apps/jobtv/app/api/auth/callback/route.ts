@@ -4,8 +4,19 @@ import { NextResponse } from "next/server";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  // if "next" is in search params, use it as the redirection URL
-  const next = searchParams.get("next") ?? "/";
+  const type = searchParams.get("type"); // recovery, invite, etc.
+
+  // パスワードリセットや招待の場合は適切なページにリダイレクト
+  let next = searchParams.get("next");
+  if (!next) {
+    if (type === "recovery" || type === "invite") {
+      // パスワードリセットまたは招待の場合は、パスワード更新ページへ
+      next = `/auth/update-password?type=${type}`;
+    } else {
+      // その他の場合はトップページへ
+      next = "/";
+    }
+  }
 
   if (code) {
     const supabase = await createClient();

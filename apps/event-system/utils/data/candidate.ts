@@ -1,12 +1,12 @@
-import { Candidate } from "@/types/candidate.types";
+import type { CandidateWithEmail } from "@/types/candidate.types";
 
 /**
  * 学生データを検索キーワードでフィルタリング
  */
 export function filterCandidates(
-  candidates: Candidate[],
+  candidates: CandidateWithEmail[],
   keyword: string
-): Candidate[] {
+): CandidateWithEmail[] {
   if (!keyword.trim()) return candidates;
 
   const lowerKeyword = keyword.toLowerCase();
@@ -14,7 +14,7 @@ export function filterCandidates(
   return candidates.filter((c) => {
     const fullName = `${c.last_name} ${c.first_name}`.toLowerCase();
     const fullNameKana = `${c.last_name_kana} ${c.first_name_kana}`.toLowerCase();
-    const email = (c.email || "").toLowerCase();
+    const email = (c.email ?? "").toLowerCase();
     const schoolName = (c.school_name || "").toLowerCase();
 
     return (

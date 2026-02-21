@@ -1,6 +1,8 @@
 "use client";
 
 import { XIcon, InstagramIcon, TikTokIcon, YouTubeIcon } from "@jobtv-app/shared/icons";
+import { useMainTheme } from "./CompanyPageThemeContext";
+import { cn } from "@jobtv-app/shared/utils/cn";
 
 interface CompanySnsIconsProps {
   snsUrls?: {
@@ -14,6 +16,7 @@ interface CompanySnsIconsProps {
 }
 
 export default function CompanySnsIcons({ snsUrls, currentPageUrl, className = "" }: CompanySnsIconsProps) {
+  const { classes } = useMainTheme();
   // URLが設定されているアイコンのみを表示
   const icons = [];
 
@@ -44,7 +47,7 @@ export default function CompanySnsIcons({ snsUrls, currentPageUrl, className = "
       href: snsUrls.x,
       label: "X",
       icon: XIcon,
-      hoverColor: "group-hover:text-black dark:group-hover:text-white"
+      hoverColor: "group-hover:text-black"
     });
   }
 
@@ -63,17 +66,17 @@ export default function CompanySnsIcons({ snsUrls, currentPageUrl, className = "
   }
 
   return (
-    <div className={`flex items-center gap-3 md:gap-4 ${className}`}>
+    <div className={cn("flex items-center gap-3 md:gap-4", className)}>
       {icons.map(({ key, href, label, icon: Icon, hoverColor }) => (
         <a
           key={key}
           href={href}
           target="_blank"
           rel="noopener noreferrer"
-          className="p-2.5 md:p-3 bg-gray-700 hover:bg-gray-600 rounded-md transition-colors border border-gray-600 group"
+          className={cn("p-2.5 md:p-3 rounded-md transition-colors group", classes.snsButtonBg, classes.snsButtonBorder, "hover:opacity-90")}
           aria-label={label}
         >
-          <Icon className={`w-4 h-4 md:w-5 md:h-5 text-gray-400 ${hoverColor} transition-colors`} />
+          <Icon className={cn("w-4 h-4 md:w-5 md:h-5", classes.snsIcon, hoverColor, "transition-colors")} />
         </a>
       ))}
     </div>

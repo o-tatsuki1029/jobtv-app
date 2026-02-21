@@ -19,3 +19,4 @@ CREATE POLICY "Public can view active session dates"
 -- コメントを更新
 COMMENT ON POLICY "Public can view active session dates" ON session_dates IS '公開中の説明会の日程は誰でも閲覧可能';
 
+

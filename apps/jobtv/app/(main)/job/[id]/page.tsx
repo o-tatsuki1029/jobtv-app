@@ -124,6 +124,11 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
     notFound();
   }
 
+  // 企業ページ情報からカバー画像を取得
+  const companyCoverImage = (company as any).cover_image_url || null;
+  // companiesテーブルのIDを確実に使用（company_pagesのidで上書きされないように）
+  const companyId = job.company_id || company.id;
+
   const jobData = {
     id: job.id,
     title: job.title || "",
@@ -136,9 +141,19 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
     selectionProcess: job.selection_process || "",
     companyName: company.name,
     companyLogo: company.logo_url || "",
-    coverImage: job.cover_image_url || undefined,
+    coverImage: job.cover_image_url || companyCoverImage || undefined,
     workLocation: locationText || undefined,
-    workConditions: job.employment_type || undefined
+    workConditions: job.employment_type || undefined,
+    prefecture: job.prefecture || undefined,
+    locationDetail: job.location_detail || undefined,
+    companyId: companyId,
+    companyIndustry: company.industry || undefined,
+    companyAddressLine1: (company as any).address_line1 || undefined,
+    companyAddressLine2: (company as any).address_line2 || undefined,
+    companyPrefecture: (company as any).prefecture || undefined,
+    companyEstablished: (company as any).established || undefined,
+    companyEmployees: (company as any).employees || undefined,
+    companyBenefits: Array.isArray((company as any).benefits) ? (company as any).benefits : undefined
   };
 
   return <JobDetailView job={jobData} />;

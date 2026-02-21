@@ -1,5 +1,6 @@
 "use server";
 
+import type { TablesInsert } from "@jobtv-app/shared/types";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 

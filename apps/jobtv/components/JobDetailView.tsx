@@ -3,7 +3,17 @@
 import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { MapPin, Briefcase, Clock, CheckCircle2, ChevronRight, Building } from "lucide-react";
+import { MapPin, Briefcase, Clock, ChevronRight, Calendar, Users } from "lucide-react";
+import {
+  STICKY_SIDEBAR_TOP_WITH_HEADER_CLASS,
+  STICKY_SIDEBAR_TOP_WITHOUT_HEADER_CLASS
+} from "@/constants/header-layout";
+import { useMainTheme } from "@/components/company/CompanyPageThemeContext";
+import CompanyDetailsBlock from "@/components/company/CompanyDetailsBlock";
+import CompanyEntryCtaButton from "@/components/company/CompanyEntryCtaButton";
+import CompanyEntryModal from "@/components/company/CompanyEntryModal";
+import type { EntryModalJob } from "@/components/company/CompanyEntryModal";
+import { cn } from "@jobtv-app/shared/utils/cn";
 
 export interface JobData {
   id: string;
@@ -20,10 +30,34 @@ export interface JobData {
   companyName: string;
   companyLogo: string;
   coverImage?: string;
+  prefecture?: string;
+  locationDetail?: string;
+  companyId?: string;
+  companyIndustry?: string;
+  companyAddressLine1?: string;
+  companyAddressLine2?: string;
+  companyPrefecture?: string;
+  companyEstablished?: string;
+  companyEmployees?: string;
+  companyBenefits?: string[];
 }
 
 export default function JobDetailView({ job }: { job: JobData }) {
   const [showStickyButton, setShowStickyButton] = useState(false);
+  const [isEntryModalOpen, setIsEntryModalOpen] = useState(false);
+  const { classes, hasHeader, theme } = useMainTheme();
+
+  const jobsForModal: EntryModalJob[] = [
+    {
+      id: job.id,
+      title: job.title,
+      location: job.location || undefined,
+      graduationYear: job.graduationYear,
+      coverImage: job.coverImage,
+      prefecture: job.prefecture,
+      employmentType: job.workConditions
+    }
+  ];
 
   useEffect(() => {
     const handleScroll = () => {
@@ -44,42 +78,48 @@ export default function JobDetailView({ job }: { job: JobData }) {
   }, []);
 
   return (
-    <div className="min-h-screen text-white">
+    <div className={cn("min-h-screen", classes.pageBg, classes.pageText)}>
       {/* ヒーローセクション */}
-      <section className="relative py-12 md:py-20 border-b border-gray-800 overflow-hidden bg-gray-800/50">
+      <section
+        className={cn("relative py-12 md:py-20 overflow-hidden", classes.heroSectionBg, classes.heroSectionBorder)}
+      >
         {job.coverImage && (
           <>
             <div className="absolute inset-0 z-0">
               <Image src={job.coverImage} alt={job.title} fill className="object-cover" priority />
             </div>
-            <div className="absolute inset-0 z-0 bg-black/60" />
+            <div className={cn("absolute inset-0 z-0", theme === "light" ? "bg-black/40" : "bg-black/60")} />
           </>
         )}
-        <div className="container mx-auto px-4 relative z-10">
+        <div className={cn("container mx-auto px-4 relative z-10", job.coverImage && "text-white")}>
           <div className="max-w-4xl">
-            <div className="flex items-center gap-3 mb-6">
-              <span className="px-2 py-0.5 bg-red-600/10 text-red-500 text-[10px] md:text-xs font-bold rounded border border-red-600/20">
+            <div className="flex items-center gap-2 mb-6 flex-wrap">
+              <span className="px-2.5 py-1 bg-red-600/80 text-white text-xs md:text-sm font-bold rounded border border-red-600">
                 {job.graduationYear || "2028年卒"}
               </span>
-              <span className="flex items-center gap-1.5 text-gray-400 text-xs font-bold">
-                <Clock className="w-3.5 h-3.5" />
-                2日前
-              </span>
             </div>
-            <h1 className="text-2xl md:text-4xl font-black mb-8 leading-tight text-white bg-black/40 backdrop-blur-sm px-4 py-3 rounded-lg inline-block">
+            <h1
+              className={cn(
+                "text-2xl md:text-4xl font-black leading-tight bg-black/40 backdrop-blur-sm px-4 py-3 rounded-lg inline-block",
+                job.coverImage ? "text-white" : classes.textPrimary
+              )}
+            >
               {job.title}
             </h1>
-            <div className="flex flex-wrap gap-6 text-sm md:text-base">
-              <div className="flex items-center gap-2 text-gray-300">
-                <div className="w-10 h-10 rounded-xl bg-gray-800 flex items-center justify-center border border-gray-700">
-                  <MapPin className="w-5 h-5 text-red-500" />
-                </div>
-                <div>
-                  <p className="text-[10px] text-gray-500 font-bold uppercase">勤務地</p>
-                  <p className="font-bold">{job.location}</p>
-                </div>
+            {(job.workConditions || job.prefecture || job.locationDetail) && (
+              <div className="flex items-center gap-2 mt-4 flex-wrap">
+                {job.workConditions && (
+                  <span className="px-2.5 py-1 bg-blue-600/80 text-white text-xs md:text-sm font-bold rounded border border-blue-600">
+                    {job.workConditions}
+                  </span>
+                )}
+                {(job.prefecture || job.locationDetail) && (
+                  <span className="px-2.5 py-1 bg-gray-600/80 text-white text-xs md:text-sm font-bold rounded border border-gray-600">
+                    {[job.prefecture, job.locationDetail].filter(Boolean).join("/")}
+                  </span>
+                )}
               </div>
-            </div>
+            )}
           </div>
         </div>
       </section>
@@ -90,126 +130,208 @@ export default function JobDetailView({ job }: { job: JobData }) {
           <div className="lg:col-span-2 space-y-12">
             {/* エントリーボタン（SP版のみ） */}
             <section className="lg:hidden">
-              <button className="w-full py-4 bg-gradient-to-br from-red-600 to-pink-800 hover:from-red-500 hover:to-pink-700 text-white rounded-md font-bold text-base transition-all transform active:scale-[0.9] cursor-pointer">
+              <CompanyEntryCtaButton onClick={() => setIsEntryModalOpen(true)} className="w-full py-4 text-base">
                 この求人にエントリー
-              </button>
+              </CompanyEntryCtaButton>
             </section>
+
+            {/* 勤務条件・勤務地 */}
+            {(job.workConditions || job.workLocation || job.graduationYear) && (
+              <section className="space-y-6">
+                <div className={cn("p-6 md:p-8 rounded-lg", classes.cardBg)}>
+                  <div className="flex flex-wrap gap-6">
+                    {job.graduationYear && (
+                      <div className="flex items-start gap-3 flex-1 min-w-[200px]">
+                        <div
+                          className={cn(
+                            "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0",
+                            classes.iconBoxBg,
+                            classes.iconBoxBorder
+                          )}
+                        >
+                          <Clock className="w-5 h-5 text-red-500" />
+                        </div>
+                        <div>
+                          <p className={cn("text-[10px] font-bold uppercase mb-1", classes.textMuted)}>対象卒年度</p>
+                          <p className={cn("text-sm md:text-base", classes.textSecondary)}>{job.graduationYear}</p>
+                        </div>
+                      </div>
+                    )}
+                    {job.workConditions && (
+                      <div className="flex items-start gap-3 flex-1 min-w-[200px]">
+                        <div
+                          className={cn(
+                            "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0",
+                            classes.iconBoxBg,
+                            classes.iconBoxBorder
+                          )}
+                        >
+                          <Briefcase className="w-5 h-5 text-red-500" />
+                        </div>
+                        <div>
+                          <p className={cn("text-[10px] font-bold uppercase mb-1", classes.textMuted)}>勤務条件</p>
+                          <p className={cn("text-sm md:text-base whitespace-pre-wrap", classes.textSecondary)}>
+                            {job.workConditions}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    {job.workLocation && (
+                      <div className="flex items-start gap-3 flex-1 min-w-[200px]">
+                        <div
+                          className={cn(
+                            "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0",
+                            classes.iconBoxBg,
+                            classes.iconBoxBorder
+                          )}
+                        >
+                          <MapPin className="w-5 h-5 text-red-500" />
+                        </div>
+                        <div>
+                          <p className={cn("text-[10px] font-bold uppercase mb-1", classes.textMuted)}>勤務地</p>
+                          <p className={cn("text-sm md:text-base whitespace-pre-wrap", classes.textSecondary)}>
+                            {job.workLocation}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </section>
+            )}
 
             {/* 職務内容 */}
-            <section className="space-y-6">
-              <h2 className="text-xl md:text-2xl font-black flex items-center gap-3">
-                <span className="w-1.5 h-6 bg-red-600 rounded-full" />
-                職務内容
-              </h2>
-              <div className="bg-gray-800/50 p-6 md:p-8 rounded-lg leading-relaxed text-gray-300 whitespace-pre-wrap">
-                {job.description || "職務内容が登録されていません。"}
-              </div>
-            </section>
-
-            {/* 勤務地 */}
-            {job.workLocation && (
+            {job.description && (
               <section className="space-y-6">
-                <h2 className="text-xl md:text-2xl font-black flex items-center gap-3">
+                <h2 className={cn("text-xl md:text-2xl font-black flex items-center gap-3", classes.textPrimary)}>
                   <span className="w-1.5 h-6 bg-red-600 rounded-full" />
-                  勤務地
+                  職務内容
                 </h2>
-                <div className="bg-gray-800/50 p-6 md:p-8 rounded-lg leading-relaxed text-gray-300 whitespace-pre-wrap">
-                  {job.workLocation}
+                <div
+                  className={cn(
+                    "p-6 md:p-8 rounded-lg leading-relaxed whitespace-pre-wrap",
+                    classes.cardBg,
+                    classes.textSecondary
+                  )}
+                >
+                  {job.description}
                 </div>
               </section>
             )}
 
             {/* 応募資格 */}
-            <section className="space-y-6">
-              <h2 className="text-xl md:text-2xl font-black flex items-center gap-3">
-                <span className="w-1.5 h-6 bg-red-600 rounded-full" />
-                応募資格
-              </h2>
-              <div className="bg-gray-800/50 p-6 md:p-8 rounded-lg leading-relaxed text-gray-300 whitespace-pre-wrap">
-                {job.requirements || "応募資格が登録されていません。"}
-              </div>
-            </section>
-
-            {/* 選考フロー */}
-            <section className="space-y-6">
-              <h2 className="text-xl md:text-2xl font-black flex items-center gap-3">
-                <span className="w-1.5 h-6 bg-red-600 rounded-full" />
-                選考フロー
-              </h2>
-              <div className="bg-gray-800/50 p-6 md:p-8 rounded-lg leading-relaxed text-gray-300 whitespace-pre-wrap">
-                {job.selectionProcess || "選考フローが登録されていません。"}
-              </div>
-            </section>
+            {job.requirements && (
+              <section className="space-y-6">
+                <h2 className={cn("text-xl md:text-2xl font-black flex items-center gap-3", classes.textPrimary)}>
+                  <span className="w-1.5 h-6 bg-red-600 rounded-full" />
+                  応募資格
+                </h2>
+                <div
+                  className={cn(
+                    "p-6 md:p-8 rounded-lg leading-relaxed whitespace-pre-wrap",
+                    classes.cardBg,
+                    classes.textSecondary
+                  )}
+                >
+                  {job.requirements}
+                </div>
+              </section>
+            )}
 
             {/* 福利厚生 */}
-            <section className="space-y-6">
-              <h2 className="text-xl md:text-2xl font-black flex items-center gap-3">
-                <span className="w-1.5 h-6 bg-red-600 rounded-full" />
-                福利厚生・制度
-              </h2>
-              <div className="bg-gray-800/50 p-6 md:p-8 rounded-lg leading-relaxed text-gray-300 whitespace-pre-wrap">
-                {job.benefits || "福利厚生が登録されていません。"}
-              </div>
-            </section>
-
-            {/* 勤務条件 */}
-            {job.workConditions && (
+            {job.benefits && (
               <section className="space-y-6">
-                <h2 className="text-xl md:text-2xl font-black flex items-center gap-3">
+                <h2 className={cn("text-xl md:text-2xl font-black flex items-center gap-3", classes.textPrimary)}>
                   <span className="w-1.5 h-6 bg-red-600 rounded-full" />
-                  勤務条件
+                  福利厚生
                 </h2>
-                <div className="bg-gray-800/50 p-6 md:p-8 rounded-lg leading-relaxed text-gray-300 whitespace-pre-wrap">
-                  {job.workConditions}
+                <div
+                  className={cn(
+                    "p-6 md:p-8 rounded-lg leading-relaxed whitespace-pre-wrap",
+                    classes.cardBg,
+                    classes.textSecondary
+                  )}
+                >
+                  {job.benefits}
+                </div>
+              </section>
+            )}
+
+            {/* 選考フロー */}
+            {job.selectionProcess && (
+              <section className="space-y-6">
+                <h2 className={cn("text-xl md:text-2xl font-black flex items-center gap-3", classes.textPrimary)}>
+                  <span className="w-1.5 h-6 bg-red-600 rounded-full" />
+                  選考フロー
+                </h2>
+                <div
+                  className={cn(
+                    "p-6 md:p-8 rounded-lg leading-relaxed whitespace-pre-wrap",
+                    classes.cardBg,
+                    classes.textSecondary
+                  )}
+                >
+                  {job.selectionProcess}
                 </div>
               </section>
             )}
           </div>
 
           {/* サイドバー */}
-          <div className="sticky top-5 space-y-6">
+          <div
+            className={cn(
+              "sticky self-start space-y-6",
+              hasHeader ? STICKY_SIDEBAR_TOP_WITH_HEADER_CLASS : STICKY_SIDEBAR_TOP_WITHOUT_HEADER_CLASS
+            )}
+          >
             {/* 企業情報カード */}
-            <div className="bg-gray-800/50 p-6 rounded-lg shadow-xl">
-              <h3 className="text-xs font-black text-gray-500 uppercase tracking-widest mb-6">募集企業</h3>
+            <div className={cn("p-6 rounded-lg shadow-xl", classes.cardBg)}>
+              <h3 className={cn("text-xs font-black uppercase tracking-widest mb-6", classes.textMuted)}>募集企業</h3>
               <div className="flex items-center gap-4 mb-6">
-                <div className="relative w-16 h-16 flex-shrink-0">
-                  <Image
-                    src={job.companyLogo}
-                    alt={job.companyName}
-                    fill
-                    className="object-cover rounded-md border border-gray-700"
-                  />
+                <div className={cn("relative w-16 h-16 flex-shrink-0 bg-white rounded-md", classes.cardBorder)}>
+                  <Image src={job.companyLogo} alt={job.companyName} fill className="object-contain rounded-md" />
                 </div>
                 <div>
-                  <p className="font-black text-lg leading-tight">{job.companyName}</p>
+                  <p className={cn("font-black text-lg leading-tight", classes.textPrimary)}>{job.companyName}</p>
+                  {job.companyIndustry && (
+                    <p className={cn("text-xs mt-1", classes.textMuted)}>{job.companyIndustry}</p>
+                  )}
+                </div>
+              </div>
+              <div>
+                <CompanyEntryCtaButton onClick={() => setIsEntryModalOpen(true)} className="w-full py-4 text-lg">
+                  この求人にエントリー
+                </CompanyEntryCtaButton>
+              </div>
+
+              {/* 企業情報（本社所在地〜おすすめポイント・企業ページと共通） */}
+              <div className="mt-6">
+                <CompanyDetailsBlock
+                  prefecture={job.companyPrefecture}
+                  addressLine1={job.companyAddressLine1}
+                  addressLine2={job.companyAddressLine2}
+                  established={job.companyEstablished}
+                  employees={job.companyEmployees}
+                  benefits={job.companyBenefits}
+                />
+              </div>
+
+              {job.companyId && (
+                <div className={cn("mt-6 pt-6 border-t", classes.sectionBorder)}>
                   <Link
-                    href="#"
-                    className="text-xs text-red-500 font-bold hover:underline flex items-center gap-1 mt-1"
+                    href={`/company/${job.companyId}`}
+                    className={cn(
+                      "w-full py-3 bg-transparent rounded-md font-bold text-sm transition-all flex items-center justify-center gap-2",
+                      classes.cardBorder,
+                      classes.textPrimary,
+                      "hover:opacity-90"
+                    )}
                   >
                     企業詳細を見る
-                    <ChevronRight className="w-3 h-3" />
+                    <ChevronRight className="w-4 h-4" />
                   </Link>
                 </div>
-              </div>
-              <div className="pt-6 border-t border-gray-700 space-y-4">
-                <button className="w-full py-4 bg-gradient-to-br from-red-600 to-pink-800 hover:from-red-500 hover:to-pink-700 text-white rounded-md font-bold text-lg transition-all transform active:scale-[0.9] cursor-pointer">
-                  この求人にエントリー
-                </button>
-                <p className="text-[10px] text-center text-gray-500 font-bold">エントリーにはログインが必要です</p>
-              </div>
-            </div>
-
-            {/* 安全な取引のためのヒントなど */}
-            <div className="bg-gray-800/50 p-6 rounded-lg border border-gray-800 border-dashed">
-              <div className="flex items-start gap-3">
-                <CheckCircle2 className="w-5 h-5 text-gray-600 mt-0.5" />
-                <div>
-                  <p className="text-xs font-bold text-gray-400">JOBTV安心への取り組み</p>
-                  <p className="text-[10px] text-gray-500 mt-1 leading-relaxed">
-                    掲載されている求人情報は、JOBTVの審査を通過した信頼できる企業のものです。
-                  </p>
-                </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
@@ -221,7 +343,7 @@ export default function JobDetailView({ job }: { job: JobData }) {
           showStickyButton ? "translate-y-0" : "translate-y-full"
         }`}
       >
-        <div className="bg-gray-800/30 backdrop-blur-sm border-t border-gray-800 shadow-lg">
+        <div className={cn("shadow-lg", classes.stickyBarBg, classes.stickyBarBorder)}>
           <div className="container mx-auto px-4 py-3 md:py-4">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
@@ -229,17 +351,27 @@ export default function JobDetailView({ job }: { job: JobData }) {
                   <Image src={job.companyLogo} alt={job.companyName} fill className="object-contain rounded" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h3 className="text-sm md:text-base font-bold text-white truncate">{job.title}</h3>
-                  <p className="text-xs md:text-sm text-gray-400 truncate">{job.companyName}</p>
+                  <h3 className={cn("text-sm md:text-base font-bold truncate", classes.textPrimary)}>{job.title}</h3>
+                  <p className={cn("text-xs md:text-sm truncate", classes.textMuted)}>{job.companyName}</p>
                 </div>
               </div>
-              <button className="flex-shrink-0 px-6 py-3 md:px-8 md:py-3.5 bg-gradient-to-br from-red-600 to-pink-800 hover:from-red-500 hover:to-pink-700 text-white rounded-md font-bold text-sm md:text-base transition-all transform active:scale-[0.9] cursor-pointer whitespace-nowrap">
+              <CompanyEntryCtaButton
+                onClick={() => setIsEntryModalOpen(true)}
+                className="flex-shrink-0 px-6 py-3 md:px-8 md:py-3.5 text-sm md:text-base whitespace-nowrap"
+              >
                 この求人にエントリー
-              </button>
+              </CompanyEntryCtaButton>
             </div>
           </div>
         </div>
       </div>
+
+      <CompanyEntryModal
+        isOpen={isEntryModalOpen}
+        onClose={() => setIsEntryModalOpen(false)}
+        jobs={jobsForModal}
+        returnTo={job.companyId ? `/job/${job.id}` : undefined}
+      />
     </div>
   );
 }

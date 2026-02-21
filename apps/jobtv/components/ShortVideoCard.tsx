@@ -1,20 +1,23 @@
 "use client";
 
 import Image from "next/image";
+import { useMainTheme } from "@/components/company/CompanyPageThemeContext";
+import { cn } from "@jobtv-app/shared/utils/cn";
+import { HORIZONTAL_CARD_ASPECT_RATIO_CLASS } from "@/constants/card-layout";
 
 interface ShortVideoCardProps {
   title: string;
   thumbnail?: string | null;
   channel: string;
-  likes?: number;
   duration?: string;
   onClick?: () => void;
 }
 
-export default function ShortVideoCard({ title, thumbnail, channel, likes, duration, onClick }: ShortVideoCardProps) {
+export default function ShortVideoCard({ title, thumbnail, channel, duration, onClick }: ShortVideoCardProps) {
+  const { classes } = useMainTheme();
   return (
     <div className="group cursor-pointer" onClick={onClick}>
-      <div className="relative aspect-[9/16] overflow-hidden rounded-lg bg-gray-900 mb-3 shadow-sm group-hover:shadow-lg transition-shadow duration-300">
+      <div className={cn("relative overflow-hidden rounded-lg bg-gray-900 mb-3 shadow-sm group-hover:shadow-lg transition-shadow duration-300", HORIZONTAL_CARD_ASPECT_RATIO_CLASS)}>
         {thumbnail ? (
           <Image
             src={thumbnail}
@@ -64,23 +67,11 @@ export default function ShortVideoCard({ title, thumbnail, channel, likes, durat
         </div>
       </div>
       <div className="px-1">
-        <h3 className="text-sm font-semibold text-white line-clamp-2 group-hover:text-red-500 transition-colors mb-1.5 leading-snug">
+        <h3 className={cn("text-sm font-semibold line-clamp-2 group-hover:text-red-500 transition-colors mb-1.5 leading-snug", classes.textPrimary)}>
           {title}
         </h3>
-        <div className="flex items-center justify-between text-xs text-gray-400 font-medium">
+        <div className={cn("text-xs font-medium", classes.textMuted)}>
           <span>{channel}</span>
-          {likes && (
-            <span className="flex items-center gap-1">
-              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fillRule="evenodd"
-                  d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              {likes >= 10000 ? `${(likes / 10000).toFixed(1)}万` : likes.toLocaleString()}
-            </span>
-          )}
         </div>
       </div>
     </div>

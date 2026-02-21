@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Candidate } from "@/types/candidate.types";
 import { downloadCSVAsShiftJIS } from "@/utils/data/csv";
 import Button from "../Button";
 
+import type { CandidateWithEmail } from "@/types/candidate.types";
+
 type CandidateCSVExportProps = {
   keyword: string;
-  sortKey: keyof Candidate;
+  sortKey: keyof CandidateWithEmail;
   sortAsc: boolean;
 };
 
@@ -24,18 +25,39 @@ export default function CandidateCSVExport({
     try {
       const supabase = createClient();
 
-      // 検索条件に合う全データを取得（ページネーションなし）
-      let query = supabase.from("candidates").select("*");
+      // 検索条件に合う全データを取得（メールは profiles から join、ページネーションなし）
+      let query = supabase.from("candidates").select(
+        "*, profiles!profiles_candidate_id_fkey(email)"
+      );
 
       if (keyword) {
-        query = query.or(
-          `last_name.ilike.%${keyword}%,first_name.ilike.%${keyword}%,last_name_kana.ilike.%${keyword}%,first_name_kana.ilike.%${keyword}%,school_name.ilike.%${keyword}%`
-        );
+        const { data: profileIds } = await supabase
+          .from("profiles")
+          .select("candidate_id")
+          .ilike("email", `%${keyword}%`);
+        const candidateIdsFromEmail = (profileIds ?? []).map((p) => p.candidate_id).filter(Boolean);
+        const orParts = [
+          `last_name.ilike.%${keyword}%`,
+          `first_name.ilike.%${keyword}%`,
+          `last_name_kana.ilike.%${keyword}%`,
+          `first_name_kana.ilike.%${keyword}%`,
+          `school_name.ilike.%${keyword}%`,
+        ];
+        if (candidateIdsFromEmail.length > 0) {
+          orParts.push(`id.in.(${candidateIdsFromEmail.join(",")})`);
+        }
+        query = query.or(orParts.join(","));
       }
 
-      const { data, error } = await query.order(String(sortKey), {
+      const { data: rawData, error } = await query.order(String(sortKey), {
         ascending: sortAsc,
       });
+
+      type Row = (NonNullable<typeof rawData>[number]) & { profiles?: { email: string | null } | null };
+      const data = (rawData ?? []).map((row: Row) => ({
+        ...row,
+        email: row.profiles?.email ?? null,
+      }));
 
       if (error) {
         console.error("エクスポートエラー:", error);
@@ -64,7 +86,7 @@ export default function CandidateCSVExport({
         "生年月日",
         "希望業界",
         "希望職種",
-        "居住地",
+        "希望勤務地",
         "エントリーチャネル",
         "utm_source",
         "utm_medium",
@@ -94,7 +116,7 @@ export default function CandidateCSVExport({
         js.date_of_birth || "",
         js.desired_industry || "",
         js.desired_job_type || "",
-        js.residence_location || "",
+        js.desired_work_location || "",
         js.entry_channel || "",
         js.utm_source || "",
         js.utm_medium || "",

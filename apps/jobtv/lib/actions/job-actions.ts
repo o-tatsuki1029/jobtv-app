@@ -2,7 +2,12 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { getUserCompanyId } from "@jobtv-app/shared/actions/company-utils";
 import type { TablesInsert, TablesUpdate } from "@jobtv-app/shared/types";
+
+/** 一覧表示用：取得するドラフト列（軽量化） */
+const LIST_JOB_DRAFT_COLUMNS =
+  "id,company_id,title,draft_status,production_job_id,cover_image_url,graduation_year,prefecture,location_detail,employment_type,created_at";
 
 export type JobData = Partial<TablesInsert<"job_postings">> & { id?: string };
 export type JobDraftData = Partial<TablesInsert<"job_postings_draft">> & { id?: string };
@@ -392,93 +397,95 @@ export async function getJobDraft(id: string) {
 }
 
 /**
- * 求人draft一覧を取得（ログインユーザーの企業のdraftのみ）
- * 本番テーブルのdisplay_orderでソート
+ * 企業ID指定で求人ドラフト一覧を取得（一覧用・select 絞り。本番の display_order でソート）
  */
-export async function getJobDrafts() {
+async function getJobDraftsByCompanyId(companyId: string) {
   const supabase = await createClient();
-
-  // 現在のユーザーIDを取得
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return {
-      data: null,
-      error: "ログインが必要です"
-    };
-  }
-
-  // ユーザーのcompany_idを取得
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("company_id")
-    .eq("id", user.id)
-    .single();
-
-  if (profileError || !profile?.company_id) {
-    return {
-      data: null,
-      error: "企業情報が見つかりません"
-    };
-  }
-
-  // ドラフト一覧を取得
   const { data: drafts, error } = await supabase
     .from("job_postings_draft")
-    .select("*")
-    .eq("company_id", profile.company_id)
+    .select(LIST_JOB_DRAFT_COLUMNS)
+    .eq("company_id", companyId)
     .order("created_at", { ascending: false });
 
   if (error) {
     console.error("Get job drafts error:", error);
     return { data: null, error: error.message };
   }
+  if (!drafts || drafts.length === 0) return { data: [], error: null };
 
-  if (!drafts || drafts.length === 0) {
-    return { data: [], error: null };
-  }
-
-  // 本番IDを持つドラフトの本番テーブルからdisplay_orderを取得
-  const productionIds = drafts
-    .filter((d) => d.production_job_id)
-    .map((d) => d.production_job_id!);
-
+  const productionIds = drafts.filter((d) => d.production_job_id).map((d) => d.production_job_id!);
   let productionDisplayOrders: Record<string, number | null> = {};
   if (productionIds.length > 0) {
     const { data: productions } = await supabase
       .from("job_postings")
       .select("id, display_order")
       .in("id", productionIds);
-
-    if (productions) {
-      for (const p of productions) {
-        productionDisplayOrders[p.id] = p.display_order;
-      }
-    }
+    if (productions) for (const p of productions) productionDisplayOrders[p.id] = p.display_order;
   }
 
-  // ドラフトに本番のdisplay_orderをマージしてソート
   const draftsWithOrder = drafts.map((draft) => ({
     ...draft,
-    display_order: draft.production_job_id
-      ? productionDisplayOrders[draft.production_job_id] ?? null
-      : null
+    display_order: draft.production_job_id ? productionDisplayOrders[draft.production_job_id] ?? null : null
   }));
-
-  // display_orderでソート（nullは後ろ）
   draftsWithOrder.sort((a, b) => {
-    if (a.display_order === null && b.display_order === null) {
-      // 両方nullの場合はcreated_atの降順
+    if (a.display_order === null && b.display_order === null)
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    }
     if (a.display_order === null) return 1;
     if (b.display_order === null) return -1;
     return a.display_order - b.display_order;
   });
-
   return { data: draftsWithOrder, error: null };
+}
+
+/**
+ * 求人draft一覧を取得（ログインユーザーの企業のdraftのみ。一覧用に select 絞り）
+ */
+export async function getJobDrafts() {
+  const supabase = await createClient();
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+  if (!user) return { data: null, error: "ログインが必要です" };
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("company_id")
+    .eq("id", user.id)
+    .single();
+  if (profileError || !profile?.company_id) return { data: null, error: "企業情報が見つかりません" };
+
+  return getJobDraftsByCompanyId(profile.company_id);
+}
+
+/**
+ * スタジオ求人一覧用：認証1回でドラフト一覧＋応募数を返す（カバー画像は別途遅延取得）
+ */
+export async function getStudioJobsPageData(): Promise<{
+  data: Awaited<ReturnType<typeof getJobDrafts>>["data"] extends infer T ? T : never;
+  error: string | null;
+}> {
+  const { companyId, error: companyError } = await getUserCompanyId();
+  if (companyError) return { data: null, error: companyError };
+
+  const { data, error } = await getJobDraftsByCompanyId(companyId);
+  if (error) return { data: null, error };
+  if (!data || data.length === 0) return { data: [], error: null };
+
+  const productionJobIds = data.filter((d) => d.production_job_id).map((d) => d.production_job_id!);
+  const { data: countsData } =
+    productionJobIds.length > 0 ? await getJobApplicationCounts(productionJobIds) : { data: {} };
+  const counts = (countsData || {}) as Record<string, number>;
+
+  const jobsWithCounts = data.map((draft) => ({
+    ...draft,
+    id: draft.id,
+    status:
+      draft.draft_status === "approved" ? "active" : draft.draft_status === "rejected" ? "closed" : "draft",
+    draft_status: draft.draft_status,
+    entryCount: draft.production_job_id ? (counts[draft.production_job_id] ?? 0) : 0
+  }));
+
+  return { data: jobsWithCounts, error: null };
 }
 
 /**

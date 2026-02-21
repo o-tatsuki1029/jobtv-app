@@ -1,6 +1,8 @@
 "use client";
 
 import Image from "next/image";
+import { useMainTheme } from "@/components/company/CompanyPageThemeContext";
+import { cn } from "@jobtv-app/shared/utils/cn";
 
 interface ProgramCardProps {
   title: string;
@@ -9,7 +11,6 @@ interface ProgramCardProps {
   time?: string;
   viewers?: number;
   isLive?: boolean;
-  likes?: number;
   vertical?: boolean;
 }
 
@@ -20,9 +21,10 @@ export default function ProgramCard({
   time,
   viewers,
   isLive = false,
-  likes,
   vertical = false
 }: ProgramCardProps) {
+  const { classes } = useMainTheme();
+
   return (
     <div className="group cursor-pointer">
       <div
@@ -68,20 +70,6 @@ export default function ProgramCard({
             </span>
           </div>
         )}
-        {likes && (
-          <div className="absolute bottom-2 right-2">
-            <span className="px-2 py-1 bg-black/70 text-white text-xs rounded backdrop-blur-sm flex items-center gap-1">
-              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fillRule="evenodd"
-                  d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              {likes >= 10000 ? `${(likes / 10000).toFixed(1)}万` : likes.toLocaleString()}
-            </span>
-          </div>
-        )}
         {time && !vertical && (
           <div className="absolute bottom-2 left-2">
             <span className="px-2 py-1 bg-black/70 text-white text-xs rounded backdrop-blur-sm">{time}</span>
@@ -103,8 +91,8 @@ export default function ProgramCard({
         </div>
       </div>
       <div className="px-1">
-        <p className="text-xs text-gray-400 mb-1.5 font-medium">{channel}</p>
-        <h3 className="text-sm font-semibold text-white line-clamp-2 group-hover:text-red-500 transition-colors leading-snug">
+        <p className={cn("text-xs mb-1.5 font-medium", classes.textMuted)}>{channel}</p>
+        <h3 className={cn("text-sm font-semibold line-clamp-2 group-hover:text-red-500 transition-colors leading-snug", classes.textPrimary)}>
           {title}
         </h3>
       </div>

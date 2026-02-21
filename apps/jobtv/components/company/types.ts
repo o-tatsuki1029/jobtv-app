@@ -12,9 +12,7 @@ export interface CompanyData {
   mainVideo?: string;
   industry: string;
   employees: string;
-  location: string;
   prefecture?: string;
-  address: string;
   addressLine1: string;
   addressLine2: string;
   representative: string;
@@ -55,12 +53,10 @@ export interface CompanyProfileFormData {
   tagline?: string;
   logo_url?: string;
   cover_image_url?: string;
-  industry?: string;
-  employees?: string;
-  location?: string;
-  address?: string;
-  address_line1?: string;
-  address_line2?: string;
+    industry?: string;
+    employees?: string;
+    address_line1?: string;
+    address_line2?: string;
   representative?: string;
   capital?: string;
   established?: string;
@@ -95,9 +91,7 @@ export function dbToCompanyData(
     logo_url?: string | null;
     industry?: string | null;
     employees?: string | null;
-    location?: string | null;
     prefecture?: string | null;
-    address?: string | null;
     address_line1?: string | null;
     address_line2?: string | null;
     representative?: string | null;
@@ -203,9 +197,7 @@ export function dbToCompanyData(
       : (dbCompany.main_video_url || undefined),
     industry: dbCompany.industry || "",
     employees: dbCompany.employees || "",
-    location: dbCompany.location || "",
     prefecture: (dbCompany as any).prefecture || "",
-    address: dbCompany.address || "",
     addressLine1: (dbCompany as any).address_line1 || "",
     addressLine2: (dbCompany as any).address_line2 || "",
     representative: dbCompany.representative || "",
@@ -237,7 +229,9 @@ export function dbToCompanyData(
         title: job.title,
         location: locationText || "",
         graduationYear: `${job.graduation_year}年卒`,
-        coverImage: job.cover_image_url || undefined
+        coverImage: job.cover_image_url || undefined,
+        prefecture: job.prefecture || undefined,
+        employmentType: job.employment_type || undefined
       };
     }),
     events: (dbCompany.sessions || []).map((session) => {
@@ -269,7 +263,11 @@ export function dbToCompanyData(
         date: dateStr,
         location: locationStr,
         type: session.type || "説明会",
-        status: "受付中" // 公開されている説明会は受付中として表示
+        status: "受付中", // 公開されている説明会は受付中として表示
+        coverImage: (session as any).cover_image_url || undefined,
+        description: session.description || undefined,
+        graduationYear: session.graduation_year || undefined,
+        locationType: session.location_type || undefined
       };
     })
   };
@@ -311,8 +309,6 @@ export function companyDataToFormData(companyData: Partial<CompanyData>): Compan
     cover_image_url: companyData.coverImage,
     industry: companyData.industry,
     employees: companyData.employees,
-    location: companyData.location,
-    address: companyData.address,
     representative: companyData.representative,
     capital: companyData.capital,
     established: companyData.established,
@@ -334,11 +330,9 @@ export function companyDataToDb(companyData: Partial<CompanyData>): Partial<Comp
   logo_url?: string | null;
   cover_image_url?: string | null;
   main_video_url?: string | null;
-  industry?: string | null;
-  employees?: string | null;
-  location?: string | null;
-  address?: string | null;
-  representative?: string | null;
+    industry?: string | null;
+    employees?: string | null;
+    representative?: string | null;
   capital?: string | null;
   established?: string | null;
   website?: string | null;
@@ -357,8 +351,6 @@ export function companyDataToDb(companyData: Partial<CompanyData>): Partial<Comp
     main_video_url: companyData.mainVideo,
     industry: companyData.industry,
     employees: companyData.employees,
-    location: companyData.location,
-    address: companyData.address,
     representative: companyData.representative,
     capital: companyData.capital,
     established: companyData.established,

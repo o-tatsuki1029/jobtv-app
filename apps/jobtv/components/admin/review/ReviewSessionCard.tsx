@@ -32,12 +32,13 @@ export default function ReviewSessionCard({
 
   const locationText = getLocationText(session.location_type, session.location_detail);
   const draftId = session.draft_id || session.id;
+  const coverImage = session.cover_image_url || (session as any).company_cover_image_url;
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col md:flex-row transition-all hover:border-black/10">
       <div className="md:w-64 relative bg-green-50 border-b md:border-b-0 md:border-r border-green-100 overflow-hidden min-h-[160px]">
-        {session.cover_image_url ? (
-          <Image src={session.cover_image_url} alt={session.title} fill className="object-cover" />
+        {coverImage ? (
+          <Image src={coverImage} alt={session.title} fill className="object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <ImageIcon className="w-12 h-12 text-green-400" />

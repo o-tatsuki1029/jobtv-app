@@ -19,3 +19,4 @@ export default function StudioLayoutClient({ children }: { children: React.React
   return <StudioPageLayout>{children}</StudioPageLayout>;
 }
 
+

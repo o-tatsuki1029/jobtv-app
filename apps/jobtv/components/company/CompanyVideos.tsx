@@ -6,6 +6,12 @@ import { Play } from "lucide-react";
 import HorizontalScrollContainer from "@/components/HorizontalScrollContainer";
 import VideoModal from "@/components/VideoModal";
 import type { CompanyData } from "./types";
+import { useMainTheme } from "./CompanyPageThemeContext";
+import { cn } from "@jobtv-app/shared/utils/cn";
+import {
+  HORIZONTAL_CARD_ASPECT_RATIO_16_9_CLASS,
+  HORIZONTAL_CARD_WIDTH,
+} from "@/constants/card-layout";
 
 interface CompanyVideosProps {
   company: CompanyData;
@@ -17,21 +23,22 @@ export default function CompanyVideos({ company }: CompanyVideosProps) {
     title: string;
     thumbnail?: string;
   } | null>(null);
+  const { classes } = useMainTheme();
 
   if (!company.documentaryVideos || company.documentaryVideos.length === 0) return null;
 
   return (
     <section className="-mx-4 md:-mx-0">
-      <h2 className="px-4 md:px-0 text-lg md:text-xl font-bold mb-4 md:mb-6 flex items-center gap-2">
+      <h2 className={cn("px-4 md:px-0 text-lg md:text-xl font-bold mb-4 md:mb-6 flex items-center gap-2", classes.textPrimary)}>
         <span className="w-1.5 h-5 md:h-6 bg-red-600 rounded-full" />
         動画
       </h2>
-      <HorizontalScrollContainer ignoreParentPadding={true}>
+      <HorizontalScrollContainer>
         <div className="flex gap-4 md:gap-6 min-w-max px-4 md:px-0">
           {company.documentaryVideos.map((video) => (
             <div
               key={video.id}
-              className="flex-shrink-0 w-[320px] md:w-[400px] group cursor-pointer"
+              className={cn("flex-shrink-0 group cursor-pointer", HORIZONTAL_CARD_WIDTH.video)}
               onClick={() =>
                 setSelectedVideo({
                   videoUrl: video.video,
@@ -40,7 +47,7 @@ export default function CompanyVideos({ company }: CompanyVideosProps) {
                 })
               }
             >
-              <div className="relative aspect-video rounded-lg overflow-hidden shadow-2xl bg-gray-900 mb-3">
+              <div className={cn("relative rounded-lg overflow-hidden shadow-lg bg-gray-900 mb-3", HORIZONTAL_CARD_ASPECT_RATIO_16_9_CLASS, classes.videoCardBorder)}>
                 {video.thumbnail || company.coverImage ? (
                   <Image
                     src={video.thumbnail || company.coverImage}
@@ -49,8 +56,8 @@ export default function CompanyVideos({ company }: CompanyVideosProps) {
                     className="object-cover group-hover:scale-105 transition-transform duration-300"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gray-800">
-                    <Play className="w-12 h-12 text-gray-600" />
+                  <div className={cn("w-full h-full flex items-center justify-center", classes.videoThumbPlaceholder)}>
+                    <Play className="w-12 h-12 text-gray-500" />
                   </div>
                 )}
                 {/* Play overlay */}
@@ -62,7 +69,7 @@ export default function CompanyVideos({ company }: CompanyVideosProps) {
               </div>
               {video.title && (
                 <div className="px-1">
-                  <h3 className="text-sm md:text-base font-bold text-white line-clamp-2 group-hover:text-red-500 transition-colors">
+                  <h3 className={cn("text-sm md:text-base font-bold line-clamp-2 group-hover:text-red-500 transition-colors", classes.videoTitleText)}>
                     {video.title}
                   </h3>
                 </div>

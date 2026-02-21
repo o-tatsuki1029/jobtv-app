@@ -40,13 +40,7 @@ export async function CompanyDetailContent({ id }: CompanyDetailContentProps) {
       {company.id && company.name && (
         <CompanyJobsList
           companyId={company.id}
-          company={{
-            id: company.id,
-            name: company.name,
-            notes: company.notes || null,
-            created_at: company.created_at || "",
-            updated_at: company.updated_at || "",
-          }}
+          company={company}
           jobs={jobs || []}
         />
       )}

@@ -191,10 +191,12 @@ export type Database = {
           assigned_to: string | null
           created_at: string
           date_of_birth: string | null
-          desired_industry: string | null
-          desired_job_type: string | null
-          email: string
+          department_name: string | null
+          desired_industry: string[] | null
+          desired_job_type: string[] | null
+          desired_work_location: string | null
           entry_channel: string | null
+          faculty_name: string | null
           first_name: string
           first_name_kana: string
           gender: string | null
@@ -207,7 +209,6 @@ export type Database = {
           notes: string | null
           phone: string | null
           referrer: string | null
-          residence_location: string | null
           school_name: string | null
           school_type: string | null
           updated_at: string
@@ -221,10 +222,12 @@ export type Database = {
           assigned_to?: string | null
           created_at?: string
           date_of_birth?: string | null
-          desired_industry?: string | null
-          desired_job_type?: string | null
-          email: string
+          department_name?: string | null
+          desired_industry?: string[] | null
+          desired_job_type?: string[] | null
+          desired_work_location?: string | null
           entry_channel?: string | null
+          faculty_name?: string | null
           first_name: string
           first_name_kana: string
           gender?: string | null
@@ -237,7 +240,6 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           referrer?: string | null
-          residence_location?: string | null
           school_name?: string | null
           school_type?: string | null
           updated_at?: string
@@ -251,10 +253,12 @@ export type Database = {
           assigned_to?: string | null
           created_at?: string
           date_of_birth?: string | null
-          desired_industry?: string | null
-          desired_job_type?: string | null
-          email?: string
+          department_name?: string | null
+          desired_industry?: string[] | null
+          desired_job_type?: string[] | null
+          desired_work_location?: string | null
           entry_channel?: string | null
+          faculty_name?: string | null
           first_name?: string
           first_name_kana?: string
           gender?: string | null
@@ -267,7 +271,6 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           referrer?: string | null
-          residence_location?: string | null
           school_name?: string | null
           school_type?: string | null
           updated_at?: string
@@ -321,7 +324,6 @@ export type Database = {
       }
       companies: {
         Row: {
-          address: string | null
           address_line1: string | null
           address_line2: string | null
           company_info: string | null
@@ -330,7 +332,6 @@ export type Database = {
           established: string | null
           id: string
           industry: string | null
-          location: string | null
           logo_url: string | null
           name: string
           notes: string | null
@@ -341,7 +342,6 @@ export type Database = {
           website: string | null
         }
         Insert: {
-          address?: string | null
           address_line1?: string | null
           address_line2?: string | null
           company_info?: string | null
@@ -350,7 +350,6 @@ export type Database = {
           established?: string | null
           id?: string
           industry?: string | null
-          location?: string | null
           logo_url?: string | null
           name: string
           notes?: string | null
@@ -361,7 +360,6 @@ export type Database = {
           website?: string | null
         }
         Update: {
-          address?: string | null
           address_line1?: string | null
           address_line2?: string | null
           company_info?: string | null
@@ -370,7 +368,6 @@ export type Database = {
           established?: string | null
           id?: string
           industry?: string | null
-          location?: string | null
           logo_url?: string | null
           name?: string
           notes?: string | null
@@ -395,7 +392,6 @@ export type Database = {
           established: string | null
           id: string
           industry: string | null
-          location: string | null
           logo_url: string | null
           name: string
           notes: string | null
@@ -419,7 +415,6 @@ export type Database = {
           established?: string | null
           id?: string
           industry?: string | null
-          location?: string | null
           logo_url?: string | null
           name: string
           notes?: string | null
@@ -443,7 +438,6 @@ export type Database = {
           established?: string | null
           id?: string
           industry?: string | null
-          location?: string | null
           logo_url?: string | null
           name?: string
           notes?: string | null
@@ -1432,6 +1426,7 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          candidate_id: string | null
           company_id: string | null
           created_at: string
           deleted_at: string | null
@@ -1448,6 +1443,7 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          candidate_id?: string | null
           company_id?: string | null
           created_at?: string
           deleted_at?: string | null
@@ -1464,6 +1460,7 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          candidate_id?: string | null
           company_id?: string | null
           created_at?: string
           deleted_at?: string | null
@@ -1479,6 +1476,13 @@ export type Database = {
           website?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "profiles_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "profiles_company_id_fkey"
             columns: ["company_id"]
@@ -2062,6 +2066,17 @@ export type Database = {
         Args: { p_company_id: string; p_event_id: string }
         Returns: boolean
       }
+      create_candidate_and_link_profile: {
+        Args: { payload: Json }
+        Returns: string
+      }
+      get_public_session_date_reservation_counts: {
+        Args: { session_date_ids: string[] }
+        Returns: {
+          reservation_count: number
+          session_date_id: string
+        }[]
+      }
     }
     Enums: {
       application_status:
@@ -2078,7 +2093,7 @@ export type Database = {
       draft_status: "draft" | "submitted" | "approved" | "rejected"
       job_status: "active" | "closed"
       session_status: "active" | "closed"
-      user_role: "admin" | "recruiter"
+      user_role: "admin" | "recruiter" | "candidate"
       video_category: "main" | "short" | "documentary"
     }
     CompositeTypes: {
@@ -2222,7 +2237,7 @@ export const Constants = {
       draft_status: ["draft", "submitted", "approved", "rejected"],
       job_status: ["active", "closed"],
       session_status: ["active", "closed"],
-      user_role: ["admin", "recruiter"],
+      user_role: ["admin", "recruiter", "candidate"],
       video_category: ["main", "short", "documentary"],
     },
   },

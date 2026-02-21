@@ -77,7 +77,7 @@ export function CandidatesList({ candidates }: CandidatesListProps) {
                       </p>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      {candidate.email}
+                      {candidate.profiles?.email ?? "-"}
                     </p>
                     {candidate.phone && (
                       <p className="text-sm text-muted-foreground">
@@ -129,7 +129,7 @@ export function CandidatesList({ candidates }: CandidatesListProps) {
                             last_name: candidate.last_name,
                             first_name_kana: candidate.first_name_kana,
                             last_name_kana: candidate.last_name_kana,
-                            email: candidate.email,
+                            email: candidate.profiles?.email ?? undefined,
                             phone: candidate.phone || "",
                             notes: candidate.notes || "",
                           }}

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ADMIN_NAVIGATION } from "../constants";
+import { ADMIN_NAVIGATION, ADMIN_BOTTOM_NAVIGATION } from "../constants";
 import StudioNavItem from "../molecules/StudioNavItem";
 import { getUserInfo } from "@/lib/actions/user-actions";
 
@@ -57,6 +57,18 @@ export default function AdminSidebar() {
             />
           ))}
         </nav>
+
+        <div className="px-4 pb-4 space-y-1">
+          {ADMIN_BOTTOM_NAVIGATION.map((item) => (
+            <StudioNavItem
+              key={item.name}
+              name={item.name}
+              href={item.href}
+              icon={item.icon}
+              isActive={pathname.startsWith(item.href)}
+            />
+          ))}
+        </div>
 
         <div className="p-4 border-t border-white/10">
           {!isLoading && userName && (

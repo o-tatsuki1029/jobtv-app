@@ -140,7 +140,7 @@ export function JobsList({ jobs }: JobsListProps) {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    {job.status === "pending" && (
+                    {(job.status as unknown as string) === "pending" && (
                       <>
                         <Button
                           variant="default"

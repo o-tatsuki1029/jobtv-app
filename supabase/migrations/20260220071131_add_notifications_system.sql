@@ -75,3 +75,4 @@ CREATE POLICY "Users can delete their own reads"
   TO authenticated
   USING (user_id = auth.uid());
 
+

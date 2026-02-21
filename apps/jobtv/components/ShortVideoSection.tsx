@@ -2,13 +2,15 @@
 
 import ShortVideoCard from "./ShortVideoCard";
 import HorizontalScrollContainer from "./HorizontalScrollContainer";
+import { useMainTheme } from "@/components/company/CompanyPageThemeContext";
+import { cn } from "@jobtv-app/shared/utils/cn";
+import { HORIZONTAL_CARD_WIDTH } from "@/constants/card-layout";
 
 interface ShortVideo {
   id: string;
   title: string;
   thumbnail: string | null;
   channel: string;
-  likes?: number;
   duration?: string;
   videoUrl?: string;
 }
@@ -21,13 +23,15 @@ interface ShortVideoSectionProps {
 }
 
 export default function ShortVideoSection({ title, videos, showMore = true, onVideoClick }: ShortVideoSectionProps) {
+  const { classes } = useMainTheme();
+
   return (
     <section className="mb-0 py-2">
-      <div className="container mx-auto px-4">
+      <div className="container mx-auto">
         {title && (
           <div className="mb-6">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-2xl md:text-3xl font-bold text-white">{title}</h2>
+              <h2 className={cn("text-2xl md:text-3xl font-bold", classes.textPrimary)}>{title}</h2>
               {showMore && (
                 <a
                   href="#"
@@ -45,18 +49,17 @@ export default function ShortVideoSection({ title, videos, showMore = true, onVi
                 </a>
               )}
             </div>
-            <div className="border-b border-gray-700"></div>
+            <div className={cn("border-b", classes.sectionBorder)} />
           </div>
         )}
-        <HorizontalScrollContainer ignoreParentPadding={true}>
-          <div className="flex gap-5 min-w-max px-4 pb-6">
+        <HorizontalScrollContainer>
+          <div className="flex gap-5 min-w-max">
             {videos.map((video) => (
-              <div key={video.id} className="w-[160px] sm:w-[180px] md:w-[200px] flex-shrink-0">
+              <div key={video.id} className={cn(HORIZONTAL_CARD_WIDTH.shortVideo, "flex-shrink-0")}>
                 <ShortVideoCard
                   title={video.title}
                   thumbnail={video.thumbnail}
                   channel={video.channel}
-                  likes={video.likes}
                   duration={video.duration}
                   onClick={() => onVideoClick?.(video)}
                 />

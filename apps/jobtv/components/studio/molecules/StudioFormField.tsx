@@ -75,6 +75,7 @@ export default function StudioFormField({
         {label}
       </StudioLabel>
 
+      {/* maxLength は入力には付けない（入力は受け付ける）。文字数表示とバリデーションで制限超過時はエラーとする */}
       {type === "textarea" ? (
         <StudioTextarea
           id={name}

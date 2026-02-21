@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Candidate } from "@/types/candidate.types";
+import type { CandidateWithEmail } from "@/types/candidate.types";
 import { filterCandidates } from "@/utils/data/candidate";
 import type { FormattedReservation } from "@/utils/events/reservation";
 
@@ -11,12 +11,12 @@ type RegistrationResult = {
 };
 
 type UseBulkRegistrationReturn = {
-  allJobSeekers: Candidate[]; // 後方互換性のため名前は維持
+  allJobSeekers: CandidateWithEmail[]; // 後方互換性のため名前は維持
   selectedJobSeekerIds: Set<string>; // 後方互換性のため名前は維持
   searchKeyword: string;
   isRegistering: boolean;
   registrationResult: RegistrationResult | null;
-  filteredJobSeekers: Candidate[]; // 後方互換性のため名前は維持
+  filteredJobSeekers: CandidateWithEmail[]; // 後方互換性のため名前は維持
   setSearchKeyword: (keyword: string) => void;
   toggleSelection: (jobSeekerId: string) => void; // 後方互換性のため名前は維持
   clearSelection: () => void;
@@ -32,7 +32,7 @@ type UseBulkRegistrationReturn = {
  * 一括登録管理のカスタムフック
  */
 export function useBulkRegistration(): UseBulkRegistrationReturn {
-  const [allJobSeekers, setAllJobSeekers] = useState<Candidate[]>([]);
+  const [allJobSeekers, setAllJobSeekers] = useState<CandidateWithEmail[]>([]);
   const [selectedJobSeekerIds, setSelectedJobSeekerIds] = useState<Set<string>>(
     new Set()
   );
@@ -46,7 +46,7 @@ export function useBulkRegistration(): UseBulkRegistrationReturn {
     // 必要なカラムのみを取得（パフォーマンス最適化）
     const { data, error } = await supabase
       .from("candidates")
-      .select("id, last_name, first_name, last_name_kana, first_name_kana, email, phone, school_name")
+      .select("id, last_name, first_name, last_name_kana, first_name_kana, phone, school_name, profiles!profiles_candidate_id_fkey(email)")
       .order("last_name_kana", { ascending: true });
 
     // エラーがある場合のみ処理（空のオブジェクトは無視）
@@ -68,17 +68,21 @@ export function useBulkRegistration(): UseBulkRegistrationReturn {
       }
     }
 
-    // データをCandidate型に変換（必要なフィールドのみ）
+    // データをCandidateWithEmail型に変換（profilesからemailを取得）
+    type DataRow = (NonNullable<typeof data>)[number];
+    const profileEmail = (item: DataRow) => {
+      const p = (item as { profiles?: { email: string | null } | { email: string | null }[] | null }).profiles;
+      return Array.isArray(p) ? p[0]?.email ?? null : p?.email ?? null;
+    };
     const candidates = (data || []).map((item) => ({
       id: item.id,
       last_name: item.last_name || "",
       first_name: item.first_name || "",
       last_name_kana: item.last_name_kana || "",
       first_name_kana: item.first_name_kana || "",
-      email: item.email || "",
+      email: profileEmail(item) ?? "",
       phone: item.phone || null,
       school_name: item.school_name || null,
-      // Candidate型に必要な他のフィールドをデフォルト値で設定
       assigned_to: null,
       created_at: new Date().toISOString(),
       date_of_birth: null,
@@ -95,7 +99,7 @@ export function useBulkRegistration(): UseBulkRegistrationReturn {
       utm_medium: null,
       utm_source: null,
       utm_term: null,
-    })) as unknown as Candidate[];
+    })) as unknown as CandidateWithEmail[];
 
     setAllJobSeekers(candidates);
   }, []);

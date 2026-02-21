@@ -5,15 +5,18 @@ import React from "react";
 interface SectionCardProps {
   icon: React.ReactNode;
   title: string;
+  /** タイトル横に表示するバッジ（例: 必須・任意） */
+  badge?: React.ReactNode;
   children: React.ReactNode;
 }
 
-export default function SectionCard({ icon, title, children }: SectionCardProps) {
+export default function SectionCard({ icon, title, badge, children }: SectionCardProps) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
       <div className="p-6 border-b border-gray-100 flex items-center gap-2">
         {icon}
         <h2 className="font-bold text-lg">{title}</h2>
+        {badge}
       </div>
       {children}
     </div>

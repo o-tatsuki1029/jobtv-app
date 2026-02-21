@@ -14,8 +14,6 @@ const emptyCompanyData: CompanyData = {
   coverImage: "",
   industry: "",
   employees: "",
-  location: "",
-  address: "",
   addressLine1: "",
   addressLine2: "",
   representative: "",

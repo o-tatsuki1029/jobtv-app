@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { signInWithPassword as baseSignInWithPassword } from "@jobtv-app/shared/actions/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -9,7 +8,10 @@ import { createClient } from "@/lib/supabase/server";
  * 管理者専用ログイン処理
  * adminロールのユーザーのみログイン可能
  */
-export async function adminSignIn(formData: FormData) {
+export async function adminSignIn(formData: FormData): Promise<{
+  redirectUrl?: string;
+  error: string | null;
+}> {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
@@ -52,6 +54,9 @@ export async function adminSignIn(formData: FormData) {
 
   // 管理者ログイン成功
   revalidatePath("/", "layout");
-  redirect("/admin");
+  
+  // クライアント側でリダイレクトするため、URLを返す
+  return { redirectUrl: "/admin", error: null };
 }
+
 

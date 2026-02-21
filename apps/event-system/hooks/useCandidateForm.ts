@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabaseInsert, supabaseUpdate } from "@/lib/actions/supabase-actions";
-import { Candidate, CandidateFormData } from "@/types/candidate.types";
+import type { Candidate, CandidateFormDataWithEmail } from "@/types/candidate.types";
 import { isKatakana } from "@/utils/validation/index";
 
 type UseCandidateFormProps = {
@@ -8,7 +8,7 @@ type UseCandidateFormProps = {
   onSuccess?: () => void;
 };
 
-const initialFormState: CandidateFormData = {
+const initialFormState: CandidateFormDataWithEmail = {
   first_name: "",
   first_name_kana: "",
   last_name: "",
@@ -30,27 +30,28 @@ const initialFormState: CandidateFormData = {
 };
 
 type ValidationErrors = {
-  [key in keyof CandidateFormData]?: string;
+  [key in keyof CandidateFormDataWithEmail]?: string;
 };
 
 
 export function useCandidateForm({ initialData, onSuccess }: UseCandidateFormProps) {
-  const [form, setForm] = useState<CandidateFormData>(initialFormState);
+  const [form, setForm] = useState<CandidateFormDataWithEmail>(initialFormState);
   const [status, setStatus] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<ValidationErrors>({});
 
   const isEditMode = !!initialData?.id;
 
-  // フォーム初期化
+  // フォーム初期化（initialData は CandidateWithEmail のこともある）
   useEffect(() => {
     if (initialData) {
+      const dataWithEmail = initialData as Candidate & { email?: string | null };
       setForm({
         first_name: initialData.first_name || "",
         first_name_kana: initialData.first_name_kana || "",
         last_name: initialData.last_name || "",
         last_name_kana: initialData.last_name_kana || "",
-        email: initialData.email || "",
+        email: dataWithEmail.email ?? "",
         phone: initialData.phone || "",
         gender: initialData.gender || "",
         graduation_year: initialData.graduation_year || 0,
@@ -175,8 +176,9 @@ export function useCandidateForm({ initialData, onSuccess }: UseCandidateFormPro
 
     try {
       if (isEditMode && initialData?.id) {
+        const { email: _email, ...candidateFields } = form;
         const updateData = {
-          ...form,
+          ...candidateFields,
           updated_at: new Date().toISOString(),
         };
         const { error } = await supabaseUpdate("candidates", updateData, {
@@ -194,7 +196,8 @@ export function useCandidateForm({ initialData, onSuccess }: UseCandidateFormPro
           onSuccess?.();
         }
       } else {
-        const { data, error } = await supabaseInsert("candidates", form);
+        const { email: _email, ...candidateFields } = form;
+        const { data, error } = await supabaseInsert("candidates", candidateFields);
 
         if (error) {
           const errorMessage =

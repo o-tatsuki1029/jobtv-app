@@ -15,6 +15,8 @@ type InterviewNote = InterviewNoteWithRelations;
 export interface CandidateData extends Partial<TablesInsert<"candidates">> {
   id?: string;
   assigned_to_profile?: Pick<Profile, "id" | "first_name" | "last_name" | "email"> | null;
+  /** メールは profiles にのみ保持。取得時に join して渡す */
+  profiles?: { email: string | null } | null;
 }
 
 /**
@@ -33,7 +35,8 @@ export async function getCandidates() {
         first_name,
         last_name,
         email
-      )
+      ),
+      profiles:profiles!profiles_candidate_id_fkey(email)
     `,
     )
     .order("created_at", { ascending: false });
@@ -62,7 +65,8 @@ export async function getCandidate(id: string) {
         first_name,
         last_name,
         email
-      )
+      ),
+      profiles:profiles!profiles_candidate_id_fkey(email)
     `,
     )
     .eq("id", id)
@@ -108,39 +112,69 @@ export async function getCandidateApplications(candidateId: string) {
 }
 
 /**
- * 求職者を作成
+ * 求職者を作成（重複チェック用に email を渡すが、candidates には保存しない）
  */
-export async function createCandidate(data: Omit<CandidateData, "id">) {
+export async function createCandidate(data: Omit<CandidateData, "id"> & { email?: string }) {
   const supabase = await createClient();
 
-  // 既存の求職者を確認
-  const { data: existingCandidate } = await supabase
-    .from("candidates")
-    .select("id, first_name, last_name")
-    .eq("email", data.email)
-    .single();
+  // 既存の求職者を確認（メールは profiles で検索）
+  const email = data.email;
+  if (email) {
+    const { data: profileByEmail } = await supabase
+      .from("profiles")
+      .select("candidate_id")
+      .eq("email", email)
+      .not("candidate_id", "is", null)
+      .maybeSingle();
 
-  if (existingCandidate) {
-    const candidateName = existingCandidate.first_name && existingCandidate.last_name
-      ? `${existingCandidate.last_name} ${existingCandidate.first_name}`
-      : data.email;
-    return {
-      data: null,
-      error: `このメールアドレス（${data.email}）は既に登録されています。求職者「${candidateName}」を編集してください。`,
-    };
+    if (profileByEmail?.candidate_id) {
+      const { data: existingCandidate } = await supabase
+        .from("candidates")
+        .select("id, first_name, last_name")
+        .eq("id", profileByEmail.candidate_id)
+        .single();
+
+      if (existingCandidate) {
+        const candidateName =
+          existingCandidate.first_name && existingCandidate.last_name
+            ? `${existingCandidate.last_name} ${existingCandidate.first_name}`
+            : email;
+        return {
+          data: null,
+          error: `このメールアドレス（${email}）は既に登録されています。求職者「${candidateName}」を編集してください。`,
+        };
+      }
+    }
   }
 
-  return insertRecord<CandidateData>("candidates", data, ["/admin/candidates"]);
+  // candidates には email を持たない。型から email を除いて insert
+  const { email: _email, ...candidateInsert } = data as CandidateData & { email?: string };
+  return insertRecord<Omit<CandidateData, "email">>("candidates", candidateInsert, ["/admin/candidates"]);
 }
 
 /**
- * 求職者を更新
+ * 求職者を更新（email は profiles にのみ保存）
  */
 export async function updateCandidate(
   id: string,
-  data: Partial<CandidateData>,
+  data: Partial<CandidateData> & { email?: string },
 ) {
-  return updateRecord<CandidateData>("candidates", id, data, [
+  const { email, ...rest } = data;
+
+  if (email !== undefined) {
+    const supabase = await createClient();
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .update({ email })
+      .eq("candidate_id", id);
+
+    if (profileError) {
+      console.error("Update profile email error:", profileError);
+      return { data: null, error: profileError.message };
+    }
+  }
+
+  return updateRecord<CandidateData>("candidates", id, rest, [
     "/admin/candidates",
   ]);
 }

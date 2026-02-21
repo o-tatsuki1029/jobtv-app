@@ -17,7 +17,7 @@ export type CAInterview = Tables<"ca_interviews">;
 
 // 拡張型（リレーションを含む）
 export interface CandidateWithProfile extends Candidate {
-  assigned_to_profile?: Pick<Profile, "id" | "full_name" | "email"> | null;
+  assigned_to_profile?: Pick<Profile, "id" | "email" | "first_name" | "last_name"> | null;
 }
 
 export interface JobPostingWithCompany extends JobPosting {
@@ -52,6 +52,7 @@ export interface InterviewNoteWithRelations extends CAInterview {
 
 // 後方互換性のためのエイリアス
 export type InterviewNote = CAInterview;
+
 
 
 

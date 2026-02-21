@@ -2,7 +2,12 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { getUserCompanyId } from "@jobtv-app/shared/actions/company-utils";
 import type { TablesInsert, TablesUpdate } from "@jobtv-app/shared/types";
+
+/** 一覧表示用：取得するドラフト列（軽量化） */
+const LIST_SESSION_DRAFT_COLUMNS =
+  "id,company_id,title,draft_status,production_session_id,cover_image_url,graduation_year,location_type,location_detail,type,capacity,created_at";
 
 export type SessionData = Partial<TablesInsert<"sessions">> & { id?: string };
 export type SessionDraftData = Partial<TablesInsert<"sessions_draft">> & { id?: string };
@@ -159,10 +164,10 @@ export async function getSessionReservationCounts(sessionIds: string[]) {
 
   const dateIds = allDates.map((d) => d.id);
 
-  // 全日程の予約を取得
-  const { data, error } = await supabase
+  // 予約を取得（session_dates を join して session_id を一括取得、逆引き不要）
+  const { data: reservations, error } = await supabase
     .from("session_reservations")
-    .select("session_date_id")
+    .select("session_date_id, session_dates(session_id)")
     .in("session_date_id", dateIds)
     .eq("status", "reserved");
 
@@ -171,18 +176,13 @@ export async function getSessionReservationCounts(sessionIds: string[]) {
     return { data: null, error: error.message };
   }
 
-  // 各説明会IDごとに予約数をカウント
   const counts: Record<string, number> = {};
   sessionIds.forEach((id) => {
     counts[id] = 0;
   });
-
-  data?.forEach((reservation) => {
-    // session_date_idからsession_idを逆引き
-    const date = allDates.find((d) => d.id === reservation.session_date_id);
-    if (date && date.session_id) {
-      counts[date.session_id] = (counts[date.session_id] || 0) + 1;
-    }
+  reservations?.forEach((row: { session_dates?: { session_id: string }[] | null }) => {
+    const sessionId = Array.isArray(row.session_dates) ? row.session_dates[0]?.session_id : null;
+    if (sessionId && sessionId in counts) counts[sessionId] += 1;
   });
 
   return { data: counts, error: null };
@@ -207,6 +207,56 @@ export async function getSessionDates(sessionId: string) {
   }
 
   return { data, error: null };
+}
+
+/** 過去日程のフォーマット済み型（SessionDetailView で表示） */
+export type SessionPastDateItem = {
+  date: string;
+  time: string;
+  capacity: number | null;
+  isPast: true;
+  status: "実施済み";
+};
+
+/**
+ * 過去の日程のみ取得・フォーマット（「過去の日程を見る」押下時にクライアントから呼ぶ）
+ */
+export async function getSessionPastDates(sessionId: string) {
+  const { data: dates, error: datesError } = await getSessionDates(sessionId);
+  if (datesError || !dates?.length) {
+    return { data: [], error: null };
+  }
+
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const pastDates = dates.filter((d: { event_date: string }) => d.event_date < todayStr);
+  if (pastDates.length === 0) {
+    return { data: [], error: null };
+  }
+
+  const { data: session } = await getSession(sessionId);
+  const sessionCapacity = session?.capacity ?? null;
+
+  const formatTime = (time: string) => (time ? time.slice(0, 5) : "");
+  const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
+
+  const formatted: SessionPastDateItem[] = pastDates
+    .sort((a: { event_date: string }, b: { event_date: string }) => a.event_date.localeCompare(b.event_date))
+    .map((date: any) => {
+      const eventDate = new Date(date.event_date);
+      const month = eventDate.getMonth() + 1;
+      const day = eventDate.getDate();
+      const weekday = weekdays[eventDate.getDay()];
+      return {
+        date: `${eventDate.getFullYear()}年${month}月${day}日 (${weekday})`,
+        time: `${formatTime(date.start_time)} 〜 ${formatTime(date.end_time)}`,
+        capacity: date.capacity ?? sessionCapacity ?? null,
+        isPast: true as const,
+        status: "実施済み" as const
+      };
+    });
+
+  return { data: formatted, error: null };
 }
 
 /**
@@ -498,86 +548,93 @@ export async function getSessionDraft(id: string) {
 }
 
 /**
- * 説明会draft一覧を取得（ログインユーザーの企業のdraftのみ）
- * 本番テーブルのdisplay_orderでソート
+ * 企業ID指定で説明会ドラフト一覧を取得（一覧用・select 絞り。本番の display_order でソート）
  */
-export async function getSessionDrafts() {
+async function getSessionDraftsByCompanyId(companyId: string) {
   const supabase = await createClient();
-
-  // 現在のユーザーIDを取得
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return {
-      data: null,
-      error: "ログインが必要です"
-    };
-  }
-
-  // ユーザーのcompany_idを取得
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("company_id")
-    .eq("id", user.id)
-    .single();
-
-  if (profileError || !profile?.company_id) {
-    return {
-      data: null,
-      error: "企業情報が見つかりません"
-    };
-  }
-
-  // ドラフト一覧を取得
   const { data: drafts, error } = await supabase
     .from("sessions_draft")
-    .select("*")
-    .eq("company_id", profile.company_id)
+    .select(LIST_SESSION_DRAFT_COLUMNS)
+    .eq("company_id", companyId)
     .order("created_at", { ascending: false });
 
   if (error) {
     console.error("Get session drafts error:", error);
     return { data: null, error: error.message };
   }
+  if (!drafts || drafts.length === 0) return { data: [], error: null };
 
-  if (!drafts || drafts.length === 0) {
-    return { data: [], error: null };
-  }
-
-  // 本番IDを持つドラフトの本番テーブルからdisplay_orderを取得
   const productionIds = drafts.filter((d) => d.production_session_id).map((d) => d.production_session_id!);
-
   let productionDisplayOrders: Record<string, number | null> = {};
   if (productionIds.length > 0) {
     const { data: productions } = await supabase.from("sessions").select("id, display_order").in("id", productionIds);
-
-    if (productions) {
-      for (const p of productions) {
-        productionDisplayOrders[p.id] = p.display_order;
-      }
-    }
+    if (productions) for (const p of productions) productionDisplayOrders[p.id] = p.display_order;
   }
 
-  // ドラフトに本番のdisplay_orderをマージしてソート
   const draftsWithOrder = drafts.map((draft) => ({
     ...draft,
     display_order: draft.production_session_id ? productionDisplayOrders[draft.production_session_id] ?? null : null
   }));
-
-  // display_orderでソート（nullは後ろ）
   draftsWithOrder.sort((a, b) => {
-    if (a.display_order === null && b.display_order === null) {
-      // 両方nullの場合はcreated_atの降順
+    if (a.display_order === null && b.display_order === null)
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    }
     if (a.display_order === null) return 1;
     if (b.display_order === null) return -1;
     return a.display_order - b.display_order;
   });
-
   return { data: draftsWithOrder, error: null };
+}
+
+/**
+ * 説明会draft一覧を取得（ログインユーザーの企業のdraftのみ。一覧用に select 絞り）
+ */
+export async function getSessionDrafts() {
+  const supabase = await createClient();
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+  if (!user) return { data: null, error: "ログインが必要です" };
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("company_id")
+    .eq("id", user.id)
+    .single();
+  if (profileError || !profile?.company_id) return { data: null, error: "企業情報が見つかりません" };
+
+  return getSessionDraftsByCompanyId(profile.company_id);
+}
+
+/**
+ * スタジオ説明会一覧用：認証1回でドラフト一覧＋予約数を返す（カバー画像は別途遅延取得）
+ */
+export async function getStudioSessionsPageData(): Promise<{
+  data: Awaited<ReturnType<typeof getSessionDrafts>>["data"] extends infer T ? T : never;
+  error: string | null;
+}> {
+  const { companyId, error: companyError } = await getUserCompanyId();
+  if (companyError) return { data: null, error: companyError };
+
+  const { data, error } = await getSessionDraftsByCompanyId(companyId);
+  if (error) return { data: null, error };
+  if (!data || data.length === 0) return { data: [], error: null };
+
+  const productionSessionIds = data
+    .filter((d) => d.production_session_id)
+    .map((d) => d.production_session_id!);
+  const { data: countsData } =
+    productionSessionIds.length > 0 ? await getSessionReservationCounts(productionSessionIds) : { data: {} };
+  const counts = (countsData || {}) as Record<string, number>;
+
+  const sessionsWithCounts = data.map((draft) => ({
+    ...draft,
+    id: draft.id,
+    status: draft.draft_status === "approved" ? "active" : draft.draft_status === "rejected" ? "closed" : "draft",
+    draft_status: draft.draft_status,
+    reservationCount: draft.production_session_id ? (counts[draft.production_session_id] ?? 0) : 0
+  }));
+
+  return { data: sessionsWithCounts, error: null };
 }
 
 /**

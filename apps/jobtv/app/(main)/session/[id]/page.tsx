@@ -1,5 +1,6 @@
 import SessionDetailView from "@/components/SessionDetailView";
 import { getSession, getSessionDates } from "@/lib/actions/session-actions";
+import { getSessionDateReservationCounts } from "@/lib/actions/session-reservation-actions";
 import { getCompanyProfileById } from "@/lib/actions/company-profile-actions";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
@@ -100,47 +101,84 @@ export default async function SessionDetailPage({ params }: SessionDetailPagePro
     notFound();
   }
 
-  // 日程情報を取得
+  // 日程情報を取得（今日以降のみ表示、過去は「過去の日程を見る」で取得）
   const { data: dates } = await getSessionDates(id);
 
-  // 場所テキストを生成
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+
+  const allDates = dates || [];
+  const upcomingDates = allDates.filter((d: { event_date: string }) => d.event_date >= todayStr);
+  const hasPastDates = allDates.some((d: { event_date: string }) => d.event_date < todayStr);
+
+  // 今日以降の日程のみ予約数取得・フォーマット
+  const upcomingIds = upcomingDates.map((d: { id: string }) => d.id);
+  const { data: reservationCounts } = await getSessionDateReservationCounts(upcomingIds);
+  const counts = reservationCounts || {};
+
   const locationText = [session.location_type, session.location_detail]
     .filter(Boolean)
     .join(session.location_type && session.location_detail ? " / " : "");
 
-  // 日程をフォーマット
-  const formattedDates = dates?.map((date: any) => {
-    const eventDate = new Date(date.event_date);
-    const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
-    const weekday = weekdays[eventDate.getDay()];
-    const month = eventDate.getMonth() + 1;
-    const day = eventDate.getDate();
+  const formattedDates = [...upcomingDates]
+    .sort((a: { event_date: string }, b: { event_date: string }) => a.event_date.localeCompare(b.event_date))
+    .map((date: any) => {
+      const eventDate = new Date(date.event_date);
+      const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
+      const weekday = weekdays[eventDate.getDay()];
+      const month = eventDate.getMonth() + 1;
+      const day = eventDate.getDate();
+      const formatTime = (time: string) => (time ? time.slice(0, 5) : "");
+      const capacity = date.capacity ?? session.capacity ?? null;
+      const reserved = counts[date.id] ?? 0;
+      const isFull = capacity != null && reserved >= capacity;
+      const status: "受付中" | "満員" | "実施済み" = isFull ? "満員" : "受付中";
 
-    return {
-      date: `${eventDate.getFullYear()}年${month}月${day}日 (${weekday})`,
-      time: `${date.start_time} 〜 ${date.end_time}`,
-      capacity: date.capacity || session.capacity || null
-    };
-  }) || [];
+      return {
+        id: date.id,
+        date: `${eventDate.getFullYear()}年${month}月${day}日 (${weekday})`,
+        time: `${formatTime(date.start_time)} 〜 ${formatTime(date.end_time)}`,
+        capacity,
+        isPast: false,
+        status
+      };
+    });
 
   if (!session.id) {
     notFound();
   }
+
+  // 企業ページ情報からカバー画像を取得
+  const companyCoverImage = (company as any).cover_image_url || null;
+  // companiesテーブルのIDを確実に使用（company_pagesのidで上書きされないように）
+  const companyId = session.company_id || company.id;
 
   const sessionData = {
     id: session.id,
     title: session.title || "",
     type: session.type || "",
     dates: formattedDates,
+    hasPastDates,
     location: locationText || "",
     status: session.status === "active" ? ("受付中" as const) : ("終了" as const),
     description: session.description || "",
     capacity: session.capacity || null,
     companyName: company.name,
     companyLogo: company.logo_url || "",
-    companyId: company.id,
-    coverImage: session.cover_image_url || undefined,
-    graduationYear: session.graduation_year || undefined
+    companyId: companyId,
+    coverImage: session.cover_image_url || companyCoverImage || undefined,
+    graduationYear: session.graduation_year || undefined,
+    locationType: session.location_type || undefined,
+    locationDetail: session.location_detail || undefined,
+    companyIndustry: company.industry || undefined,
+    companyEmployees: company.employees || undefined,
+    companyPrefecture: company.prefecture || undefined,
+    companyEstablished: company.established || undefined,
+    companyRepresentative: company.representative || undefined,
+    companyWebsite: company.website || undefined,
+    companyAddressLine1: company.address_line1 || undefined,
+    companyAddressLine2: company.address_line2 || undefined,
+    companyBenefits: Array.isArray((company as any).benefits) ? (company as any).benefits : undefined
   };
 
   return <SessionDetailView session={sessionData} />;

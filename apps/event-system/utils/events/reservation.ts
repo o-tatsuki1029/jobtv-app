@@ -7,9 +7,9 @@ export type ReservationWithCandidate = EventReservation & {
     last_name_kana: string;
     first_name_kana: string;
     phone: string | null;
-    email: string | null;
     school_name: string | null;
     gender: string | null;
+    profiles: { email: string | null } | null;
   } | null;
 };
 
@@ -50,7 +50,7 @@ export function formatReservationData(
       ? `${reservation.candidates.last_name_kana} ${reservation.candidates.first_name_kana}`
       : "不明",
     phone: reservation.candidates?.phone || "",
-    email: reservation.candidates?.email || "",
+    email: reservation.candidates?.profiles?.email ?? "",
     school_name: reservation.candidates?.school_name || "",
     gender: reservation.candidates?.gender || null,
     };

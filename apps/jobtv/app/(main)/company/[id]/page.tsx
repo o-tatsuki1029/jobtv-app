@@ -35,29 +35,25 @@ const mockCompany = {
       id: "1",
       title: "【CEO登壇】サンプル株式会社が描く2030年のAI社会",
       thumbnail: "https://images.unsplash.com/photo-1515187029135-18ee286d815b?w=400&h=711&fit=crop",
-      channel: "サンプル株式会社公式",
-      likes: 12500
+      channel: "サンプル株式会社公式"
     },
     {
       id: "2",
       title: "エンジニア座談会：モダンな技術スタックでの挑戦",
       thumbnail: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=400&h=711&fit=crop",
-      channel: "Tech Talk",
-      likes: 8900
+      channel: "Tech Talk"
     },
     {
       id: "3",
       title: "【新卒・中途】オフィスツアー & メンバー紹介",
       thumbnail: "https://images.unsplash.com/photo-1497366216548-37526070297c?w=400&h=711&fit=crop",
-      channel: "Inside Sample",
-      likes: 15600
+      channel: "Inside Sample"
     },
     {
       id: "4",
       title: "私たちの1日：PM・デザイナー・エンジニアの連携",
       thumbnail: "https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=400&h=711&fit=crop",
-      channel: "Work Style",
-      likes: 23400
+      channel: "Work Style"
     }
   ],
   shortVideos: [
@@ -229,14 +225,14 @@ export async function generateMetadata({ params }: CompanyDetailPageProps): Prom
   const description = company.description
     ? company.description.replace(/\n/g, " ").substring(0, 120) + (company.description.length > 120 ? "..." : "")
     : `${company.name}の企業情報。${company.industry ? `業界: ${company.industry}` : ""} ${
-        company.location ? `所在地: ${company.location}` : ""
+        company.prefecture ? `所在地: ${company.prefecture}` : ""
       }`;
 
   // OGP画像を決定（カバー画像 > ロゴ > デフォルト）
   const ogImage = company.coverImage || company.logo || undefined;
 
   // キーワードを生成
-  const keywords = [company.name, company.industry, company.location, "新卒採用", "就活", "企業情報", "JobTV"].filter(
+  const keywords = [company.name, company.industry, company.prefecture, "新卒採用", "就活", "企業情報", "JobTV"].filter(
     Boolean
   );
 

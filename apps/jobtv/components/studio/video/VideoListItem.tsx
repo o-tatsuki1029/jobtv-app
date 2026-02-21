@@ -79,7 +79,7 @@ export default function VideoListItem({
           <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
             {categoryInfo?.label}
           </span>
-          <StudioBadge variant={statusBadge.variant} className="text-[10px] py-0 px-1.5">
+          <StudioBadge variant={statusBadge.variant}>
             {statusBadge.label}
           </StudioBadge>
         </div>

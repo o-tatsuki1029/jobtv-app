@@ -33,7 +33,7 @@ type InitialData = {
   candidate: {
     id: string;
     name: string;
-    email: string;
+    email: string | null;
     seatNumber: string | null;
   };
   events: Event[];

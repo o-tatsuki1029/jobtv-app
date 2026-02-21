@@ -7,3 +7,4 @@ CREATE INDEX IF NOT EXISTS idx_profiles_deleted_at ON profiles(deleted_at);
 -- Add comment
 COMMENT ON COLUMN profiles.deleted_at IS '論理削除日時。NULLの場合は有効なアカウント';
 
+

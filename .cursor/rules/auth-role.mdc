@@ -1,0 +1,39 @@
+---
+alwaysApply: true
+description: 認証・ロールの取得タイミングと利用ルール、認可・ルート保護（ページ読み込み時のロール利用、レイアウトでの requireXxx）
+---
+
+## ロールの取得と利用
+
+### 基本方針
+
+- **ロール（profiles.role）は「ページ（レイアウト）の読み込み時」に取得した値を使う**
+- ヘッダー表示・UI の出し分け・その他の画面処理は、すべてこの「読み込み時に確定したロール」に基づいて行う
+- ログイン・ログアウト時は `onAuthStateChange` 等で再取得し、それ以降の表示・処理はその最新値を使う
+
+### ルール
+
+- レイアウト（またはルート）で一度だけロール（＋必要ならリクルーター用メニュー情報）を取得し、Context 等で配る
+- 各ページ・コンポーネントでは、**その配られたロールを参照する**。画面表示のたびにクライアントや Server Action でロールを再取得しない
+- ロールに依存する処理（表示の出し分け・リダイレクト・権限チェック）は、上記「読み込み時に取得したロール」を信頼して実装する
+- キャッシュでロールを保持する場合は、**セッション（またはユーザー）ごと・短い TTL** に限定し、他ユーザーに漏れないようにする。現状はキャッシュせず「レイアウト実行時に毎回取得」でよい
+
+### 参照実装（jobtv）
+
+- `(main)/layout.tsx`: `getHeaderAuthInfo()` を await し、取得した認証情報を `HeaderAuthProvider` に渡している
+- `HeaderAuthContext`: 初期値（サーバーから渡されたロール等）を保持し、`onAuthStateChange` で更新
+- ヘッダーやその他の UI は `useHeaderAuth()` でこの値を参照する
+
+## 認可・ルート保護
+
+### ルール
+
+- 認証・認可が必要なルートでは **レイアウト** で `requireXxx()`（例: `requireAdmin()`, `requireRecruiterOrAdmin()`）を await する。ページごとではなくレイアウトで一括してチェックする
+- 未認証・権限不足の場合は `redirect()` し、リダイレクト先は **ロールに応じた共通ヘルパー**（`getRedirectPathByRole(role)` 等）で決める
+- 新規に保護付きルートを増やすときも上記パターンに従う
+
+### 参照実装（jobtv）
+
+- `app/studio/layout.tsx`: `requireRecruiterOrAdmin()` を await
+- `app/admin/(dashboard)/layout.tsx`: `requireAdmin()` を await
+- `lib/auth/redirect.ts`: `getRedirectPathByRole(role)` でロール別リダイレクト先を返す

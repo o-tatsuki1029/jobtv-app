@@ -9,6 +9,7 @@ import StudioButton from "@/components/studio/atoms/StudioButton";
 import StudioImageUpload from "@/components/studio/molecules/StudioImageUpload";
 import { VIDEO_CATEGORIES } from "../../../types/video.types";
 import type { VideoFormData, VideoCategory } from "../../../types/video.types";
+import { TITLE_MAX_LENGTH } from "@/constants/validation";
 
 interface VideoEditorProps {
   formData: VideoFormData;
@@ -103,7 +104,7 @@ export default function VideoEditor({
         placeholder="動画のタイトルを入れてください"
         error={errors.title}
         disabled={readOnly}
-        maxLength={30}
+        maxLength={TITLE_MAX_LENGTH}
         showCharCount
       />
 
