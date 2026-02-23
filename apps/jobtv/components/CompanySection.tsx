@@ -1,8 +1,10 @@
 "use client";
 
+import { Building2 } from "lucide-react";
 import CompanyCard from "./CompanyCard";
 import HorizontalScrollContainer from "./HorizontalScrollContainer";
-import { useMainTheme } from "@/components/company/CompanyPageThemeContext";
+import SectionHeader from "./SectionHeader";
+import { useMainTheme } from "@/components/theme/PageThemeContext";
 import { cn } from "@jobtv-app/shared/utils/cn";
 import { HORIZONTAL_CARD_WIDTH } from "@/constants/card-layout";
 
@@ -10,6 +12,7 @@ interface Company {
   id: string;
   name: string;
   logo_url: string | null;
+  thumbnail_url?: string | null;
 }
 
 interface CompanySectionProps {
@@ -25,20 +28,21 @@ export default function CompanySection({ title, companies }: CompanySectionProps
   }
 
   return (
-    <section className="mb-2 py-0">
+    <section className="my-2 py-0">
       <div className="container mx-auto px-4">
         {title && (
-          <div className="mb-6">
-            <div className="mb-3">
-              <h2 className={cn("text-2xl md:text-3xl font-bold", classes.textPrimary)}>{title}</h2>
-            </div>
-          </div>
+          <SectionHeader icon={Building2} title={title} titleClassName={classes.textPrimary} />
         )}
         <HorizontalScrollContainer>
           <div className="flex gap-4 min-w-max px-4 pb-6">
             {companies.map((company) => (
               <div key={company.id} className={cn(HORIZONTAL_CARD_WIDTH.company, "flex-shrink-0")}>
-                <CompanyCard id={company.id} name={company.name} logoUrl={company.logo_url} />
+                <CompanyCard
+                id={company.id}
+                name={company.name}
+                thumbnailUrl={company.thumbnail_url}
+                logoUrl={company.logo_url}
+              />
               </div>
             ))}
           </div>

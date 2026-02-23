@@ -9,7 +9,7 @@ import {
   STICKY_SIDEBAR_TOP_WITH_HEADER_CLASS_LG,
   STICKY_SIDEBAR_TOP_WITHOUT_HEADER_CLASS_LG
 } from "@/constants/header-layout";
-import { useMainTheme } from "./CompanyPageThemeContext";
+import { useMainTheme } from "@/components/theme/PageThemeContext";
 import { cn } from "@jobtv-app/shared/utils/cn";
 
 interface CompanySidebarProps {

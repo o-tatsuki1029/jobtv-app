@@ -1,4 +1,5 @@
 import SessionDetailView from "@/components/SessionDetailView";
+import SessionEventJsonLd from "@/components/seo/SessionEventJsonLd";
 import { getSession, getSessionDates } from "@/lib/actions/session-actions";
 import { getSessionDateReservationCounts } from "@/lib/actions/session-reservation-actions";
 import { getCompanyProfileById } from "@/lib/actions/company-profile-actions";
@@ -181,5 +182,18 @@ export default async function SessionDetailPage({ params }: SessionDetailPagePro
     companyBenefits: Array.isArray((company as any).benefits) ? (company as any).benefits : undefined
   };
 
-  return <SessionDetailView session={sessionData} />;
+  const firstUpcomingDate = upcomingDates[0] as
+    | { event_date: string; start_time: string | null; end_time: string | null }
+    | undefined;
+
+  return (
+    <>
+      <SessionEventJsonLd
+        session={session}
+        company={company}
+        firstDate={firstUpcomingDate}
+      />
+      <SessionDetailView session={sessionData} />
+    </>
+  );
 }

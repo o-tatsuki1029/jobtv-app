@@ -3,7 +3,7 @@ import HeaderContainer from "./HeaderContainer";
 
 export default function AuthHeader() {
   return (
-    <HeaderContainer>
+    <HeaderContainer alignStart>
       <Logo disableLink />
     </HeaderContainer>
   );

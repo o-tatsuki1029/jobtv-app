@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import type { CompanyData } from "./types";
-import { useMainTheme } from "./CompanyPageThemeContext";
+import { useMainTheme } from "@/components/theme/PageThemeContext";
 import { cn } from "@jobtv-app/shared/utils/cn";
 
 interface CompanyEventsProps {

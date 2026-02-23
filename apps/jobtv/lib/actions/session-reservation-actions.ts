@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { getUserCompanyId } from "@jobtv-app/shared/actions/company-utils";
 import type { Tables, TablesInsert } from "@jobtv-app/shared/types";
 
 type SessionReservation = Tables<"session_reservations">;
@@ -230,108 +231,185 @@ export async function getSessionReservations(sessionId: string) {
 
 /**
  * 全ての予約を取得（最大100件、企業の説明会のみ）
+ * 求人管理のエントリー数取得と同様に、getUserCompanyId で企業を特定し、
+ * 予約・候補者・メールを別クエリで取得してマージする（RPC 不要）。
  */
 export async function getAllReservations(limit: number = 100, sessionId?: string | null) {
   const supabase = await createClient();
 
-  // 現在のユーザーの企業IDを取得
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { data: null, error: "ログインが必要です" };
+  const { companyId, error: companyError } = await getUserCompanyId();
+  if (companyError) {
+    return { data: null, error: companyError };
   }
-
-  const { data: profile } = await supabase.from("profiles").select("company_id").eq("id", user.id).single();
-
-  if (!profile?.company_id) {
-    return { data: null, error: "企業情報が見つかりません" };
-  }
-
-  // 企業の全説明会の日程IDを取得
-  let query = supabase
-    .from("session_dates")
-    .select(
-      `
-      id,
-      event_date,
-      start_time,
-      end_time,
-      sessions!inner (
-        id,
-        title,
-        company_id
-      )
-    `
-    )
-    .eq("sessions.company_id", profile.company_id);
-
-  // セッションIDでフィルター
-  if (sessionId) {
-    query = query.eq("sessions.id", sessionId);
-  }
-
-  const { data: dates, error: datesError } = await query;
-
-  if (datesError) {
-    console.error("Get session dates error:", datesError);
-    return { data: null, error: datesError.message };
-  }
-
-  if (!dates || dates.length === 0) {
+  if (!companyId) {
     return { data: [], error: null };
   }
 
-  const dateIds = dates.map((d) => d.id);
+  // 1. 自社の説明会（本番）を取得（求人一覧で job を取るのと同じ考え方）
+  let sessionsQuery = supabase.from("sessions").select("id, title").eq("company_id", companyId);
+  if (sessionId) {
+    sessionsQuery = sessionsQuery.eq("id", sessionId);
+  }
+  const { data: sessions, error: sessionsError } = await sessionsQuery;
 
-  // 全予約を取得
-  const { data: reservations, error } = await supabase
+  if (sessionsError) {
+    console.error("Get sessions error:", sessionsError);
+    return { data: null, error: sessionsError.message };
+  }
+  if (!sessions || sessions.length === 0) {
+    return { data: [], error: null };
+  }
+
+  // 2. 予約を「session_dates → sessions の company_id」で取得（dateIds で絞らない）
+  //    自社のいずれかの説明会に紐づく予約をすべて取得する
+  let reservationsQuery = supabase
     .from("session_reservations")
     .select(
       `
-      *,
-      candidates (
-        last_name,
-        first_name,
-        last_name_kana,
-        first_name_kana,
-        phone,
-        email,
-        school_name,
-        gender,
-        graduation_year
+      id,
+      session_date_id,
+      candidate_id,
+      status,
+      attended,
+      created_at,
+      updated_at,
+      session_dates!inner (
+        id,
+        event_date,
+        start_time,
+        end_time,
+        session_id,
+        sessions!inner (id, title, company_id)
       )
     `
     )
-    .in("session_date_id", dateIds)
+    .eq("session_dates.sessions.company_id", companyId)
     .order("created_at", { ascending: false })
     .limit(limit);
 
-  if (error) {
-    console.error("Get all reservations error:", error);
-    return { data: null, error: error.message };
+  if (sessionId) {
+    reservationsQuery = reservationsQuery.eq("session_dates.sessions.id", sessionId);
   }
 
-  // 日程と説明会情報を含めて返す
-  const reservationsWithInfo = (reservations as ReservationWithCandidate[]).map((reservation) => {
-    const date = dates.find((d) => d.id === reservation.session_date_id);
+  const { data: reservationsRaw, error: reservationsError } = await reservationsQuery;
+
+  if (reservationsError) {
+    console.error("Get all reservations error:", reservationsError);
+    return { data: null, error: reservationsError.message };
+  }
+  if (!reservationsRaw || reservationsRaw.length === 0) {
+    return { data: [], error: null };
+  }
+
+  type ReservationRow = Record<string, unknown> & {
+    session_dates?: {
+      id?: string;
+      event_date?: string;
+      start_time?: string;
+      end_time?: string;
+      session_id?: string;
+      sessions?: { id?: string; title?: string } | { id?: string; title?: string }[];
+    };
+  };
+
+  const reservations = (reservationsRaw as ReservationRow[]).map((r) => ({
+    id: r.id as string,
+    session_date_id: r.session_date_id as string,
+    candidate_id: r.candidate_id as string,
+    status: r.status as string,
+    attended: r.attended as boolean,
+    created_at: r.created_at as string,
+    updated_at: r.updated_at as string
+  }));
+
+  const sessionMap = new Map<string, { id: string; title: string }>();
+  const datesByReservation = new Map<
+    string,
+    { id: string; event_date: string; start_time: string; end_time: string; session_id: string } | null
+  >();
+
+  (reservationsRaw as ReservationRow[]).forEach((r) => {
+    const sd = r.session_dates;
+    const s = Array.isArray(sd?.sessions) ? sd?.sessions?.[0] : sd?.sessions;
+    if (s?.id) {
+      sessionMap.set(String(s.id), { id: String(s.id), title: String(s.title ?? "") });
+    }
+    if (r.session_date_id && sd) {
+      datesByReservation.set(String(r.session_date_id), {
+        id: String(sd.id ?? ""),
+        event_date: String(sd.event_date ?? ""),
+        start_time: String(sd.start_time ?? ""),
+        end_time: String(sd.end_time ?? ""),
+        session_id: String(sd.session_id ?? "")
+      });
+    }
+  });
+
+  // 4. 候補者IDをまとめて、候補者＋メールを一括取得（求人の応募数と同様に単体テーブルで取得）
+  const candidateIds = [...new Set(reservations.map((r) => r.candidate_id))];
+  const { data: candidatesRows, error: candidatesError } = await supabase
+    .from("candidates")
+    .select(
+      `
+      id,
+      last_name,
+      first_name,
+      last_name_kana,
+      first_name_kana,
+      phone,
+      school_name,
+      gender,
+      graduation_year,
+      profiles!profiles_candidate_id_fkey (email)
+    `
+    )
+    .in("id", candidateIds);
+
+  if (candidatesError) {
+    console.error("Get candidates for reservations error:", candidatesError);
+    return { data: null, error: candidatesError.message };
+  }
+
+  const candidateMap = new Map<
+    string,
+    {
+      last_name: string;
+      first_name: string;
+      last_name_kana: string;
+      first_name_kana: string;
+      phone: string | null;
+      school_name: string | null;
+      gender: string | null;
+      graduation_year: number | null;
+      profiles: { email: string | null } | null;
+    }
+  >();
+  (candidatesRows ?? []).forEach((c: Record<string, unknown>) => {
+    candidateMap.set(c.id as string, {
+      last_name: (c.last_name as string) ?? "",
+      first_name: (c.first_name as string) ?? "",
+      last_name_kana: (c.last_name_kana as string) ?? "",
+      first_name_kana: (c.first_name_kana as string) ?? "",
+      phone: (c.phone as string | null) ?? null,
+      school_name: (c.school_name as string | null) ?? null,
+      gender: (c.gender as string | null) ?? null,
+      graduation_year: (c.graduation_year as number | null) ?? null,
+      profiles: c.profiles ? { email: (c.profiles as { email: string | null }).email } : null
+    });
+  });
+
+  const reservationsWithInfo = reservations.map((reservation) => {
+    const date = datesByReservation.get(reservation.session_date_id) ?? null;
+    const session = date ? sessionMap.get(date.session_id) ?? null : null;
+    const candidate = candidateMap.get(reservation.candidate_id) ?? null;
+
     return {
       ...reservation,
       session_date: date
-        ? {
-            id: date.id,
-            event_date: date.event_date,
-            start_time: date.start_time,
-            end_time: date.end_time
-          }
+        ? { id: date.id, event_date: date.event_date, start_time: date.start_time, end_time: date.end_time }
         : null,
-      session: date?.sessions
-        ? {
-            id: (date.sessions as any).id,
-            title: (date.sessions as any).title
-          }
-        : null
+      session: session ? { id: session.id, title: session.title } : null,
+      candidates: candidate
     };
   });
 
@@ -400,7 +478,28 @@ export async function createSessionReservation(sessionDateId: string, candidateD
       candidateId = newCandidate.id;
     }
 
-    // 2. 既に予約が存在するかチェック
+    // 2. 定員チェック（日程 or 説明会の定員を超えていたら予約不可）
+    const { data: sessionDateRow, error: dateErr } = await supabase
+      .from("session_dates")
+      .select("id, capacity, session_id, sessions(capacity)")
+      .eq("id", sessionDateId)
+      .single();
+
+    if (dateErr || !sessionDateRow) {
+      return { data: null, error: "日程が見つかりません" };
+    }
+
+    const dateRow = sessionDateRow as { capacity?: number | null; sessions?: { capacity?: number | null } | null };
+    const capacity = dateRow.capacity ?? dateRow.sessions?.capacity ?? null;
+    if (capacity != null) {
+      const { data: count } = await getSessionDateReservationCount(sessionDateId);
+      const reserved = count ?? 0;
+      if (reserved >= capacity) {
+        return { data: null, error: "この日程は満員のため予約できません" };
+      }
+    }
+
+    // 3. 既に予約が存在するかチェック
     const { data: existingReservation } = await supabase
       .from("session_reservations")
       .select("id")
@@ -412,7 +511,7 @@ export async function createSessionReservation(sessionDateId: string, candidateD
       return { data: null, error: "この日程には既に予約済みです" };
     }
 
-    // 3. 予約を作成
+    // 4. 予約を作成
     const { data: reservation, error: reservationError } = await supabase
       .from("session_reservations")
       .insert({
@@ -435,6 +534,97 @@ export async function createSessionReservation(sessionDateId: string, candidateD
     console.error("Create session reservation error:", error);
     return { data: null, error: "予約の作成に失敗しました" };
   }
+}
+
+/**
+ * ログイン中の学生（candidate）が説明会の日程に参加予約する。
+ * profiles.candidate_id を使用し、候補者情報の入力は不要。
+ */
+export async function createSessionReservationForLoggedInCandidate(sessionDateId: string) {
+  const supabase = await createClient();
+
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { data: null, error: "ログインが必要です" };
+  }
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("candidate_id, role")
+    .eq("id", user.id)
+    .single();
+
+  if (profileError || !profile) {
+    console.error("Get profile error:", profileError);
+    return { data: null, error: "プロフィールを取得できませんでした" };
+  }
+
+  if (profile.role !== "candidate" || !profile.candidate_id) {
+    return { data: null, error: "求職者アカウントでログインしてください" };
+  }
+
+  const candidateId = profile.candidate_id;
+
+  // 該当日程が公開中説明会のものか確認し、定員も取得
+  const { data: sessionDateRow, error: dateError } = await supabase
+    .from("session_dates")
+    .select("id, capacity, session_id, sessions(status, capacity)")
+    .eq("id", sessionDateId)
+    .single();
+
+  if (dateError || !sessionDateRow) {
+    return { data: null, error: "日程が見つかりません" };
+  }
+
+  const sessionDate = sessionDateRow as { id: string; capacity?: number | null; session_id: string; sessions?: { status?: string; capacity?: number | null } | null };
+  const session = sessionDate.sessions;
+  if (!session || session.status !== "active") {
+    return { data: null, error: "この説明会は現在予約できません" };
+  }
+
+  // 定員チェック（日程 or 説明会の定員を超えていたら予約不可）
+  const capacity = sessionDate.capacity ?? session.capacity ?? null;
+  if (capacity != null) {
+    const { data: count } = await getSessionDateReservationCount(sessionDateId);
+    const reserved = count ?? 0;
+    if (reserved >= capacity) {
+      return { data: null, error: "この日程は満員のため予約できません" };
+    }
+  }
+
+  // 既に予約済みかチェック
+  const { data: existingReservation } = await supabase
+    .from("session_reservations")
+    .select("id")
+    .eq("session_date_id", sessionDateId)
+    .eq("candidate_id", candidateId)
+    .maybeSingle();
+
+  if (existingReservation) {
+    return { data: null, error: "この日程には既に予約済みです" };
+  }
+
+  const { data: reservation, error: reservationError } = await supabase
+    .from("session_reservations")
+    .insert({
+      session_date_id: sessionDateId,
+      candidate_id: candidateId,
+      status: "reserved",
+      attended: false
+    })
+    .select()
+    .single();
+
+  if (reservationError || !reservation) {
+    console.error("Create reservation error:", reservationError);
+    return { data: null, error: "予約の作成に失敗しました" };
+  }
+
+  revalidatePath("/", "layout");
+  revalidatePath(`/session/${sessionDate.session_id}`);
+  return { data: reservation, error: null };
 }
 
 /**

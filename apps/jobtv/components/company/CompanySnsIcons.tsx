@@ -1,7 +1,7 @@
 "use client";
 
 import { XIcon, InstagramIcon, TikTokIcon, YouTubeIcon } from "@jobtv-app/shared/icons";
-import { useMainTheme } from "./CompanyPageThemeContext";
+import { useMainTheme } from "@/components/theme/PageThemeContext";
 import { cn } from "@jobtv-app/shared/utils/cn";
 
 interface CompanySnsIconsProps {

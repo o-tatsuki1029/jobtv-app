@@ -225,7 +225,22 @@ export async function signIn(formData: FormData) {
   revalidatePath("/", "layout");
   const next = (formData.get("next") as string)?.trim();
   const isValidNext = next && next.startsWith("/") && !next.startsWith("//");
-  redirect(isValidNext ? next : "/");
+  const redirectTo = isValidNext ? next : "/";
+  // #region agent log
+  fetch("http://127.0.0.1:7557/ingest/64046041-1a00-4e5c-9b0e-704b7b8897ef", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "561a53" },
+    body: JSON.stringify({
+      sessionId: "561a53",
+      location: "auth-actions.ts:signIn redirect",
+      message: "signIn redirect target",
+      data: { next, isValidNext, redirectTo },
+      timestamp: Date.now(),
+      hypothesisId: "C"
+    })
+  }).catch(() => {});
+  // #endregion
+  redirect(redirectTo);
 }
 
 /**

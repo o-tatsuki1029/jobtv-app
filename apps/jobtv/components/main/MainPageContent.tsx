@@ -6,19 +6,19 @@ import ShortVideoSection from "@/components/ShortVideoSection";
 import BannerList from "@/components/BannerList";
 import AccountList from "@/components/AccountList";
 import CompanySection from "@/components/CompanySection";
-import SectionNavigation from "@/components/SectionNavigation";
-import { useMainTheme } from "@/components/company/CompanyPageThemeContext";
+import { useMainTheme } from "@/components/theme/PageThemeContext";
 import { cn } from "@jobtv-app/shared/utils/cn";
-
-export interface MainPageSection {
-  id: string;
-  label: string;
-}
 
 export interface MainPageIndustrySection {
   value: string;
   label: string;
-  companies: Array<{ id: string; name: string; logo_url: string | null }>;
+  companies: Array<{
+    id: string;
+    name: string;
+    logo_url: string | null;
+    /** トップ企業カード用。未設定時は logo_url を表示 */
+    thumbnail_url?: string | null;
+  }>;
 }
 
 export interface MainPageContentProps {
@@ -31,7 +31,6 @@ export interface MainPageContentProps {
     viewers: number;
   };
   banners: Array<{ id: string; title: string; image: string }>;
-  sections: MainPageSection[];
   shortVideos: Array<{
     id: string;
     title: string;
@@ -54,7 +53,6 @@ export interface MainPageContentProps {
 export default function MainPageContent({
   heroProgram,
   banners,
-  sections,
   shortVideos,
   accounts,
   documentaryPrograms,
@@ -73,32 +71,34 @@ export default function MainPageContent({
         viewers={heroProgram.viewers}
       />
       <div className={classes.contentAreaBg}>
-        <BannerList banners={banners} />
-
-        <SectionNavigation sections={sections} />
+        <div className={classes.bannerListBg}>
+          <BannerList banners={banners} />
+        </div>
 
         <div id="short" className="scroll-mt-20 py-8">
-          <ShortVideoSection title="⚡ 就活Shorts" videos={shortVideos} />
+          <ShortVideoSection title="就活Shorts" videos={shortVideos} />
         </div>
         <AccountList accounts={accounts} />
         <div
           id="documentary"
           className={cn("py-8 scroll-mt-20", classes.contentSectionBg, classes.contentSectionBorder)}
         >
-          <ProgramSection title="📹 就活ドキュメンタリー" programs={documentaryPrograms} largeCards={true} />
+          <ProgramSection title="就活ドキュメンタリー" programs={documentaryPrograms} largeCards={true} />
         </div>
-        {industrySections.map((industry) => (
-          <div key={industry.value} id={`company-${industry.value}`} className="scroll-mt-20 py-4">
-            <CompanySection
-              title={industry.label}
-              companies={industry.companies.map((c) => ({
-                id: c.id,
-                name: c.name,
-                logo_url: c.logo_url
-              }))}
-            />
-          </div>
-        ))}
+        {Array.isArray(industrySections) &&
+          industrySections.map((industry) => (
+            <div key={industry.value} id={`company-${industry.value}`} className="scroll-mt-20 py-4">
+              <CompanySection
+                title={industry.label}
+                companies={industry.companies.map((c) => ({
+                  id: c.id,
+                  name: c.name,
+                  logo_url: c.logo_url ?? null,
+                  thumbnail_url: c.thumbnail_url ?? null
+                }))}
+              />
+            </div>
+          ))}
       </div>
     </div>
   );

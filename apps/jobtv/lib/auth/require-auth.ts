@@ -46,20 +46,68 @@ async function getUserInfoInternal(): Promise<UserInfo | null> {
 /**
  * 管理者権限をチェックし、権限がない場合はjobtvアプリ固有のパスにリダイレクト
  * 未認証の場合は管理者ログインページにリダイレクト
+ * AAL2（TOTP検証済み）セッションが必要
  */
 export async function requireAdmin(): Promise<UserInfo> {
   const userInfo = await getUserInfoInternal();
-  
+
   // 未認証の場合は管理者ログインページへ
   if (!userInfo) {
     redirect("/admin/login");
   }
-  
+
   // admin以外のロールの場合は適切なパスへリダイレクト
   if (userInfo.role !== "admin") {
     redirect(getRedirectPathByRole(userInfo.role));
   }
-  
+
+  // MFA チェック
+  const supabase = await createClient();
+
+  const { data: factorsData } = await supabase.auth.mfa.listFactors();
+  const hasTOTP = factorsData?.totp?.some((f) => f.status === "verified");
+
+  if (!hasTOTP) {
+    // TOTP未設定 → 設定ページへ
+    redirect("/admin/setup-totp");
+  }
+
+  const { data: aalData } =
+    await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+
+  if (aalData?.currentLevel !== "aal2") {
+    // TOTP設定済みだがこのセッションで未検証 → 検証ページへ
+    redirect("/admin/verify-totp");
+  }
+
+  return userInfo;
+}
+
+/**
+ * 管理者ログイン済み（AAL1以上）を確認するが、AAL2は要求しない
+ * setup-totp / verify-totp ページ保護用
+ * 既にAAL2の場合はダッシュボードにリダイレクト
+ */
+export async function requireAdminAAL1(): Promise<UserInfo> {
+  const userInfo = await getUserInfoInternal();
+
+  if (!userInfo) {
+    redirect("/admin/login");
+  }
+
+  if (userInfo.role !== "admin") {
+    redirect(getRedirectPathByRole(userInfo.role));
+  }
+
+  // 既にAAL2なら直接ダッシュボードへ
+  const supabase = await createClient();
+  const { data: aalData } =
+    await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+
+  if (aalData?.currentLevel === "aal2") {
+    redirect("/admin");
+  }
+
   return userInfo;
 }
 

@@ -20,11 +20,11 @@ import {
   updateSessionDraft,
   uploadSessionDraftCoverImage,
   getSessionDatesDraft,
+  getProductionSessionDates,
   saveSessionDatesDraft,
   submitSessionForReview,
   toggleSessionStatus
 } from "@/lib/actions/session-actions";
-import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { hasFieldChanges, hasObjectChanges, hasChanges } from "@/utils/form-utils";
 import { validateRequired, validateMaxLength } from "@jobtv-app/shared/utils/validation";
 import { TITLE_MAX_LENGTH, LONG_DESCRIPTION_MAX_LENGTH } from "@/constants/validation";
@@ -75,6 +75,8 @@ export default function SessionEditPage() {
   const [initialSession, setInitialSession] = useState<Session | null>(null);
   const [sessionDates, setSessionDates] = useState<SessionDate[]>([]);
   const [initialSessionDates, setInitialSessionDates] = useState<SessionDate[]>([]);
+  /** 本番公開済みの日程のキー集合（event_date_start_time_end_time）。これらの日程は削除不可 */
+  const [publishedDateKeys, setPublishedDateKeys] = useState<Set<string>>(new Set());
   const [isCoverImageUploading, setIsCoverImageUploading] = useState(false);
   const [dateErrors, setDateErrors] = useState<
     Record<number, { event_date?: string; start_time?: string; end_time?: string }>
@@ -173,10 +175,10 @@ export default function SessionEditPage() {
     },
     validate: () => {
       if (!validateRequiredFields()) {
-        return "必須項目を入力してください";
+        return "必須項目を入力してください。日程の開催日・開始時間・終了時間は必須です。";
       }
-      if (Object.keys(fieldErrors).length > 0 || Object.keys(dateErrors).length > 0 || hasCharacterLimitErrors()) {
-        return "入力内容を確認してください";
+      if (hasCharacterLimitErrors()) {
+        return "文字数制限を超えています。入力内容を確認してください。";
       }
       return null;
     },
@@ -207,9 +209,6 @@ export default function SessionEditPage() {
 
     return hasChanges(fieldChanged, datesChanged);
   }, [selectedSession, initialSession, sessionDates, initialSessionDates]);
-
-  // ページ離脱時の警告
-  useUnsavedChanges(hasSessionChanges);
 
   // 説明会データを取得
   useEffect(() => {
@@ -292,6 +291,20 @@ export default function SessionEditPage() {
           } else {
             setSessionDates([]);
             setInitialSessionDates([]);
+          }
+
+          // 本番公開済みの日程を取得（削除不可判定用）
+          if (sessionData.production_session_id) {
+            const { data: prodDates } = await getProductionSessionDates(sessionData.production_session_id);
+            if (prodDates && prodDates.length > 0) {
+              const keys = new Set(
+                prodDates.map(
+                  (d: { event_date: string; start_time: string; end_time: string }) =>
+                    `${d.event_date}_${d.start_time}_${d.end_time}`
+                )
+              );
+              setPublishedDateKeys(keys);
+            }
           }
         }
         setLoading(false);
@@ -390,10 +403,18 @@ export default function SessionEditPage() {
     setSessionDates([...sessionDates, { event_date: defaultDate, start_time: "", end_time: "", capacity: null }]);
   };
 
+  /** 本番公開済みの日程か（削除不可） */
+  const isDatePublished = (date: SessionDate) =>
+    publishedDateKeys.has(`${date.event_date}_${date.start_time}_${date.end_time}`);
+
   // 日程を削除
   const handleRemoveDate = (index: number) => {
     if (sessionDates.length <= 1) {
       setError("最低1つの日程が必要です");
+      return;
+    }
+    if (isDatePublished(sessionDates[index])) {
+      setError("本番公開中の日程は削除できません");
       return;
     }
     const newDates = sessionDates.filter((_, i) => i !== index);
@@ -700,13 +721,20 @@ export default function SessionEditPage() {
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-gray-700">日程 {index + 1}</span>
                     {sessionDates.length > 1 && !isReadOnly && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveDate(index)}
-                        className="p-1 hover:bg-red-50 text-red-600 rounded transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      isDatePublished(sessionDates[index]) ? (
+                        <span className="text-xs text-gray-500" title="本番公開中のため削除できません">
+                          本番公開中
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveDate(index)}
+                          className="p-1 hover:bg-red-50 text-red-600 rounded transition-colors"
+                          title="日程を削除"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )
                     )}
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -820,14 +848,20 @@ export default function SessionEditPage() {
         <DraftActionButtons
           onPreview={() => setIsPreviewOpen(true)}
           showPreviewButton={true}
-          onSubmitForReview={() => setIsSubmitModalOpen(true)}
+          onSubmitForReview={() => {
+            if (!validateRequiredFields()) {
+              setError("必須項目を入力してください。日程の開催日・開始時間・終了時間は必須です。");
+              return;
+            }
+            if (hasCharacterLimitErrors()) {
+              setError("文字数制限を超えています。入力内容を確認してください。");
+              return;
+            }
+            setError(null);
+            setIsSubmitModalOpen(true);
+          }}
           isSubmitting={isSubmittingReview}
-          isSubmitDisabled={
-            isCoverImageUploading ||
-            Object.keys(fieldErrors).length > 0 ||
-            Object.keys(dateErrors).length > 0 ||
-            hasCharacterLimitErrors()
-          }
+          isSubmitDisabled={isCoverImageUploading}
           showSubmitButton={!isReadOnly}
           hasChanges={hasSessionChanges()}
           showActualPageButton={

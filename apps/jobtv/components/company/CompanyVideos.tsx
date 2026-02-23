@@ -6,7 +6,7 @@ import { Play } from "lucide-react";
 import HorizontalScrollContainer from "@/components/HorizontalScrollContainer";
 import VideoModal from "@/components/VideoModal";
 import type { CompanyData } from "./types";
-import { useMainTheme } from "./CompanyPageThemeContext";
+import { useMainTheme } from "@/components/theme/PageThemeContext";
 import { cn } from "@jobtv-app/shared/utils/cn";
 import {
   HORIZONTAL_CARD_ASPECT_RATIO_16_9_CLASS,

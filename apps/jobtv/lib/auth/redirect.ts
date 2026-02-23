@@ -19,4 +19,21 @@ export function getRedirectPathByRole(
   }
 }
 
+/**
+ * ロールに対応するログインページのパスを取得（ログアウト後のリダイレクト先に使用）
+ */
+export function getLoginPathByRole(
+  role: UserRole | null | undefined
+): string {
+  switch (role) {
+    case "admin":
+      return "/admin/login";
+    case "recruiter":
+      return "/studio/login";
+    case "candidate":
+    default:
+      return "/auth/login";
+  }
+}
+
 

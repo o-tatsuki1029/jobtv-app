@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import ShortVideoSection from "@/components/ShortVideoSection";
 import VideoModal from "@/components/VideoModal";
 import type { CompanyData } from "./types";
-import { useMainTheme } from "./CompanyPageThemeContext";
+import { useMainTheme } from "@/components/theme/PageThemeContext";
 import { cn } from "@jobtv-app/shared/utils/cn";
 
 interface CompanyShortVideosProps {

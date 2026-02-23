@@ -129,6 +129,8 @@ pnpm types
 
 ## 4. 開発サーバーの起動
 
+日常の開発では [monorepo.md](monorepo.md) の開発ワークフローも参照。
+
 ### 全アプリを並列起動
 
 ```bash

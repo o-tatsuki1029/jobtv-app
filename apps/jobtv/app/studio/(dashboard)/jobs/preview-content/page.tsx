@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import JobDetailView, { JobData } from "@/components/JobDetailView";
-import { MainThemeProvider } from "@/components/company/CompanyPageThemeContext";
+import { MainThemeProvider } from "@/components/theme/PageThemeContext";
 
 export default function JobPreviewContentPage() {
   const [job, setJob] = useState<JobData | null>(null);

@@ -7,32 +7,13 @@
 - **Supabase Project ID**: `tdewumilkltljbqryjpg`
 - **管理場所**: `jobtv-app/supabase/migrations/`
 - **対象アプリ**: agent-manager、event-system、jobtv（すべて同じデータベースを共有）
+- **一元管理**: 全マイグレーションは `supabase/migrations/` で管理。型は `pnpm types` で生成し、`database.types.ts` は手動編集しない。
 
-## セットアップ
-
-### 1. Supabase CLI のインストール
-
-```bash
-npm install -g supabase
-```
-
-### 2. プロジェクトへのリンク
-
-```bash
-# monorepoのルートディレクトリで実行
-cd /path/to/jobtv-app
-supabase link --project-ref tdewumilkltljbqryjpg
-```
-
-### 3. ログイン
-
-```bash
-supabase login
-```
-
-ブラウザが開き、Supabase にログインします。
+Supabase の初回セットアップ（CLI インストール・link・login）は [setup.md](setup.md) を参照。
 
 ## マイグレーション管理
+
+通常の流れ: 新規作成 → SQL 記述 → `supabase db push` → `pnpm types` → コミット（[型定義の生成](#型定義の生成) 参照）。以下に各ステップの詳細を記載する。
 
 ### 新しいマイグレーションの作成
 
@@ -100,85 +81,74 @@ import type { Database, Tables } from "@jobtv-app/shared/types";
 type Candidate = Tables<"candidates">;
 ```
 
-## 標準ワークフロー
+## 型定義の分類と配置
 
-1. **マイグレーションファイルの作成**
+- **データベース型（自動生成）**: `packages/shared/types/database.types.ts`。ルートで `pnpm types` で生成。手動編集禁止。`Database`, `Tables`, `TablesInsert`, `TablesUpdate`, `Enums` など。
+- **データベース拡張型（共通）**: `packages/shared/types/database-extensions.ts`。複数アプリで共有する拡張型（例: `CandidateWithProfile`, `JobPostingWithCompany`）。
+- **共通ヘルパー型**: `packages/shared/types/common-helpers.ts`。`TableName`, `FormData`, `PaginationInfo`, `ApiResponse`, `User` など。
+- **アプリ固有型**: `apps/{app-name}/types/*.types.ts`。そのアプリでのみ使用する型。
+- **コンポーネント単位の型**: コンポーネントファイル内または同ディレクトリの `*.types.ts`。1〜2 コンポーネントでしか使わない型はここに定義。
 
-   ```bash
-   supabase migration new <name>
-   ```
+### 型の配置判断基準
 
-2. **SQL の記述**
+- データベース型 → 自動生成の `database.types.ts`
+- 複数アプリで使用 → `database-extensions.ts`
+- 特定アプリのみ → `apps/{app-name}/types/*.types.ts`
+- ローカル（1〜2 コンポーネント）→ コンポーネントファイル内
 
-   - `supabase/migrations/`に生成されたファイルに SQL を記述
+## Supabase クライアントの使用
 
-3. **マイグレーションの適用**
+### クライアントの配置
 
-   ```bash
-   supabase db push
-   ```
+各アプリの `lib/supabase/` で共通パッケージから再エクスポートする：
 
-4. **型定義の更新**
+- `lib/supabase/server.ts` → `export { createClient } from "@jobtv-app/shared/supabase/server"`
+- `lib/supabase/client.ts` → `export { createClient } from "@jobtv-app/shared/supabase/client"`
 
-   ```bash
-   pnpm types
-   ```
+### クライアントの選択
 
-5. **変更をコミット**
+- **Server Components**: `@/lib/supabase/server` の `createClient()` を使用
+- **Server Actions**: サーバークライアント（`@/lib/supabase/server`）を使用
+- **Client Components**: 必要に応じて `@/lib/supabase/client` の `createClient()` を使用
 
-   ```bash
-   git add supabase/migrations packages/shared/types/database.types.ts
-   git commit -m "feat: add new migration"
-   ```
+### クライアントの作成ルール
 
-## マイグレーション履歴
+- グローバル変数に Supabase クライアントを置かない
+- 各関数/コンポーネント内で新しいクライアントインスタンスを作成する
+- Fluid compute 利用時は常に新しいクライアントを作成する
 
-### agent-manager からの移行 (2025 年 11 月〜12 月)
+### 使用例
 
-- `20251127104334_remote_schema.sql`
-- `20251201161218_recruitment_system.sql`
-- `20251201161219_fix_rls_policies.sql`
-- `20251201185543_update_companies_table.sql`
-- `20251201190000_update_candidates_table.sql`
-- `20251201192000_update_candidates_table_remove_fields.sql`
-- `20251202000000_add_graduation_year_to_job_postings.sql`
-- `20251202000001_remove_draft_from_job_status.sql`
-- `20251202000002_add_available_statuses_to_job_postings.sql`
-- `20251202000003_make_graduation_year_required.sql`
-- `20251202000004_create_interview_notes.sql`
-- `20251203000000_add_updated_fields_to_progress_and_notes.sql`
-- `20251203000002_add_interviewer_id_to_interview_notes.sql`
-- `20251203000003_update_user_role_enum.sql`
-- `20251203000004_add_graduation_year_and_assigned_to_to_candidates.sql`
-- `20251203000005_add_name_fields_to_candidates.sql`
+```typescript
+// Server Component
+import { createClient } from "@/lib/supabase/server";
 
-### supabase-migration からの移行 (2026 年 1 月)
+export default async function Page() {
+  const supabase = await createClient();
+  const { data } = await supabase.from("candidates").select("*");
+  return <div>{/* ... */}</div>;
+}
 
-- `20260120052100_remote_schema.sql`
-- `20260120053000_update_rls_to_include_recruiter.sql`
-- `20260120060000_allow_recruiter_view_candidates.sql`
-- `20260120070000_simplify_user_roles.sql`
-- `20260120080000_add_memo_to_ratings.sql`
-- `20260125000000_add_event_special_interviews.sql`
+// Server Action
+"use server";
+import { createClient } from "@/lib/supabase/server";
 
-### jobtv からの移行 (2026 年 2 月)
+export async function createCandidate(formData: FormData) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("candidates")
+    .insert({ name: formData.get("name") });
+  if (error) return { data: null, error: error.message };
+  return { data, error: null };
+}
 
-- `20260202201656_add_company_profile_fields.sql`
-- `20260202201657_create_company_storage_bucket.sql`
+// Client Component
+"use client";
+import { createClient } from "@/lib/supabase/client";
+// 各関数内で createClient() を呼び、useEffect 等で利用
+```
 
 ## 重要な注意事項
-
-### ⚠️ マイグレーション管理の統一
-
-- **全てのマイグレーションは`jobtv-app/supabase/migrations/`で管理**
-- 各アプリ（agent-manager、event-system、jobtv）内には supabase ディレクトリを作成しない
-- 新しいマイグレーションは必ず monorepo のルートで作成してください
-
-### 🔄 型定義の同期
-
-- マイグレーション適用後、必ず`pnpm types`を実行
-- すべてのアプリが`@jobtv-app/shared/types`から型定義を参照
-- 型定義ファイル（`database.types.ts`）の手動編集は禁止
 
 ### 📋 DB 解釈ドキュメントの更新
 

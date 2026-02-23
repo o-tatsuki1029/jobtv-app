@@ -3,16 +3,18 @@
 import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { MapPin, Briefcase, Clock, ChevronRight, Calendar, Users } from "lucide-react";
+import { MapPin, Briefcase, Clock, ChevronRight, Calendar, Users, Loader2 } from "lucide-react";
 import {
   STICKY_SIDEBAR_TOP_WITH_HEADER_CLASS,
   STICKY_SIDEBAR_TOP_WITHOUT_HEADER_CLASS
 } from "@/constants/header-layout";
-import { useMainTheme } from "@/components/company/CompanyPageThemeContext";
+import { useMainTheme } from "@/components/theme/PageThemeContext";
+import { useHeaderAuth } from "@/components/header/HeaderAuthContext";
 import CompanyDetailsBlock from "@/components/company/CompanyDetailsBlock";
 import CompanyEntryCtaButton from "@/components/company/CompanyEntryCtaButton";
 import CompanyEntryModal from "@/components/company/CompanyEntryModal";
 import type { EntryModalJob } from "@/components/company/CompanyEntryModal";
+import { createApplicationsForCandidate } from "@/lib/actions/application-actions";
 import { cn } from "@jobtv-app/shared/utils/cn";
 
 export interface JobData {
@@ -42,10 +44,15 @@ export interface JobData {
   companyBenefits?: string[];
 }
 
-export default function JobDetailView({ job }: { job: JobData }) {
+/** 求人詳細用: エントリー済みかどうか（サーバーで取得した初期値）。直接エントリー後に true に更新する。 */
+export default function JobDetailView({ job, initialHasApplied = false }: { job: JobData; initialHasApplied?: boolean }) {
   const [showStickyButton, setShowStickyButton] = useState(false);
   const [isEntryModalOpen, setIsEntryModalOpen] = useState(false);
+  const [hasApplied, setHasApplied] = useState(initialHasApplied);
+  const [directEntrySubmitting, setDirectEntrySubmitting] = useState(false);
   const { classes, hasHeader, theme } = useMainTheme();
+  const auth = useHeaderAuth();
+  const isCandidate = auth?.user && auth?.role === null; // getHeaderAuthInfo では candidate のとき role が null
 
   const jobsForModal: EntryModalJob[] = [
     {
@@ -58,6 +65,10 @@ export default function JobDetailView({ job }: { job: JobData }) {
       employmentType: job.workConditions
     }
   ];
+
+  useEffect(() => {
+    setHasApplied(initialHasApplied);
+  }, [initialHasApplied]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -76,6 +87,62 @@ export default function JobDetailView({ job }: { job: JobData }) {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  const handleDirectEntry = async () => {
+    if (hasApplied || directEntrySubmitting) return;
+    setDirectEntrySubmitting(true);
+    const { data, error } = await createApplicationsForCandidate([job.id]);
+    setDirectEntrySubmitting(false);
+    if (!error && data && (data.created.length > 0 || data.alreadyApplied.length > 0)) {
+      setHasApplied(true);
+    }
+  };
+
+  const showDirectEntry = isCandidate && !hasApplied;
+  const entryButtonClass = "w-full py-4 text-base rounded-md font-bold transition-colors duration-150 inline-flex items-center justify-center gap-2";
+  const entryButtonDisabledClass = cn(
+    entryButtonClass,
+    "bg-gray-300 text-gray-500 cursor-not-allowed",
+    theme === "dark" && "bg-gray-600 text-gray-400"
+  );
+
+  const renderEntryButton = (className?: string) => {
+    if (hasApplied) {
+      return (
+        <button type="button" disabled className={cn(entryButtonDisabledClass, className)}>
+          エントリー済み
+        </button>
+      );
+    }
+    if (showDirectEntry) {
+      return (
+        <button
+          type="button"
+          onClick={handleDirectEntry}
+          disabled={directEntrySubmitting}
+          className={cn(
+            "bg-gradient-to-br from-red-600 to-pink-600 hover:from-red-500 hover:to-pink-500 text-white active:opacity-90 disabled:opacity-70 disabled:cursor-not-allowed",
+            entryButtonClass,
+            className
+          )}
+        >
+          {directEntrySubmitting ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+              送信中
+            </>
+          ) : (
+            "この求人にエントリー"
+          )}
+        </button>
+      );
+    }
+    return (
+      <CompanyEntryCtaButton onClick={() => setIsEntryModalOpen(true)} className={className}>
+        この求人にエントリー
+      </CompanyEntryCtaButton>
+    );
+  };
 
   return (
     <div className={cn("min-h-screen", classes.pageBg, classes.pageText)}>
@@ -130,9 +197,7 @@ export default function JobDetailView({ job }: { job: JobData }) {
           <div className="lg:col-span-2 space-y-12">
             {/* エントリーボタン（SP版のみ） */}
             <section className="lg:hidden">
-              <CompanyEntryCtaButton onClick={() => setIsEntryModalOpen(true)} className="w-full py-4 text-base">
-                この求人にエントリー
-              </CompanyEntryCtaButton>
+              {renderEntryButton("w-full py-4 text-base")}
             </section>
 
             {/* 勤務条件・勤務地 */}
@@ -299,9 +364,7 @@ export default function JobDetailView({ job }: { job: JobData }) {
                 </div>
               </div>
               <div>
-                <CompanyEntryCtaButton onClick={() => setIsEntryModalOpen(true)} className="w-full py-4 text-lg">
-                  この求人にエントリー
-                </CompanyEntryCtaButton>
+                {renderEntryButton("w-full py-4 text-lg")}
               </div>
 
               {/* 企業情報（本社所在地〜おすすめポイント・企業ページと共通） */}
@@ -355,12 +418,7 @@ export default function JobDetailView({ job }: { job: JobData }) {
                   <p className={cn("text-xs md:text-sm truncate", classes.textMuted)}>{job.companyName}</p>
                 </div>
               </div>
-              <CompanyEntryCtaButton
-                onClick={() => setIsEntryModalOpen(true)}
-                className="flex-shrink-0 px-6 py-3 md:px-8 md:py-3.5 text-sm md:text-base whitespace-nowrap"
-              >
-                この求人にエントリー
-              </CompanyEntryCtaButton>
+              {renderEntryButton("flex-shrink-0 px-6 py-3 md:px-8 md:py-3.5 text-sm md:text-base whitespace-nowrap")}
             </div>
           </div>
         </div>
@@ -370,7 +428,8 @@ export default function JobDetailView({ job }: { job: JobData }) {
         isOpen={isEntryModalOpen}
         onClose={() => setIsEntryModalOpen(false)}
         jobs={jobsForModal}
-        returnTo={job.companyId ? `/job/${job.id}` : undefined}
+        initialAppliedJobIds={hasApplied ? [job.id] : []}
+        returnTo={`/job/${job.id}`}
       />
     </div>
   );

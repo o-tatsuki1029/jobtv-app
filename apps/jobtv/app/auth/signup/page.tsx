@@ -401,10 +401,10 @@ function SignUpPageContent() {
                   </div>
 
                   <div>
-<label htmlFor="desired_work_location" className={labelClass}>
-                希望勤務地
-              </label>
-              <select id="desired_work_location" name="desired_work_location" required className={inputClass}>
+                    <label htmlFor="desired_work_location" className={labelClass}>
+                      希望勤務地
+                    </label>
+                    <select id="desired_work_location" name="desired_work_location" required className={inputClass}>
                       <option value="">選択してください</option>
                       {PREFECTURES.map((pref: string) => (
                         <option key={pref} value={pref}>
@@ -692,7 +692,13 @@ function SignUpPageContent() {
 
 export default function SignUpPage() {
   return (
-    <Suspense fallback={<div className="flex-1 flex items-center justify-center min-h-0 px-4 py-6 bg-white"><div className="animate-pulse text-gray-400">読み込み中...</div></div>}>
+    <Suspense
+      fallback={
+        <div className="flex-1 flex items-center justify-center min-h-0 px-4 py-6 bg-white">
+          <div className="animate-pulse text-gray-400">読み込み中...</div>
+        </div>
+      }
+    >
       <SignUpPageContent />
     </Suspense>
   );

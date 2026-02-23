@@ -2,14 +2,14 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { Menu, X, LogOut } from "lucide-react";
 import { STUDIO_NAVIGATION } from "../constants";
 import StudioNavItem from "../molecules/StudioNavItem";
 import { createClient } from "@/lib/supabase/client";
+import { getLoginPathByRole } from "@/lib/auth/redirect";
 
 export default function StudioHeader() {
-  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const pathname = usePathname();
@@ -29,9 +29,11 @@ export default function StudioHeader() {
         setIsLoggingOut(false);
         return;
       }
-      
-      router.push("/login");
-      router.refresh();
+      const loginPath = getLoginPathByRole("recruiter");
+      // #region agent log
+      fetch('http://127.0.0.1:7557/ingest/64046041-1a00-4e5c-9b0e-704b7b8897ef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'807a72'},body:JSON.stringify({sessionId:'807a72',location:'StudioHeader.tsx:logout',message:'redirect after logout',data:{loginPath,method:'window.location'},hypothesisId:'A',timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
+      window.location.href = loginPath;
     } catch (error) {
       console.error("Logout error:", error);
       alert("ログアウトに失敗しました");

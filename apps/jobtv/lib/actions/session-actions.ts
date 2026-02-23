@@ -281,6 +281,27 @@ export async function getSessionDatesDraft(sessionDraftId: string) {
 }
 
 /**
+ * 本番に公開されている説明会の日程一覧を取得（スタジオで「削除不可」判定に利用）
+ */
+export async function getProductionSessionDates(productionSessionId: string) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("session_dates")
+    .select("event_date, start_time, end_time")
+    .eq("session_id", productionSessionId)
+    .order("event_date", { ascending: true })
+    .order("start_time", { ascending: true });
+
+  if (error) {
+    console.error("Get production session dates error:", error);
+    return { data: null, error: error.message };
+  }
+
+  return { data: data ?? [], error: null };
+}
+
+/**
  * 説明会ドラフトの日程を保存（一括更新）
  */
 export async function saveSessionDatesDraft(

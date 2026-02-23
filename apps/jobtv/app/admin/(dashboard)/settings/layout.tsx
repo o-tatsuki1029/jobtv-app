@@ -32,8 +32,7 @@ export default function AdminSettingsLayout({ children }: { children: React.Reac
         return;
       }
 
-      router.push("/admin/login");
-      router.refresh();
+      window.location.href = "/admin/login";
     } catch (error) {
       console.error("Logout error:", error);
       alert("ログアウトに失敗しました");

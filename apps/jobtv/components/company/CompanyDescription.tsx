@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import type { CompanyData } from "./types";
-import { useMainTheme } from "./CompanyPageThemeContext";
+import { useMainTheme } from "@/components/theme/PageThemeContext";
 import { cn } from "@jobtv-app/shared/utils/cn";
 
 interface CompanyDescriptionProps {

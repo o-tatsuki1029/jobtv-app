@@ -2,31 +2,36 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useMainTheme } from "@/components/company/CompanyPageThemeContext";
+import { useMainTheme } from "@/components/theme/PageThemeContext";
 import { cn } from "@jobtv-app/shared/utils/cn";
 import { HORIZONTAL_CARD_ASPECT_RATIO_CLASS } from "@/constants/card-layout";
 
 interface CompanyCardProps {
   id: string;
   name: string;
+  /** トップページ企業カード用サムネ。未設定時は logoUrl を表示 */
+  thumbnailUrl?: string | null;
   logoUrl?: string | null;
 }
 
-export default function CompanyCard({ id, name, logoUrl }: CompanyCardProps) {
+export default function CompanyCard({ id, name, thumbnailUrl, logoUrl }: CompanyCardProps) {
   const { classes } = useMainTheme();
+  const imageUrl = thumbnailUrl ?? logoUrl;
 
   return (
     <Link href={`/company/${id}`} className="group cursor-pointer block">
       <div className={cn("relative overflow-hidden rounded-lg bg-gray-900 mb-3 shadow-sm group-hover:shadow-lg transition-shadow duration-300", HORIZONTAL_CARD_ASPECT_RATIO_CLASS)}>
-        {logoUrl ? (
-          <Image
-            src={logoUrl}
-            alt={name}
-            fill
-            sizes="(max-width: 768px) 120px, (max-width: 1200px) 140px, 160px"
-            className="object-contain p-4 group-hover:scale-105 transition-transform duration-300 origin-center"
-            loading="lazy"
-          />
+        {imageUrl ? (
+          <div className="absolute inset-0 bg-white">
+            <Image
+              src={imageUrl}
+              alt={name}
+              fill
+              sizes="(max-width: 768px) 120px, (max-width: 1200px) 140px, 160px"
+              className="object-contain group-hover:scale-105 transition-transform duration-300 origin-center"
+              loading="lazy"
+            />
+          </div>
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gray-800">
             <svg
@@ -44,19 +49,9 @@ export default function CompanyCard({ id, name, logoUrl }: CompanyCardProps) {
             </svg>
           </div>
         )}
-        {/* Play overlay on hover */}
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-          <svg
-            className="w-12 h-12 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-            fill="currentColor"
-            viewBox="0 0 20 20"
-          >
-            <path
-              fillRule="evenodd"
-              d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
-              clipRule="evenodd"
-            />
-          </svg>
+        {/* ホバー時「もっと見る」を下部に表示 */}
+        <div className="absolute inset-x-0 bottom-0 py-2 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center">
+          <span className="text-white text-xs font-bold">もっと見る</span>
         </div>
       </div>
       <div className="px-1">

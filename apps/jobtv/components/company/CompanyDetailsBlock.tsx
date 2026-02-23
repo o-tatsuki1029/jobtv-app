@@ -1,7 +1,7 @@
 "use client";
 
 import { MapPin, Calendar, Users, Lightbulb } from "lucide-react";
-import { useMainTheme } from "./CompanyPageThemeContext";
+import { useMainTheme } from "@/components/theme/PageThemeContext";
 import { cn } from "@jobtv-app/shared/utils/cn";
 
 /** 企業ページ・求人/説明会詳細のサイドバーで共通表示する「設立〜本社所在地〜おすすめポイント」のブロック用 props */

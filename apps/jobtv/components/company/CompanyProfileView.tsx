@@ -17,7 +17,8 @@ import {
 } from "./index";
 import type { EntryModalJob } from "./CompanyEntryModal";
 import type { CompanyData } from "./types";
-import { useMainTheme } from "./CompanyPageThemeContext";
+import { getAppliedJobIdsForCurrentCandidate } from "@/lib/actions/application-actions";
+import { useMainTheme } from "@/components/theme/PageThemeContext";
 import { cn } from "@jobtv-app/shared/utils/cn";
 
 export type { CompanyData };
@@ -25,6 +26,7 @@ export type { CompanyData };
 export default function CompanyProfileView({ company }: { company: CompanyData }) {
   const [currentUrl, setCurrentUrl] = useState("");
   const [isEntryModalOpen, setIsEntryModalOpen] = useState(false);
+  const [appliedJobIdsForModal, setAppliedJobIdsForModal] = useState<string[]>([]);
   const { classes } = useMainTheme();
 
   useEffect(() => {
@@ -43,13 +45,22 @@ export default function CompanyProfileView({ company }: { company: CompanyData }
     employmentType: j.employmentType
   }));
 
+  const handleEntryClick = async () => {
+    const jobIds = jobsForModal.map((j) => j.id);
+    if (jobIds.length > 0) {
+      const { data } = await getAppliedJobIdsForCurrentCandidate(jobIds);
+      setAppliedJobIdsForModal(data ?? []);
+    }
+    setIsEntryModalOpen(true);
+  };
+
   return (
     <div className={cn("min-h-screen", classes.pageBg, classes.pageText)}>
       <div className="container mx-auto px-4 pt-6 pb-12 md:pt-10 md:pb-16">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* 左カラム: メインコンテンツ */}
           <div className="lg:col-span-2 space-y-8 md:space-y-12">
-            <CompanyMainHeader company={company} onEntryClick={() => setIsEntryModalOpen(true)} />
+            <CompanyMainHeader company={company} onEntryClick={handleEntryClick} />
             <CompanyDescription company={company} />
             {/* SNSアイコン */}
             {company.snsUrls &&
@@ -67,18 +78,19 @@ export default function CompanyProfileView({ company }: { company: CompanyData }
           </div>
 
           {/* 右カラム: サイドバー（詳細情報 & アクション） */}
-          <CompanySidebar company={company} onEntryClick={() => setIsEntryModalOpen(true)} />
+          <CompanySidebar company={company} onEntryClick={handleEntryClick} />
         </div>
       </div>
 
       {/* 固定エントリーボタン（スクロール時） */}
-      <CompanyStickyButton company={company} onEntryClick={() => setIsEntryModalOpen(true)} />
+      <CompanyStickyButton company={company} onEntryClick={handleEntryClick} />
 
-      {/* エントリー用モーダル（求人複数選択） */}
+      {/* エントリー用モーダル（求人複数選択）。エントリー済みは取得済みの状態で表示 */}
       <CompanyEntryModal
         isOpen={isEntryModalOpen}
         onClose={() => setIsEntryModalOpen(false)}
         jobs={jobsForModal}
+        initialAppliedJobIds={appliedJobIdsForModal}
         returnTo={`/company/${company.id}`}
       />
     </div>

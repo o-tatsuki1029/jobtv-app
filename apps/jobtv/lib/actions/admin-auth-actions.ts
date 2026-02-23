@@ -52,11 +52,19 @@ export async function adminSignIn(formData: FormData): Promise<{
     return { error: "管理者権限がありません。一般ユーザーのログインは通常のログインページをご利用ください。" };
   }
 
-  // 管理者ログイン成功
   revalidatePath("/", "layout");
-  
-  // クライアント側でリダイレクトするため、URLを返す
-  return { redirectUrl: "/admin", error: null };
+
+  // TOTP登録状況を確認してリダイレクト先を決定
+  const { data: factorsData } = await supabase.auth.mfa.listFactors();
+  const hasTOTP = factorsData?.totp?.some((f) => f.status === "verified");
+
+  if (!hasTOTP) {
+    // TOTP未設定 → 設定ページへ
+    return { redirectUrl: "/admin/setup-totp", error: null };
+  }
+
+  // TOTP設定済み → 検証ページへ
+  return { redirectUrl: "/admin/verify-totp", error: null };
 }
 
 

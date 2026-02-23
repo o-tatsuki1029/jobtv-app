@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import SessionDetailView, { SessionData } from "@/components/SessionDetailView";
-import { MainThemeProvider } from "@/components/company/CompanyPageThemeContext";
+import { MainThemeProvider } from "@/components/theme/PageThemeContext";
 
 export default function SessionPreviewContentPage() {
   const [session, setSession] = useState<SessionData | null>(null);

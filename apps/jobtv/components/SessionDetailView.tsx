@@ -9,7 +9,7 @@ import {
   STICKY_SIDEBAR_TOP_WITH_HEADER_CLASS,
   STICKY_SIDEBAR_TOP_WITHOUT_HEADER_CLASS
 } from "@/constants/header-layout";
-import { useMainTheme } from "@/components/company/CompanyPageThemeContext";
+import { useMainTheme } from "@/components/theme/PageThemeContext";
 import CompanyDetailsBlock from "@/components/company/CompanyDetailsBlock";
 import CompanyEntryCtaButton from "@/components/company/CompanyEntryCtaButton";
 import CompanyEntryModal from "@/components/company/CompanyEntryModal";

@@ -1,6 +1,14 @@
 import MainPageContent from "@/components/main/MainPageContent";
 import { getCompaniesByIndustry, type CompanyWithPage } from "@/lib/actions/company-list-actions";
 import { INDUSTRIES } from "@/constants/company-options";
+import { SITE_TITLE, SITE_DESCRIPTION } from "@/constants/site";
+import type { Metadata } from "next";
+
+/** トップページのSEO用メタデータ（明示的に title / description を設定） */
+export const metadata: Metadata = {
+  title: { absolute: SITE_TITLE },
+  description: SITE_DESCRIPTION
+};
 
 // サンプルデータ
 const banners = [
@@ -302,51 +310,42 @@ const accounts = [
 
 export default async function Home() {
   // 企業データを業界ごとに取得
-  const companiesResult = await getCompaniesByIndustry();
-  const companiesByIndustry = companiesResult.data || new Map();
+  let industrySections: Array<{
+    value: string;
+    label: string;
+    companies: Array<{ id: string; name: string; logo_url: string | null; thumbnail_url: string | null }>;
+  }> = [];
 
-  // 業界リストを取得（空の選択肢は除外）
-  const industries = INDUSTRIES.filter((industry) => industry.value !== "");
+  try {
+    const companiesResult = await getCompaniesByIndustry();
+    const companiesByIndustry = companiesResult.data ?? new Map<string, CompanyWithPage[]>();
 
-  // セクションリストを作成（企業説明セクションは動的に追加）
-  const sections = [
-    { id: "short", label: "⚡ 就活Shorts" },
-    { id: "documentary", label: "📹 就活ドキュメンタリー" }
-  ];
+    const industries = INDUSTRIES.filter((industry) => industry.value !== "");
 
-  // 企業が存在する業界のセクションを追加
-  for (const industry of industries) {
-    const companies = companiesByIndustry.get(industry.value);
-    if (companies && companies.length > 0) {
-      sections.push({
-        id: `company-${industry.value}`,
-        label: industry.label
-      });
-    }
+    industrySections = industries
+      .map((industry) => {
+        const companies = companiesByIndustry.get(industry.value);
+        if (!companies || companies.length === 0) return null;
+        return {
+          value: industry.value,
+          label: industry.label,
+          companies: companies.map((c: CompanyWithPage) => ({
+            id: c.id,
+            name: c.name ?? "",
+            logo_url: c.logo_url ?? null,
+            thumbnail_url: c.thumbnail_url ?? null
+          }))
+        };
+      })
+      .filter((s): s is NonNullable<typeof s> => s !== null);
+  } catch (e) {
+    console.error("Home: getCompaniesByIndustry error", e);
   }
-
-  // クライアントに渡す業界別企業（Map はシリアライズ不可のため配列に変換）
-  const industrySections = industries
-    .map((industry) => {
-      const companies = companiesByIndustry.get(industry.value);
-      if (!companies || companies.length === 0) return null;
-      return {
-        value: industry.value,
-        label: industry.label,
-        companies: companies.map((c: CompanyWithPage) => ({
-          id: c.id,
-          name: c.name,
-          logo_url: c.logo_url
-        }))
-      };
-    })
-    .filter((s): s is NonNullable<typeof s> => s !== null);
 
   return (
     <MainPageContent
       heroProgram={heroProgram}
       banners={banners}
-      sections={sections}
       shortVideos={shortVideos}
       accounts={accounts}
       documentaryPrograms={documentaryPrograms}

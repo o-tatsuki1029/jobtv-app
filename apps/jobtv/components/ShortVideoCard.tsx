@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useMainTheme } from "@/components/company/CompanyPageThemeContext";
+import { useMainTheme } from "@/components/theme/PageThemeContext";
 import { cn } from "@jobtv-app/shared/utils/cn";
 import { HORIZONTAL_CARD_ASPECT_RATIO_CLASS } from "@/constants/card-layout";
 

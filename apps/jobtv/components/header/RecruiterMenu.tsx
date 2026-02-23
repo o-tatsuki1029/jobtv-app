@@ -1,8 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { getLoginPathByRole } from "@/lib/auth/redirect";
 
 interface RecruiterMenuInfo {
   displayName: string;
@@ -18,7 +18,6 @@ interface RecruiterMenuProps {
 }
 
 export default function RecruiterMenu({ isOpen, onClose, userName, menuInfo }: RecruiterMenuProps) {
-  const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
@@ -44,8 +43,11 @@ export default function RecruiterMenu({ isOpen, onClose, userName, menuInfo }: R
         setIsLoggingOut(false);
         return;
       }
-      router.push("/");
-      router.refresh();
+      const loginPath = getLoginPathByRole("recruiter");
+      // #region agent log
+      fetch('http://127.0.0.1:7557/ingest/64046041-1a00-4e5c-9b0e-704b7b8897ef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'807a72'},body:JSON.stringify({sessionId:'807a72',location:'RecruiterMenu.tsx:logout',message:'redirect after logout',data:{loginPath,method:'window.location'},hypothesisId:'A',timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
+      window.location.href = loginPath;
     } catch (error) {
       console.error("Logout error:", error);
       setIsLoggingOut(false);

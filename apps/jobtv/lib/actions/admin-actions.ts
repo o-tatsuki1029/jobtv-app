@@ -742,6 +742,7 @@ export async function updateCompanyInfoDraftStatus(draftId: string, status: "app
       established: draft.established,
       company_info: draft.company_info,
       logo_url: draft.logo_url,
+      thumbnail_url: draft.thumbnail_url ?? null,
       status: status === "approved" ? "active" : "closed",
       updated_at: new Date().toISOString()
     };
@@ -777,6 +778,7 @@ export async function updateCompanyInfoDraftStatus(draftId: string, status: "app
       established: draft.established,
       company_info: draft.company_info,
       logo_url: draft.logo_url,
+      thumbnail_url: draft.thumbnail_url ?? null,
       status: status === "approved" ? "active" : "closed"
     };
 

@@ -26,7 +26,7 @@ export default function Footer() {
       }
     ],
     company: [
-      { label: "新卒採用を検討中の法人様", href: "#" },
+      { label: "新卒採用を検討中の法人様", href: "/service" },
       { label: "お問い合わせ", href: "#" }
     ]
   };

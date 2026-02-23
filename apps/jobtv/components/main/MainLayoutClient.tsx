@@ -2,7 +2,7 @@
 
 import Header from "@/components/header/Header";
 import Footer from "@/components/Footer";
-import { MainThemeProvider } from "@/components/company/CompanyPageThemeContext";
+import { MainThemeProvider } from "@/components/theme/PageThemeContext";
 
 export default function MainLayoutClient({
   children

@@ -276,9 +276,13 @@ export async function getCompanyProfileById(id: string): Promise<{
     }
 
     // 企業データに求人情報とページ情報、動画情報、説明会情報を追加
+    // company_pages の id で上書きされないよう、companies の id を明示的に維持する（URL・returnTo は companies.id を使用するため）
+    const pageData = pageResult.data || {};
+    const { id: _pageId, ...pageDataWithoutId } = pageData as { id?: string; [k: string]: unknown };
     const result = {
       ...companyData,
-      ...(pageResult.data || {}),
+      ...pageDataWithoutId,
+      id: companyData.id,
       job_postings: jobsData || [],
       videos: videosData || [],
       sessions: sessionsData || []
@@ -302,7 +306,7 @@ export async function getCompanyProfileById(id: string): Promise<{
  */
 export async function uploadCompanyAsset(
   file: File,
-  type: "logo" | "cover" | "message" | "video"
+  type: "logo" | "thumbnail" | "cover" | "message" | "video"
 ): Promise<{
   data: string | null; // アップロードされたファイルのURL
   error: string | null;

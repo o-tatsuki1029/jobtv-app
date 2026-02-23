@@ -1,4 +1,11 @@
+import type { Metadata } from "next";
 import AuthHeader from "@/components/header/AuthHeader";
+import { ROBOTS_NOINDEX } from "@/constants/site";
+
+/** 認証系ページ（/auth/*）は検索エンジンにインデックスさせない */
+export const metadata: Metadata = {
+  robots: ROBOTS_NOINDEX
+};
 
 export default function AuthLayout({
   children

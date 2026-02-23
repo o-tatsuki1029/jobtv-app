@@ -24,5 +24,5 @@ export const mobileNavItems = [
   { label: "企業説明", href: "#" },
   { label: "採用イベント", href: "#" },
   { label: "初めての方へ", href: "#" },
-  { label: "新卒採用を検討中の法人様", href: "#" }
+  { label: "新卒採用を検討中の法人様", href: "/service" }
 ] as const;

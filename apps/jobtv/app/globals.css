@@ -81,6 +81,61 @@
   background: transparent;
 }
 
+/* Hero title wipe-in + slide-in animation */
+@keyframes hero-wipe-in {
+  from {
+    clip-path: inset(0 100% 0 0);
+    transform: translateX(-50%);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .animate-hero-wipe-in {
+    animation: hero-wipe-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-hero-wipe-in {
+    animation: none;
+    clip-path: none;
+    transform: none;
+  }
+}
+
+/* Rainbow gradient text animation */
+@keyframes rainbow-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .text-rainbow-animate {
+    background: linear-gradient(90deg, #ff0080, #ff8c00, #40e0d0, #9d4edd, #ff0080);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: rainbow-shift 4s linear infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .text-rainbow-animate {
+    background: linear-gradient(90deg, #ff0080, #40e0d0);
+    background-size: 100% auto;
+    animation: none;
+  }
+}
+
 /* Hide scrollbar but keep functionality */
 .hide-scrollbar {
   -ms-overflow-style: none; /* IE and Edge */

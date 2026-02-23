@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { User, Building, Users, HelpCircle, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { getLoginPathByRole } from "@/lib/auth/redirect";
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const tabs = [
@@ -33,9 +33,11 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
         setIsLoggingOut(false);
         return;
       }
-
-      router.push("/login");
-      router.refresh();
+      const loginPath = getLoginPathByRole("recruiter");
+      // #region agent log
+      fetch('http://127.0.0.1:7557/ingest/64046041-1a00-4e5c-9b0e-704b7b8897ef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'807a72'},body:JSON.stringify({sessionId:'807a72',location:'studio/settings/layout.tsx:logout',message:'redirect after logout',data:{loginPath,method:'window.location'},hypothesisId:'A',timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
+      window.location.href = loginPath;
     } catch (error) {
       console.error("Logout error:", error);
       alert("ログアウトに失敗しました");

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import Script from "next/script";
+import Footer from "@/components/Footer";
 import "./lp.css";
 
 // 共通スタイル定数
@@ -153,9 +154,9 @@ export default function LPPage() {
     message: ""
   });
   const videoList = [
-    "/lp/images/shorts-sample-01.mp4",
-    "/lp/images/shorts-sample-02.mp4",
-    "/lp/images/shorts-sample-03.mp4"
+    "/service/recruitment-marketing/images/shorts-sample-01.mp4",
+    "/service/recruitment-marketing/images/shorts-sample-02.mp4",
+    "/service/recruitment-marketing/images/shorts-sample-03.mp4"
   ];
   const [selectedVideoIndex, setSelectedVideoIndex] = useState<number | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -241,21 +242,21 @@ export default function LPPage() {
   // サンプル動画データ
   const sampleVideos = [
     {
-      videoSrc: "/lp/images/shorts-sample-01.mp4",
+      videoSrc: "/service/recruitment-marketing/images/shorts-sample-01.mp4",
       tag: "企業説明",
       duration: "01:13",
       title: "企業研究動画",
       description: "企業や業界の特徴をわかりやすく解説し、ターゲットの志望動機を形成します。"
     },
     {
-      videoSrc: "/lp/images/shorts-sample-02.mp4",
+      videoSrc: "/service/recruitment-marketing/images/shorts-sample-02.mp4",
       tag: "トレンド",
       duration: "00:46",
       title: "トレンドフォーマット",
       description: "媒体トレンドに沿ったフォーマット投稿で、貴社名の露出を最大化します。"
     },
     {
-      videoSrc: "/lp/images/shorts-sample-03.mp4",
+      videoSrc: "/service/recruitment-marketing/images/shorts-sample-03.mp4",
       tag: "社員密着",
       duration: "01:10",
       title: "社員密着",
@@ -715,13 +716,13 @@ export default function LPPage() {
         <section className={`${styles.sectionPaddingLarge} bg-white relative overflow-hidden`}>
           <div className="absolute inset-0">
             <img
-              src="/lp/images/hero-bg-sp.png"
+              src="/service/recruitment-marketing/images/hero-bg-sp.png"
               alt=""
               className="md:hidden w-full h-full object-cover"
               aria-hidden="true"
             />
             <img
-              src="/lp/images/hero-bg.png"
+              src="/service/recruitment-marketing/images/hero-bg.png"
               alt=""
               className="hidden md:block w-full h-full object-cover"
               aria-hidden="true"
@@ -812,7 +813,7 @@ export default function LPPage() {
                     className="flex-shrink-0 w-[60px] h-[60px] md:w-[80px] md:h-[80px] flex items-center justify-center p-2 bg-white select-none"
                   >
                     <Image
-                      src={`/lp/images/logos/${logo}`}
+                      src={`/service/recruitment-marketing/images/logos/${logo}`}
                       alt={logo.replace(".jpg", "")}
                       width={160}
                       height={80}
@@ -831,7 +832,7 @@ export default function LPPage() {
                     className="flex-shrink-0 w-[60px] h-[60px] md:w-[80px] md:h-[80px] flex items-center justify-center p-2 bg-white select-none"
                   >
                     <Image
-                      src={`/lp/images/logos/${logo}`}
+                      src={`/service/recruitment-marketing/images/logos/${logo}`}
                       alt={logo.replace(".jpg", "")}
                       width={160}
                       height={80}
@@ -853,7 +854,7 @@ export default function LPPage() {
                     className="flex-shrink-0 w-[60px] h-[60px] md:w-[80px] md:h-[80px] flex items-center justify-center p-2 bg-white select-none"
                   >
                     <Image
-                      src={`/lp/images/logos/${logo}`}
+                      src={`/service/recruitment-marketing/images/logos/${logo}`}
                       alt={logo.replace(".jpg", "")}
                       width={160}
                       height={80}
@@ -872,7 +873,7 @@ export default function LPPage() {
                     className="flex-shrink-0 w-[60px] h-[60px] md:w-[80px] md:h-[80px] flex items-center justify-center p-2 bg-white select-none"
                   >
                     <Image
-                      src={`/lp/images/logos/${logo}`}
+                      src={`/service/recruitment-marketing/images/logos/${logo}`}
                       alt={logo.replace(".jpg", "")}
                       width={160}
                       height={80}
@@ -920,7 +921,7 @@ export default function LPPage() {
               {/* 正方形の画像 */}
               <div>
                 <img
-                  src="/lp/images/about.png"
+                  src="/service/recruitment-marketing/images/about.png"
                   alt="JOBTVのマーケティング支援イメージ"
                   loading="lazy"
                   className="block w-full h-full object-cover"
@@ -1712,153 +1713,7 @@ export default function LPPage() {
         </div>
       )}
 
-      <footer className="bg-black border-t border-gray-800">
-        <div className="container mx-auto px-4 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {/* サイト情報 */}
-            <div>
-              <Link href="/" className="inline-block mb-4">
-                <Image src="/logo.svg" alt="JOBTV" width={120} height={28} className="h-6 md:h-7 w-auto" />
-              </Link>
-              <p className="text-gray-400 text-sm mb-4">動画就活で理想の企業と出会う</p>
-              <div className="flex gap-4">{/* SNSリンク（将来的に追加） */}</div>
-            </div>
-
-            {/* サービス */}
-            <div>
-              <h4 className="text-white font-semibold text-sm mb-4">サービス</h4>
-              <ul className="space-y-2">
-                <li>
-                  <Link href="#short" className="text-gray-400 hover:text-red-500 transition-colors text-sm">
-                    就活Shorts
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#documentary" className="text-gray-400 hover:text-red-500 transition-colors text-sm">
-                    就活ドキュメンタリー
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#company" className="text-gray-400 hover:text-red-500 transition-colors text-sm">
-                    企業説明
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-gray-400 hover:text-red-500 transition-colors text-sm">
-                    採用イベント
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            {/* JOBTVについて */}
-            <div>
-              <h4 className="text-white font-semibold text-sm mb-4">JOBTVについて</h4>
-              <ul className="space-y-2">
-                <li>
-                  <a
-                    href="https://vectorinc.co.jp/company/about"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-gray-400 hover:text-red-500 transition-colors text-sm flex items-center gap-1"
-                  >
-                    運営会社
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                      />
-                    </svg>
-                  </a>
-                </li>
-                <li>
-                  <Link href="#" className="text-gray-400 hover:text-red-500 transition-colors text-sm">
-                    利用規約
-                  </Link>
-                </li>
-                <li>
-                  <a
-                    href="https://vectorinc.co.jp/privacy"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-gray-400 hover:text-red-500 transition-colors text-sm flex items-center gap-1"
-                  >
-                    プライバシーポリシー
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                      />
-                    </svg>
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="https://vectorinc.co.jp/cookie"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-gray-400 hover:text-red-500 transition-colors text-sm flex items-center gap-1"
-                  >
-                    クッキーポリシー
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                      />
-                    </svg>
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="https://vectorinc.co.jp/external-transmission"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-gray-400 hover:text-red-500 transition-colors text-sm flex items-center gap-1"
-                  >
-                    外部送信ポリシー
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                      />
-                    </svg>
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            {/* 企業様向け */}
-            <div>
-              <h4 className="text-white font-semibold text-sm mb-4">企業様向け</h4>
-              <ul className="space-y-2">
-                <li>
-                  <Link href="#" className="text-gray-400 hover:text-red-500 transition-colors text-sm">
-                    新卒採用を検討中の法人様
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-gray-400 hover:text-red-500 transition-colors text-sm">
-                    お問い合わせ
-                  </Link>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-        <div className="container border-t border-gray-800 flex justify-center items-center py-8 mx-auto">
-          <p className="text-gray-400 text-sm">
-            Copyright © {new Date().getFullYear()} VECTOR Inc. All Rights Reserved.
-          </p>
-        </div>
-      </footer>
+      <Footer />
 
       {/* スクロール追従バナー */}
       {isBannerVisible && (

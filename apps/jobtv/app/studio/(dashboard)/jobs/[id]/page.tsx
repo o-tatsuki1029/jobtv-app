@@ -22,7 +22,6 @@ import {
   submitJobForReview,
   toggleJobStatus
 } from "@/lib/actions/job-actions";
-import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { hasFieldChanges } from "@/utils/form-utils";
 import { validateRequired, validateMaxLength } from "@jobtv-app/shared/utils/validation";
 import type { Tables } from "@jobtv-app/shared/types";
@@ -174,9 +173,6 @@ export default function JobEditPage() {
 
     return fieldChanged;
   }, [selectedJob, initialJob]);
-
-  // ページ離脱時の警告
-  useUnsavedChanges(hasJobChanges);
 
   // 求人データを取得
   useEffect(() => {

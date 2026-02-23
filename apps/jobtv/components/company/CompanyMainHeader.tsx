@@ -3,7 +3,7 @@
 import Image from "next/image";
 import VideoPlayer from "@/components/VideoPlayer";
 import type { CompanyData } from "./types";
-import { useMainTheme } from "./CompanyPageThemeContext";
+import { useMainTheme } from "@/components/theme/PageThemeContext";
 import { cn } from "@jobtv-app/shared/utils/cn";
 import { HORIZONTAL_CARD_ASPECT_RATIO_16_9_CLASS } from "@/constants/card-layout";
 

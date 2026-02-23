@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import CompanyProfileView, { CompanyData } from "@/components/company";
-import { MainThemeProvider } from "@/components/company/CompanyPageThemeContext";
+import { MainThemeProvider } from "@/components/theme/PageThemeContext";
 
 export default function PreviewContentPage() {
   const [company, setCompany] = useState<CompanyData | null>(null);

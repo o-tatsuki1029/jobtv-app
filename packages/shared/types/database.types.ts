@@ -338,6 +338,7 @@ export type Database = {
           prefecture: string | null
           representative: string | null
           status: Database["public"]["Enums"]["company_status"] | null
+          thumbnail_url: string | null
           updated_at: string
           website: string | null
         }
@@ -356,6 +357,7 @@ export type Database = {
           prefecture?: string | null
           representative?: string | null
           status?: Database["public"]["Enums"]["company_status"] | null
+          thumbnail_url?: string | null
           updated_at?: string
           website?: string | null
         }
@@ -374,6 +376,7 @@ export type Database = {
           prefecture?: string | null
           representative?: string | null
           status?: Database["public"]["Enums"]["company_status"] | null
+          thumbnail_url?: string | null
           updated_at?: string
           website?: string | null
         }
@@ -400,6 +403,7 @@ export type Database = {
           rejected_at: string | null
           representative: string | null
           submitted_at: string | null
+          thumbnail_url: string | null
           updated_at: string
           website: string | null
         }
@@ -423,6 +427,7 @@ export type Database = {
           rejected_at?: string | null
           representative?: string | null
           submitted_at?: string | null
+          thumbnail_url?: string | null
           updated_at?: string
           website?: string | null
         }
@@ -446,6 +451,7 @@ export type Database = {
           rejected_at?: string | null
           representative?: string | null
           submitted_at?: string | null
+          thumbnail_url?: string | null
           updated_at?: string
           website?: string | null
         }
@@ -2070,12 +2076,46 @@ export type Database = {
         Args: { payload: Json }
         Returns: string
       }
+      get_company_reservation_count_for_dates: {
+        Args: { p_session_date_ids: string[] }
+        Returns: number
+      }
+      get_company_session_reservations: {
+        Args: { p_limit?: number; p_session_id?: string }
+        Returns: {
+          attended: boolean
+          candidate_id: string
+          created_at: string
+          email: string
+          end_time: string
+          event_date: string
+          first_name: string
+          first_name_kana: string
+          gender: string
+          graduation_year: number
+          id: string
+          last_name: string
+          last_name_kana: string
+          phone: string
+          school_name: string
+          session_date_id: string
+          session_id: string
+          session_title: string
+          start_time: string
+          status: string
+          updated_at: string
+        }[]
+      }
       get_public_session_date_reservation_counts: {
         Args: { session_date_ids: string[] }
         Returns: {
           reservation_count: number
           session_date_id: string
         }[]
+      }
+      session_date_belongs_to_current_user_company: {
+        Args: { p_session_date_id: string }
+        Returns: boolean
       }
     }
     Enums: {

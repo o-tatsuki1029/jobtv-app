@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import VideoPlayer from "./VideoPlayer";
+import { useHeaderAuth } from "@/components/header/HeaderAuthContext";
 
 interface HeroSectionProps {
   title: string;
@@ -15,6 +17,16 @@ interface HeroSectionProps {
 export default function HeroSection({ title, description, thumbnail, videoUrl, channel, viewers }: HeroSectionProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [showVideo, setShowVideo] = useState(!!videoUrl);
+  const auth = useHeaderAuth();
+  const router = useRouter();
+
+  const handleWatchClick = () => {
+    if (!auth?.user) {
+      router.push(`/auth/login?next=${encodeURIComponent("/#short")}`);
+      return;
+    }
+    document.getElementById("short")?.scrollIntoView({ behavior: "smooth" });
+  };
 
   return (
     <div className="relative w-full bg-black py-12 md:py-16 overflow-hidden">
@@ -42,23 +54,37 @@ export default function HeroSection({ title, description, thumbnail, videoUrl, c
               <span className="inline-block px-3 py-1 bg-red-500 text-white text-sm font-bold rounded">{channel}</span>
               {viewers && <span className="ml-3 text-white text-sm">延べ登録者150,000名突破</span>}
             </div>
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 leading-normal">
-              {title.split("で").map((part, index, array) => (
-                <span key={index}>
-                  {part}
-                  {index < array.length - 1 && "で"}
-                  {index === 0 && <br className="mb-0" />}
-                </span>
-              ))}
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-black text-black mb-4 leading-normal space-y-2">
+              {title.split("で").map((part, index, array) => {
+                const lineText = index < array.length - 1 ? `${part}で` : part;
+                const parts = lineText.split("動画就活");
+                return (
+                  <span key={index} className="block overflow-hidden">
+                    <span
+                      className="inline-block px-4 py-1 bg-white animate-hero-wipe-in rounded-sm"
+                      style={{ animationDelay: `${index * 0.1}s` }}
+                    >
+                      {parts.length === 1 ? (
+                        lineText
+                      ) : (
+                        <>
+                          {parts.map((p, i) => (
+                            <span key={i}>
+                              {i > 0 && <span className="text-rainbow-animate">動画就活</span>}
+                              {p}
+                            </span>
+                          ))}
+                        </>
+                      )}
+                    </span>
+                  </span>
+                );
+              })}
             </h1>
             <p className="text-white/90 text-lg mb-6 line-clamp-3">{description}</p>
             <div>
               <button
-                onClick={() => {
-                  if (videoUrl) {
-                    setShowVideo(true);
-                  }
-                }}
+                onClick={handleWatchClick}
                 className="flex items-center gap-2 px-8 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-full transition-colors"
               >
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">

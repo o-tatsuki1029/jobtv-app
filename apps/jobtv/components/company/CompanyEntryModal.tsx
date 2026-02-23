@@ -3,9 +3,14 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { X, MapPin, Calendar } from "lucide-react";
+import { X, MapPin, Calendar, Loader2 } from "lucide-react";
 import { useHeaderAuth } from "@/components/header/HeaderAuthContext";
-import { useMainTheme } from "./CompanyPageThemeContext";
+import { useMainTheme } from "@/components/theme/PageThemeContext";
+import {
+  createApplicationsForCandidate,
+  getAppliedJobIdsForCurrentCandidate
+} from "@/lib/actions/application-actions";
+import { createSessionReservationForLoggedInCandidate } from "@/lib/actions/session-reservation-actions";
 import { cn } from "@jobtv-app/shared/utils/cn";
 
 /** オーバーレイ上でのスクロールを止め、背景が動かないようにする。body は触らないのでスクロールバーは残る。 */
@@ -61,6 +66,8 @@ interface CompanyEntryModalPropsJob extends CompanyEntryModalPropsBase {
   variant?: "job";
   jobs: EntryModalJob[];
   sessionDates?: never;
+  /** エントリー済み求人ID一覧。指定時はモーダル内で再取得せずこれを使用する（親で取得してからモーダルを開く想定） */
+  initialAppliedJobIds?: string[];
 }
 
 interface CompanyEntryModalPropsSession extends CompanyEntryModalPropsBase {
@@ -73,8 +80,25 @@ export type CompanyEntryModalProps = CompanyEntryModalPropsJob | CompanyEntryMod
 
 export default function CompanyEntryModal(props: CompanyEntryModalProps) {
   const { isOpen, onClose, returnTo = "/" } = props;
+  // #region agent log
+  if (typeof window !== "undefined" && isOpen && returnTo) {
+    fetch("http://127.0.0.1:7557/ingest/64046041-1a00-4e5c-9b0e-704b7b8897ef", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "561a53" },
+      body: JSON.stringify({
+        sessionId: "561a53",
+        location: "CompanyEntryModal.tsx:returnTo",
+        message: "Entry modal returnTo",
+        data: { returnTo, variant: props.variant },
+        timestamp: Date.now(),
+        hypothesisId: "A"
+      })
+    }).catch(() => {});
+  }
+  // #endregion
   const isJob = props.variant !== "session";
   const jobs = isJob ? (props as CompanyEntryModalPropsJob).jobs : [];
+  const initialAppliedJobIds = isJob ? (props as CompanyEntryModalPropsJob).initialAppliedJobIds : undefined;
   const sessionDates = !isJob ? (props as CompanyEntryModalPropsSession).sessionDates : [];
 
   const { classes, theme } = useMainTheme();
@@ -86,6 +110,10 @@ export default function CompanyEntryModal(props: CompanyEntryModalProps) {
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectedSessionDateId, setSelectedSessionDateId] = useState<string | null>(null);
+  const [entrySubmitting, setEntrySubmitting] = useState(false);
+  const [entryError, setEntryError] = useState<string | null>(null);
+  const [entrySuccess, setEntrySuccess] = useState(false);
+  const [appliedJobIds, setAppliedJobIds] = useState<string[]>([]);
   const overlayRef = useRef<HTMLDivElement>(null);
 
   usePreventScrollOnOverlay(overlayRef, isOpen);
@@ -94,8 +122,20 @@ export default function CompanyEntryModal(props: CompanyEntryModalProps) {
     if (isOpen) {
       setSelectedIds(new Set());
       setSelectedSessionDateId(null);
+      setEntryError(null);
+      setEntrySuccess(false);
+      if (isJob && initialAppliedJobIds !== undefined) {
+        setAppliedJobIds(initialAppliedJobIds);
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, isJob, initialAppliedJobIds]);
+
+  useEffect(() => {
+    if (!isOpen || !isJob || jobs.length === 0 || initialAppliedJobIds !== undefined) return;
+    getAppliedJobIdsForCurrentCandidate(jobs.map((j) => j.id)).then(({ data }) => {
+      setAppliedJobIds(data ?? []);
+    });
+  }, [isOpen, isJob, jobs, initialAppliedJobIds]);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -114,8 +154,40 @@ export default function CompanyEntryModal(props: CompanyEntryModalProps) {
     });
   };
 
-  const handleEntryClick = () => {
-    // ガワのみ：今後エントリー処理を実装する
+  const handleEntryClick = async () => {
+    if (selectedIds.size === 0) return;
+    setEntrySubmitting(true);
+    setEntryError(null);
+    const { data, error } = await createApplicationsForCandidate(Array.from(selectedIds));
+    setEntrySubmitting(false);
+    if (error) {
+      setEntryError(error);
+      return;
+    }
+    if (data) {
+      if (data.alreadyApplied.length > 0 && data.created.length === 0) {
+        setEntryError("選択した求人はすべて既にエントリー済みです");
+        return;
+      }
+      setAppliedJobIds((prev) => [...new Set([...prev, ...data.created])]);
+      setEntrySuccess(true);
+      setTimeout(() => onClose(), 1500);
+    }
+  };
+
+  const handleSessionReservationClick = async () => {
+    if (!selectedSessionDateId) return;
+    setEntrySubmitting(true);
+    setEntryError(null);
+    const { data, error } = await createSessionReservationForLoggedInCandidate(selectedSessionDateId);
+    setEntrySubmitting(false);
+    if (error) {
+      setEntryError(error);
+      return;
+    }
+    if (data) {
+      onClose();
+    }
   };
 
   if (!isOpen) return null;
@@ -313,6 +385,18 @@ export default function CompanyEntryModal(props: CompanyEntryModalProps) {
         {/* 学生（candidate）: 求人選択・エントリー または 日程選択・予約 */}
         {!isGuest && !isNonCandidate && (
           <>
+            {entrySuccess && isJob ? (
+              <div
+                className={cn(
+                  "flex-1 flex items-center justify-center px-4 py-8 text-center text-base font-bold",
+                  "bg-green-500/10 text-green-700 dark:text-green-400",
+                  theme === "dark" ? "border-green-500/30" : "border-green-200"
+                )}
+                role="status"
+              >
+                エントリー完了
+              </div>
+            ) : (
             <div className="flex-1 overflow-y-auto px-4 pb-4">
               {isJob && jobs.length === 0 ? (
                 <p className={cn("py-8 text-center text-sm", classes.textMuted)}>募集中の求人がありません</p>
@@ -320,77 +404,132 @@ export default function CompanyEntryModal(props: CompanyEntryModalProps) {
                 <p className={cn("py-8 text-center text-sm", classes.textMuted)}>予約可能な日程がありません</p>
               ) : isJob ? (
                 <ul className="space-y-3">
-                  {jobs.map((job) => {
-                    const isSelected = selectedIds.has(job.id);
-                    return (
-                      <li key={job.id}>
-                        <button
-                          type="button"
-                          onClick={() => toggleJob(job.id)}
-                          className={cn(
-                            "w-full text-left rounded-lg overflow-hidden transition-all border-2",
-                            classes.cardBg,
-                            classes.cardBorder,
-                            isSelected
-                              ? "border-red-500 ring-2 ring-red-500/30"
-                              : "border-transparent hover:border-gray-400"
-                          )}
-                        >
-                          <div className="flex gap-3 p-3">
+                  {(() => {
+                    const sortedJobs = [
+                      ...jobs.filter((j) => !appliedJobIds.includes(j.id)),
+                      ...jobs.filter((j) => appliedJobIds.includes(j.id))
+                    ];
+                    return sortedJobs.map((job) => {
+                      const isApplied = appliedJobIds.includes(job.id);
+                      const isSelected = selectedIds.has(job.id);
+                      return (
+                        <li key={job.id}>
+                          {isApplied ? (
                             <div
                               className={cn(
-                                "flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center mt-0.5",
-                                isSelected ? "bg-red-600 border-red-600" : classes.cardBorder
+                                "w-full rounded-lg overflow-hidden border-2 border-transparent p-3 flex gap-3 items-center opacity-70",
+                                theme === "dark" ? "bg-gray-800/50" : "bg-gray-100",
+                                classes.cardBorder
                               )}
                             >
-                              {isSelected && (
-                                <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                  <path
-                                    fillRule="evenodd"
-                                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                    clipRule="evenodd"
-                                  />
-                                </svg>
-                              )}
-                            </div>
-                            <div className="relative w-16 h-16 flex-shrink-0 rounded-md overflow-hidden bg-gray-200">
-                              {job.coverImage ? (
-                                <Image src={job.coverImage} alt="" fill className="object-cover" sizes="64px" />
-                              ) : (
-                                <div className="w-full h-full bg-gray-300" />
-                              )}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex flex-wrap gap-1.5 mb-1">
-                                {job.graduationYear && (
-                                  <span className="px-1.5 py-0.5 bg-red-600/80 text-white text-[10px] font-bold rounded">
-                                    {job.graduationYear}
-                                  </span>
-                                )}
-                                {job.prefecture && (
-                                  <span className="px-1.5 py-0.5 bg-gray-600/80 text-white text-[10px] font-bold rounded">
-                                    {job.prefecture}
-                                  </span>
-                                )}
-                                {job.employmentType && (
-                                  <span className="px-1.5 py-0.5 bg-blue-600/80 text-white text-[10px] font-bold rounded">
-                                    {job.employmentType}
-                                  </span>
+                              <div className="flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center bg-gray-400 border-gray-400" />
+                              <div className="relative w-16 h-16 flex-shrink-0 rounded-md overflow-hidden bg-gray-200">
+                                {job.coverImage ? (
+                                  <Image src={job.coverImage} alt="" fill className="object-cover" sizes="64px" />
+                                ) : (
+                                  <div className="w-full h-full bg-gray-300" />
                                 )}
                               </div>
-                              <h3 className={cn("text-sm font-bold line-clamp-2", classes.textPrimary)}>{job.title}</h3>
-                              {job.location && (
-                                <p className={cn("flex items-center gap-1 mt-1 text-xs", classes.textMuted)}>
-                                  <MapPin className="w-3 h-3 flex-shrink-0" aria-hidden />
-                                  <span className="line-clamp-1">{job.location}</span>
-                                </p>
-                              )}
+                              <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap gap-1.5 mb-1 items-center">
+                                  <span className="px-2 py-0.5 bg-gray-500 text-white text-[10px] font-bold rounded">
+                                    エントリー済み
+                                  </span>
+                                  {job.graduationYear && (
+                                    <span className="px-1.5 py-0.5 bg-red-600/80 text-white text-[10px] font-bold rounded">
+                                      {job.graduationYear}
+                                    </span>
+                                  )}
+                                  {job.prefecture && (
+                                    <span className="px-1.5 py-0.5 bg-gray-600/80 text-white text-[10px] font-bold rounded">
+                                      {job.prefecture}
+                                    </span>
+                                  )}
+                                  {job.employmentType && (
+                                    <span className="px-1.5 py-0.5 bg-blue-600/80 text-white text-[10px] font-bold rounded">
+                                      {job.employmentType}
+                                    </span>
+                                  )}
+                                </div>
+                                <h3 className={cn("text-sm font-bold line-clamp-2", classes.textPrimary)}>{job.title}</h3>
+                                {job.location && (
+                                  <p className={cn("flex items-center gap-1 mt-1 text-xs", classes.textMuted)}>
+                                    <MapPin className="w-3 h-3 flex-shrink-0" aria-hidden />
+                                    <span className="line-clamp-1">{job.location}</span>
+                                  </p>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        </button>
-                      </li>
-                    );
-                  })}
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => toggleJob(job.id)}
+                              className={cn(
+                                "w-full text-left rounded-lg overflow-hidden transition-all border-2",
+                                classes.cardBg,
+                                classes.cardBorder,
+                                isSelected
+                                  ? "border-red-500 ring-2 ring-red-500/30"
+                                  : "border-transparent hover:border-gray-400"
+                              )}
+                            >
+                              <div className="flex gap-3 p-3 items-center">
+                                <div
+                                  className={cn(
+                                    "flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center",
+                                    isSelected ? "bg-red-600 border-red-600" : classes.cardBorder
+                                  )}
+                                >
+                                  {isSelected && (
+                                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                      <path
+                                        fillRule="evenodd"
+                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                        clipRule="evenodd"
+                                      />
+                                    </svg>
+                                  )}
+                                </div>
+                                <div className="relative w-16 h-16 flex-shrink-0 rounded-md overflow-hidden bg-gray-200">
+                                  {job.coverImage ? (
+                                    <Image src={job.coverImage} alt="" fill className="object-cover" sizes="64px" />
+                                  ) : (
+                                    <div className="w-full h-full bg-gray-300" />
+                                  )}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex flex-wrap gap-1.5 mb-1">
+                                    {job.graduationYear && (
+                                      <span className="px-1.5 py-0.5 bg-red-600/80 text-white text-[10px] font-bold rounded">
+                                        {job.graduationYear}
+                                      </span>
+                                    )}
+                                    {job.prefecture && (
+                                      <span className="px-1.5 py-0.5 bg-gray-600/80 text-white text-[10px] font-bold rounded">
+                                        {job.prefecture}
+                                      </span>
+                                    )}
+                                    {job.employmentType && (
+                                      <span className="px-1.5 py-0.5 bg-blue-600/80 text-white text-[10px] font-bold rounded">
+                                        {job.employmentType}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <h3 className={cn("text-sm font-bold line-clamp-2", classes.textPrimary)}>{job.title}</h3>
+                                  {job.location && (
+                                    <p className={cn("flex items-center gap-1 mt-1 text-xs", classes.textMuted)}>
+                                      <MapPin className="w-3 h-3 flex-shrink-0" aria-hidden />
+                                      <span className="line-clamp-1">{job.location}</span>
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </button>
+                          )}
+                        </li>
+                      );
+                    });
+                  })()}
                 </ul>
               ) : (
                 <ul className="space-y-3">
@@ -439,15 +578,32 @@ export default function CompanyEntryModal(props: CompanyEntryModalProps) {
                 </ul>
               )}
             </div>
+            )}
 
+            {!entrySuccess && entryError && (
+              <div
+                className={cn(
+                  "flex-shrink-0 px-4 py-2 text-sm text-center",
+                  "bg-red-500/10 text-red-600 dark:text-red-400 border-t",
+                  theme === "dark" ? "border-red-500/30" : "border-red-200"
+                )}
+                role="alert"
+              >
+                {entryError}
+              </div>
+            )}
+
+            {!entrySuccess && (
             <div className={cn("flex-shrink-0 flex gap-3 px-4 py-3 border-t", classes.sectionBorder)}>
               <button
                 type="button"
                 onClick={onClose}
+                disabled={entrySubmitting}
                 className={cn(
                   "flex-1 py-3 rounded-md font-bold text-sm border",
                   classes.cardBorder,
-                  classes.textPrimary
+                  classes.textPrimary,
+                  "disabled:opacity-50 disabled:cursor-not-allowed"
                 )}
               >
                 キャンセル
@@ -456,30 +612,43 @@ export default function CompanyEntryModal(props: CompanyEntryModalProps) {
                 <button
                   type="button"
                   onClick={handleEntryClick}
-                  disabled={selectedIds.size === 0}
-                  className="flex-1 py-3 rounded-md font-bold text-sm bg-gradient-to-br from-red-600 to-pink-600 hover:from-red-500 hover:to-pink-500 text-white transition-colors duration-150 active:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={selectedIds.size === 0 || entrySubmitting}
+                  className="flex-1 py-3 rounded-md font-bold text-sm bg-gradient-to-br from-red-600 to-pink-600 hover:from-red-500 hover:to-pink-500 text-white transition-colors duration-150 active:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  選択した求人にエントリー（{selectedIds.size}件）
+                  {entrySubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+                      送信中
+                    </>
+                  ) : (
+                    <>選択した求人にエントリー（{selectedIds.size}件）</>
+                  )}
                 </button>
               ) : (
-                <Link
-                  href={
-                    selectedSessionDateId
-                      ? `${returnTo}${returnTo.includes("?") ? "&" : "?"}sessionDateId=${encodeURIComponent(selectedSessionDateId)}`
-                      : "#"
-                  }
-                  onClick={(e) => !selectedSessionDateId && e.preventDefault()}
+                <button
+                  type="button"
+                  onClick={handleSessionReservationClick}
+                  disabled={!selectedSessionDateId || entrySubmitting}
                   className={cn(
-                    "flex-1 py-3 rounded-md font-bold text-sm text-center transition-colors duration-150 active:opacity-90",
-                    selectedSessionDateId
+                    "flex-1 py-3 rounded-md font-bold text-sm transition-colors duration-150 active:opacity-90 flex items-center justify-center gap-2",
+                    selectedSessionDateId && !entrySubmitting
                       ? "bg-gradient-to-br from-red-600 to-pink-600 hover:from-red-500 hover:to-pink-500 text-white"
-                      : "bg-gray-300 text-gray-500 cursor-not-allowed pointer-events-none"
+                      : "bg-gray-300 text-gray-500 cursor-not-allowed",
+                    "disabled:opacity-50 disabled:cursor-not-allowed"
                   )}
                 >
-                  参加予約する
-                </Link>
+                  {entrySubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+                      送信中
+                    </>
+                  ) : (
+                    "参加予約する"
+                  )}
+                </button>
               )}
             </div>
+            )}
           </>
         )}
       </div>

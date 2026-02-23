@@ -58,7 +58,7 @@ export const PWA_CONFIG = {
   startUrl: "/"
 } as const;
 
-// ロボット設定
+// ロボット設定（公開ページ用）
 export const ROBOTS_CONFIG = {
   index: true,
   follow: true,
@@ -69,6 +69,13 @@ export const ROBOTS_CONFIG = {
     "max-image-preview": "large" as const,
     "max-snippet": -1
   }
+} as const;
+
+/** 管理画面用：検索エンジンにインデックスさせない（studio / admin で使用） */
+export const ROBOTS_NOINDEX = {
+  index: false,
+  follow: false,
+  googleBot: { index: false, follow: false }
 } as const;
 
 // 許可する画像ホスト

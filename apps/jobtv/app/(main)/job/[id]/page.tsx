@@ -1,5 +1,7 @@
 import JobDetailView from "@/components/JobDetailView";
+import JobPostingJsonLd from "@/components/seo/JobPostingJsonLd";
 import { getJob } from "@/lib/actions/job-actions";
+import { getHasAppliedToJob } from "@/lib/actions/application-actions";
 import { getCompanyProfileById } from "@/lib/actions/company-profile-actions";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
@@ -129,6 +131,8 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
   // companiesテーブルのIDを確実に使用（company_pagesのidで上書きされないように）
   const companyId = job.company_id || company.id;
 
+  const { data: hasApplied } = await getHasAppliedToJob(job.id);
+
   const jobData = {
     id: job.id,
     title: job.title || "",
@@ -156,5 +160,10 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
     companyBenefits: Array.isArray((company as any).benefits) ? (company as any).benefits : undefined
   };
 
-  return <JobDetailView job={jobData} />;
+  return (
+    <>
+      <JobPostingJsonLd job={job} company={company} />
+      <JobDetailView job={jobData} initialHasApplied={hasApplied ?? false} />
+    </>
+  );
 }

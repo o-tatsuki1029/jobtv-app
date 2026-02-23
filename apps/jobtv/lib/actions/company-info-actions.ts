@@ -17,6 +17,8 @@ type CompanyDraftUpdate = TablesUpdate<"companies_draft">;
  */
 export interface CompanyInfoFormData {
   logo_url?: string;
+  /** トップページ企業カード用サムネイル画像URL（未設定時はロゴを表示） */
+  thumbnail_url?: string;
   industry?: string;
   representative?: string;
   established?: string;
@@ -85,6 +87,7 @@ export async function saveCompanyInfo(formData: CompanyInfoFormData): Promise<{
     > = {};
 
     if (formData.logo_url !== undefined) draftData.logo_url = formData.logo_url || null;
+    if (formData.thumbnail_url !== undefined) draftData.thumbnail_url = formData.thumbnail_url || null;
     if (formData.industry !== undefined) draftData.industry = formData.industry || null;
     if (formData.representative !== undefined) draftData.representative = formData.representative || null;
     if (formData.established !== undefined) draftData.established = formData.established || null;

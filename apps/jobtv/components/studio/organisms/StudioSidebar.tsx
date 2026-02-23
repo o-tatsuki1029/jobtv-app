@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { STUDIO_NAVIGATION, STUDIO_BOTTOM_NAVIGATION } from "../constants";
+import { STUDIO_NAVIGATION_SECTIONS, STUDIO_BOTTOM_NAVIGATION } from "../constants";
 import StudioNavItem from "../molecules/StudioNavItem";
 import { getUserInfo } from "@/lib/actions/user-actions";
 
@@ -48,15 +48,24 @@ export default function StudioSidebar() {
         </Link>
       </div>
 
-      <nav className="flex-1 px-4 py-4 space-y-1">
-        {STUDIO_NAVIGATION.map((item) => (
-          <StudioNavItem
-            key={item.name}
-            name={item.name}
-            href={item.href}
-            icon={item.icon}
-            isActive={pathname === item.href}
-          />
+      <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
+        {STUDIO_NAVIGATION_SECTIONS.map((block, blockIndex) => (
+          <div key={block.sectionLabel ?? blockIndex} className="space-y-1">
+            {block.sectionLabel && (
+              <p className="pr-4 pt-3 pb-1 text-[11px] font-medium text-gray-400 uppercase tracking-wider">
+                {block.sectionLabel}
+              </p>
+            )}
+            {block.items.map((item) => (
+              <StudioNavItem
+                key={item.name}
+                name={item.name}
+                href={item.href}
+                icon={item.icon}
+                isActive={pathname === item.href}
+              />
+            ))}
+          </div>
         ))}
       </nav>
 

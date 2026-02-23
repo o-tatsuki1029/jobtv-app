@@ -11,7 +11,6 @@ import { getCompanyProfile, uploadCompanyAsset } from "@/lib/actions/company-pro
 import { saveCompanyInfo, getCompanyInfoDraft, submitCompanyInfoForReview } from "@/lib/actions/company-info-actions";
 import { dbToCompanyData } from "@/components/company";
 import type { CompanyData } from "@/components/company";
-import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { validateRequired, validateMaxLength, validateUrlWithProtocol } from "@jobtv-app/shared/utils/validation";
 import { REPRESENTATIVE_NAME_MAX_LENGTH, COMPANY_INFO_MAX_LENGTH } from "@/constants/validation";
 import { useStudioEditor } from "@/hooks/useStudioEditor";
@@ -25,11 +24,14 @@ import {
   generateEmployeesRangeOptions
 } from "@/constants/company-options";
 
-// 空の初期データ
-const emptyCompanyData: Partial<CompanyData> = {
+/** 企業プロフィール編集用（CompanyData + 企業サムネ） */
+type ProfileCompanyState = Partial<CompanyData> & { thumbnail?: string };
+
+const emptyCompanyData: ProfileCompanyState = {
   id: "",
   name: "",
   logo: "",
+  thumbnail: "",
   representative: "",
   established: "",
   employees: "",
@@ -42,14 +44,15 @@ const emptyCompanyData: Partial<CompanyData> = {
 
 export default function ProfileSettingsPage() {
   // 企業プロフィール用のstate
-  const [company, setCompany] = useState<Partial<CompanyData>>(emptyCompanyData);
-  const [initialCompany, setInitialCompany] = useState<Partial<CompanyData>>(emptyCompanyData);
+  const [company, setCompany] = useState<ProfileCompanyState>(emptyCompanyData);
+  const [initialCompany, setInitialCompany] = useState<ProfileCompanyState>(emptyCompanyData);
   const [initialEmployeesRange, setInitialEmployeesRange] = useState<string>("");
   const [companyId, setCompanyId] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLogoUploading, setIsLogoUploading] = useState(false);
+  const [isThumbnailUploading, setIsThumbnailUploading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{
     logo?: string;
     industry?: string;
@@ -179,10 +182,11 @@ export default function ProfileSettingsPage() {
           const draft = draftResult.data;
           setCurrentDraftId(draft.id);
           setDraftStatus(draft.draft_status as "draft" | "submitted" | "approved" | "rejected" | null);
-          const companyState = {
+          const companyState: ProfileCompanyState = {
             id: draft.company_id,
             name: draft.name || "",
             logo: draft.logo_url || "",
+            thumbnail: draft.thumbnail_url || "",
             industry: draft.industry || "",
             representative: draft.representative || "",
             established: draft.established || "",
@@ -231,10 +235,11 @@ export default function ProfileSettingsPage() {
             setCompanyId("");
           } else if (result.data) {
             const companyData = dbToCompanyData(result.data);
-            const companyState = {
+            const companyState: ProfileCompanyState = {
               id: companyData.id,
               name: companyData.name,
               logo: companyData.logo,
+              thumbnail: (result.data as { thumbnail_url?: string | null }).thumbnail_url || "",
               industry: companyData.industry,
               representative: companyData.representative,
               established: companyData.established,
@@ -385,6 +390,7 @@ export default function ProfileSettingsPage() {
     try {
       const formData: {
         logo_url?: string;
+        thumbnail_url?: string;
         cover_image_url?: string;
         industry?: string;
         representative?: string;
@@ -399,6 +405,9 @@ export default function ProfileSettingsPage() {
 
       if (company.logo !== undefined) {
         formData.logo_url = company.logo;
+      }
+      if (company.thumbnail !== undefined) {
+        formData.thumbnail_url = company.thumbnail;
       }
       if (company.industry !== undefined) formData.industry = company.industry;
       if (company.representative !== undefined) formData.representative = company.representative;
@@ -430,10 +439,11 @@ export default function ProfileSettingsPage() {
           const draft = result.data;
           setCurrentDraftId(draft.id);
           setDraftStatus(draft.draft_status as "draft" | "submitted" | "approved" | "rejected" | null);
-          const companyState = {
+          const companyState: ProfileCompanyState = {
             id: draft.company_id,
             name: draft.name || "",
             logo: draft.logo_url || "",
+            thumbnail: draft.thumbnail_url || "",
             industry: draft.industry || "",
             representative: draft.representative || "",
             established: draft.established || "",
@@ -476,6 +486,10 @@ export default function ProfileSettingsPage() {
     setCompany((prev) => ({ ...prev, logo: url }));
   };
 
+  const handleThumbnailUpload = (url: string) => {
+    setCompany((prev) => ({ ...prev, thumbnail: url }));
+  };
+
   const handleEstablishedYearChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const year = e.target.value;
     setEstablishedYear(year);
@@ -503,8 +517,9 @@ export default function ProfileSettingsPage() {
   };
 
   const hasChanges = () => {
-    const fieldsToCompare: (keyof Partial<CompanyData>)[] = [
+    const fieldsToCompare: (keyof ProfileCompanyState)[] = [
       "logo",
+      "thumbnail",
       "industry",
       "representative",
       "established",
@@ -524,9 +539,6 @@ export default function ProfileSettingsPage() {
     const employeesChanged = employeesRange !== initialEmployeesRange;
     return fieldChanged || employeesChanged;
   };
-
-  // ページ離脱時の警告
-  useUnsavedChanges(hasChanges);
 
   const hasValidationErrors = () => {
     return Object.values(fieldErrors).some((error) => error !== undefined);
@@ -752,32 +764,55 @@ export default function ProfileSettingsPage() {
         {/* 区切り線 */}
         <div className="border-t border-gray-100" />
 
-        {/* ロゴセクション */}
+        {/* ロゴ・企業サムネセクション */}
         <div className="p-6 flex items-center gap-2">
           <Building className="w-5 h-5 text-gray-400" />
-          <h2 className="font-bold text-lg">ロゴ</h2>
+          <h2 className="font-bold text-lg">ロゴ・企業サムネ</h2>
         </div>
         <div className={`p-8 pt-2 space-y-6 ${isReadOnly ? "opacity-60 pointer-events-none" : ""}`}>
-          <div className="max-w-md">
-            <StudioImageUpload
-              label=""
-              type="logo"
-              currentUrl={company.logo}
-              onUploadComplete={handleImageUpload}
-              onUploadingChange={setIsLogoUploading}
-              onError={(error) => {
-                setErrorMessage(error);
-                setSaveStatus("error");
-              }}
-              aspectRatio="square"
-              helperText="400x400px 以上の正方形を推奨"
-              customUploadFunction={async (file: File) => {
-                return await uploadCompanyAsset(file, "logo");
-              }}
-              disabled={isReadOnly}
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-2">
+              <p className="text-sm font-bold text-gray-700">ロゴ</p>
+              <StudioImageUpload
+                label=""
+                type="logo"
+                currentUrl={company.logo}
+                onUploadComplete={handleImageUpload}
+                onUploadingChange={setIsLogoUploading}
+                onError={(error) => {
+                  setErrorMessage(error);
+                  setSaveStatus("error");
+                }}
+                aspectRatio="square"
+                helperText="400x400px 以上の正方形を推奨"
+                customUploadFunction={async (file: File) => {
+                  return await uploadCompanyAsset(file, "logo");
+                }}
+                disabled={isReadOnly}
+              />
+              {fieldErrors.logo && <p className="text-xs text-red-500 font-bold">{fieldErrors.logo}</p>}
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-bold text-gray-700">企業サムネ画像</p>
+              <StudioImageUpload
+                label=""
+                type="logo"
+                currentUrl={company.thumbnail}
+                onUploadComplete={handleThumbnailUpload}
+                onUploadingChange={setIsThumbnailUploading}
+                onError={(error) => {
+                  setErrorMessage(error);
+                  setSaveStatus("error");
+                }}
+                aspectRatio="square"
+                helperText="トップページの企業カードに表示されます。400×560px（5:7）以上を推奨"
+                customUploadFunction={async (file: File) => {
+                  return await uploadCompanyAsset(file, "thumbnail");
+                }}
+                disabled={isReadOnly}
+              />
+            </div>
           </div>
-          {fieldErrors.logo && <p className="text-xs text-red-500 font-bold">{fieldErrors.logo}</p>}
         </div>
       </div>
 
@@ -785,7 +820,7 @@ export default function ProfileSettingsPage() {
         onPreview={undefined}
         onSubmitForReview={submitForReview}
         isSubmitting={isSubmittingReview}
-        isSubmitDisabled={isStudioSaving || isLogoUploading || hasValidationErrors()}
+        isSubmitDisabled={isStudioSaving || isLogoUploading || isThumbnailUploading || hasValidationErrors()}
         showSubmitButton={!isReadOnly}
         showPreviewButton={false}
         hasChanges={hasChanges()}

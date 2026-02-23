@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import HorizontalScrollContainer from "./HorizontalScrollContainer";
-import { useMainTheme } from "@/components/company/CompanyPageThemeContext";
+import { useMainTheme } from "@/components/theme/PageThemeContext";
 import { cn } from "@jobtv-app/shared/utils/cn";
 import { HORIZONTAL_CARD_ASPECT_RATIO_16_9_CLASS, HORIZONTAL_CARD_WIDTH } from "@/constants/card-layout";
 
@@ -23,7 +23,7 @@ export default function BannerList({ banners }: BannerListProps) {
   return (
     <div className="mx-4">
       <HorizontalScrollContainer scrollAmount={500}>
-        <div className="flex gap-5 pt-6 pb-12">
+        <div className="flex gap-5 py-6">
           {banners.map((banner) => (
             <a key={banner.id} href={banner.link || "#"} className="flex-shrink-0 group">
               <div

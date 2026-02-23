@@ -7,7 +7,7 @@ import GuestActions from "./GuestActions";
 import MenuToggleButton from "./MenuToggleButton";
 import MobileNavigation from "./MobileNavigation";
 import RecruiterMenu from "./RecruiterMenu";
-import UserMenu from "./UserMenu";
+import CandidateMenu from "./CandidateMenu";
 import HeaderContainer from "./HeaderContainer";
 import MainThemeToggle from "./MainThemeToggle";
 import { useHeaderAuth } from "./HeaderAuthContext";
@@ -19,6 +19,7 @@ export default function Header() {
   const role = authInfo?.role ?? null;
   const recruiterMenuInfo = authInfo?.recruiterMenuInfo ?? null;
   const isRecruiter = !!user && role === "recruiter";
+  const isCandidate = !!user && role !== "recruiter";
 
   return (
     <HeaderContainer>
@@ -39,7 +40,11 @@ export default function Header() {
               className="p-2 text-white hover:text-red-500 transition-colors"
             />
           ) : (
-            <UserMenu userName={user.email?.split("@")[0] || "ユーザー"} />
+            <MenuToggleButton
+              isOpen={isMenuOpen}
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="p-2 text-white hover:text-red-500 transition-colors"
+            />
           )
         ) : (
           <>
@@ -63,6 +68,15 @@ export default function Header() {
           onClose={() => setIsMenuOpen(false)}
           userName={user?.email?.split("@")[0] || "ユーザー"}
           menuInfo={recruiterMenuInfo}
+        />
+      )}
+
+      {/* 候補者用ハンバーガーメニュー（企業ログイン時と同じスタイル） */}
+      {isCandidate && (
+        <CandidateMenu
+          isOpen={isMenuOpen}
+          onClose={() => setIsMenuOpen(false)}
+          userName={user?.email?.split("@")[0] || "ユーザー"}
         />
       )}
     </HeaderContainer>

@@ -9,6 +9,22 @@ import Link from "next/link";
 function LoginPageContent() {
   const searchParams = useSearchParams();
   const next = searchParams.get("next") ?? "";
+  // #region agent log
+  if (typeof window !== "undefined") {
+    fetch("http://127.0.0.1:7557/ingest/64046041-1a00-4e5c-9b0e-704b7b8897ef", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "561a53" },
+      body: JSON.stringify({
+        sessionId: "561a53",
+        location: "login/page.tsx:next",
+        message: "Login page next param",
+        data: { next, raw: searchParams.toString() },
+        timestamp: Date.now(),
+        hypothesisId: "B"
+      })
+    }).catch(() => {});
+  }
+  // #endregion
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 

@@ -1,6 +1,8 @@
 "use client";
 
 import { useRef, useState, useEffect, ReactNode } from "react";
+import { useMainTheme } from "@/components/theme/PageThemeContext";
+import { cn } from "@jobtv-app/shared/utils/cn";
 
 /**
  * 横スクロール用コンテナ。左右矢印で 1 コンテンツずつスナップする。
@@ -17,9 +19,17 @@ export default function HorizontalScrollContainer({
   className = "",
   scrollAmount = 400
 }: HorizontalScrollContainerProps) {
+  const { theme } = useMainTheme();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
+
+  const arrowButtonClass = cn(
+    "w-6 md:w-8 min-h-[5rem] flex items-center justify-center rounded-md transition-opacity duration-300",
+    theme === "dark"
+      ? "bg-gray-700 hover:bg-gray-600"
+      : "bg-black/90 hover:bg-black/95"
+  );
 
   /** スクロール位置から左右矢印の表示可否を更新。端は 1px 以上余っていればスクロール可能とみなす。 */
   const checkScrollability = () => {
@@ -96,9 +106,10 @@ export default function HorizontalScrollContainer({
       <div className="flex-shrink-0 w-6 md:w-8 mr-2 flex items-center justify-center">
         <button
           onClick={() => scroll("left")}
-          className={`w-6 md:w-8 min-h-[5rem] flex items-center justify-center rounded-md bg-black/90 hover:bg-black/95 transition-opacity duration-300 ${
+          className={cn(
+            arrowButtonClass,
             canScrollLeft ? "opacity-100" : "opacity-0 pointer-events-none"
-          }`}
+          )}
           aria-label="左にスクロール"
           tabIndex={canScrollLeft ? 0 : -1}
         >
@@ -125,9 +136,10 @@ export default function HorizontalScrollContainer({
       <div className="flex-shrink-0 w-6 md:w-8 ml-2 flex items-center justify-center">
         <button
           onClick={() => scroll("right")}
-          className={`w-6 md:w-8 min-h-[5rem] flex items-center justify-center rounded-md bg-black/90 hover:bg-black/95 transition-opacity duration-300 ${
+          className={cn(
+            arrowButtonClass,
             canScrollRight ? "opacity-100" : "opacity-0 pointer-events-none"
-          }`}
+          )}
           aria-label="右にスクロール"
           tabIndex={canScrollRight ? 0 : -1}
         >

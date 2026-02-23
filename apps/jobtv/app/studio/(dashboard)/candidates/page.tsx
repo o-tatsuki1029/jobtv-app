@@ -10,7 +10,9 @@ import LoadingSpinner from "@/components/studio/atoms/LoadingSpinner";
 import ErrorMessage from "@/components/studio/atoms/ErrorMessage";
 import StudioSelect from "@/components/studio/atoms/StudioSelect";
 import { getAllReservations } from "@/lib/actions/session-reservation-actions";
+import { getCompanyApplications } from "@/lib/actions/application-actions";
 
+/** 説明会予約の1件 */
 interface ReservationData {
   id: string;
   status: string;
@@ -34,11 +36,33 @@ interface ReservationData {
   } | null;
 }
 
+/** 一覧の1行：予約または応募 */
+type CandidateRow =
+  | { kind: "reservation"; id: string; created_at: string; data: ReservationData }
+  | {
+      kind: "application";
+      id: string;
+      created_at: string;
+      data: {
+        id: string;
+        job_posting_id: string;
+        candidate_id: string;
+        current_status: string;
+        created_at: string;
+        job: { id: string; title: string } | null;
+        candidates: {
+          last_name: string;
+          first_name: string;
+          profiles: { email: string | null } | null;
+        } | null;
+      };
+    };
+
 function CandidatesContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("sessionId");
   const [filterSessionId, setFilterSessionId] = useState<string | null>(null);
-  const [allReservations, setAllReservations] = useState<ReservationData[]>([]);
+  const [allRows, setAllRows] = useState<CandidateRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pageSize, setPageSize] = useState<number>(10);
@@ -51,27 +75,56 @@ function CandidatesContent() {
   }, [sessionId]);
 
   useEffect(() => {
-    const loadReservations = async () => {
+    const load = async () => {
       setLoading(true);
       setError(null);
-      setCurrentPage(1); // フィルター変更時はページをリセット
-      const { data, error: fetchError } = await getAllReservations(100, filterSessionId);
-      if (fetchError) {
-        setError(fetchError);
-      } else {
-        setAllReservations(data || []);
+      setCurrentPage(1);
+
+      const [reservationsResult, applicationsResult] = await Promise.all([
+        getAllReservations(100, filterSessionId),
+        getCompanyApplications(100)
+      ]);
+
+      if (reservationsResult.error) {
+        setError(reservationsResult.error);
+        setAllRows([]);
+        setLoading(false);
+        return;
       }
+      if (applicationsResult.error) {
+        setError(applicationsResult.error);
+        setAllRows([]);
+        setLoading(false);
+        return;
+      }
+
+      const reservations: CandidateRow[] = (reservationsResult.data ?? []).map((r) => ({
+        kind: "reservation" as const,
+        id: r.id,
+        created_at: r.created_at,
+        data: r
+      }));
+      const applications: CandidateRow[] = (applicationsResult.data ?? []).map((a) => ({
+        kind: "application" as const,
+        id: a.id,
+        created_at: a.created_at,
+        data: a
+      }));
+
+      const merged = [...reservations, ...applications].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      setAllRows(merged);
       setLoading(false);
     };
 
-    loadReservations();
+    load();
   }, [filterSessionId]);
 
-  // ページネーション計算
-  const totalPages = Math.ceil(allReservations.length / pageSize);
+  const totalPages = Math.ceil(allRows.length / pageSize);
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = startIndex + pageSize;
-  const currentReservations = allReservations.slice(startIndex, endIndex);
+  const currentRows = allRows.slice(startIndex, endIndex);
 
   const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setPageSize(Number(e.target.value));
@@ -98,7 +151,7 @@ function CandidatesContent() {
     )}`;
   };
 
-  const getStatusBadge = (status: string) => {
+  const getReservationStatusBadge = (status: string) => {
     switch (status) {
       case "reserved":
         return { variant: "success" as const, text: "予約済み" };
@@ -106,6 +159,15 @@ function CandidatesContent() {
         return { variant: "error" as const, text: "キャンセル" };
       case "completed":
         return { variant: "neutral" as const, text: "完了" };
+      default:
+        return { variant: "neutral" as const, text: status };
+    }
+  };
+
+  const getApplicationStatusBadge = (status: string) => {
+    switch (status) {
+      case "applied":
+        return { variant: "success" as const, text: "エントリー済み" };
       default:
         return { variant: "neutral" as const, text: status };
     }
@@ -120,8 +182,8 @@ function CandidatesContent() {
           <h1 className="text-3xl font-black tracking-tight">候補者管理</h1>
           <p className="text-gray-500 font-medium">
             {filterSessionId
-              ? "選択された説明会の予約者一覧を表示しています。"
-              : "全ての説明会の予約者一覧を表示しています。"}
+              ? "選択された説明会の予約者と、求人への応募一覧を表示しています。"
+              : "説明会の予約者と求人への応募一覧を表示しています。"}
           </p>
         </div>
       </div>
@@ -157,9 +219,9 @@ function CandidatesContent() {
             <option value="100">100件</option>
           </StudioSelect>
         </div>
-        {!loading && allReservations.length > 0 && (
+        {!loading && allRows.length > 0 && (
           <p className="text-sm text-gray-500">
-            全{allReservations.length}件中 {startIndex + 1}〜{Math.min(endIndex, allReservations.length)}件を表示
+            全{allRows.length}件中 {startIndex + 1}〜{Math.min(endIndex, allRows.length)}件を表示
           </p>
         )}
       </div>
@@ -173,72 +235,90 @@ function CandidatesContent() {
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100 text-xs uppercase tracking-wider font-bold text-gray-500">
                   <th className="px-6 py-4">氏名</th>
-                  <th className="px-6 py-4">説明会</th>
+                  <th className="px-6 py-4">種別</th>
+                  <th className="px-6 py-4">説明会・求人</th>
                   <th className="px-6 py-4">日程</th>
                   <th className="px-6 py-4">ステータス</th>
-                  <th className="px-6 py-4">予約日</th>
+                  <th className="px-6 py-4">日付</th>
                   <th className="px-6 py-4 text-center">連絡</th>
                   <th className="px-6 py-4"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50 text-sm">
-                {allReservations.length === 0 ? (
+                {allRows.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
-                      予約がありません
+                    <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
+                      予約・応募がありません
                     </td>
                   </tr>
                 ) : (
-                  currentReservations.map((reservation) => (
-                    <tr key={reservation.id} className="hover:bg-gray-50 transition-colors group">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-600">
-                            {reservation.candidates?.last_name?.charAt(0) || "?"}
+                  currentRows.map((row) => {
+                    const candidates = row.kind === "reservation" ? row.data.candidates : row.data.candidates;
+                    const displayName = candidates
+                      ? `${candidates.last_name} ${candidates.first_name}`
+                      : "不明";
+                    const email = candidates?.profiles?.email ?? "-";
+
+                    return (
+                      <tr key={`${row.kind}-${row.id}`} className="hover:bg-gray-50 transition-colors group">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-600">
+                              {candidates?.last_name?.charAt(0) || "?"}
+                            </div>
+                            <div>
+                              <p className="font-bold text-gray-900">{displayName}</p>
+                              <p className="text-xs text-gray-400 mt-0.5">{email}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-bold text-gray-900">
-                              {reservation.candidates
-                                ? `${reservation.candidates.last_name} ${reservation.candidates.first_name}`
-                                : "不明"}
-                            </p>
-                            <p className="text-xs text-gray-400 mt-0.5">{reservation.candidates?.profiles?.email ?? "-"}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 font-medium text-gray-600">{reservation.session?.title || "-"}</td>
-                      <td className="px-6 py-4 text-gray-500">
-                        {reservation.session_date
-                          ? `${formatDate(reservation.session_date.event_date)} ${reservation.session_date.start_time}`
-                          : "-"}
-                      </td>
-                      <td className="px-6 py-4">
-                        <StudioBadge variant={getStatusBadge(reservation.status).variant}>
-                          {getStatusBadge(reservation.status).text}
-                        </StudioBadge>
-                      </td>
-                      <td className="px-6 py-4 text-gray-500 font-medium">{formatDate(reservation.created_at)}</td>
-                      <td className="px-6 py-4 text-center">
-                        <div className="flex items-center justify-center gap-2">
+                        </td>
+                        <td className="px-6 py-4">
+                          <StudioBadge variant={row.kind === "reservation" ? "success" : "neutral"}>
+                            {row.kind === "reservation" ? "説明会予約" : "求人応募"}
+                          </StudioBadge>
+                        </td>
+                        <td className="px-6 py-4 font-medium text-gray-600">
+                          {row.kind === "reservation"
+                            ? (row.data as ReservationData).session?.title ?? "-"
+                            : (row.data as { job: { title: string } | null }).job?.title ?? "-"}
+                        </td>
+                        <td className="px-6 py-4 text-gray-500">
+                          {row.kind === "reservation" && (row.data as ReservationData).session_date
+                            ? `${formatDate((row.data as ReservationData).session_date!.event_date)} ${(row.data as ReservationData).session_date!.start_time}`
+                            : "-"}
+                        </td>
+                        <td className="px-6 py-4">
+                          {row.kind === "reservation" ? (
+                            <StudioBadge variant={getReservationStatusBadge((row.data as ReservationData).status).variant}>
+                              {getReservationStatusBadge((row.data as ReservationData).status).text}
+                            </StudioBadge>
+                          ) : (
+                            <StudioBadge variant={getApplicationStatusBadge((row.data as { current_status: string }).current_status).variant}>
+                              {getApplicationStatusBadge((row.data as { current_status: string }).current_status).text}
+                            </StudioBadge>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-gray-500 font-medium">{formatDate(row.created_at)}</td>
+                        <td className="px-6 py-4 text-center">
                           <button className="p-1.5 hover:bg-gray-100 rounded text-gray-400 hover:text-black transition-colors">
                             <Mail className="w-4 h-4" />
                           </button>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                          <MoreVertical className="w-4 h-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                            <MoreVertical className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
           </div>
 
           {/* ページネーション */}
-          {allReservations.length > 0 && totalPages > 1 && (
+          {allRows.length > 0 && totalPages > 1 && (
             <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
               <div className="text-sm text-gray-600">
                 ページ {currentPage} / {totalPages}
