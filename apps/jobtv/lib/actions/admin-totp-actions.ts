@@ -26,7 +26,7 @@ export async function enrollAdminTOTP(): Promise<{
   // 既存の未検証ファクターがあれば先に削除する
   const { data: factorsData } = await supabase.auth.mfa.listFactors();
   const unverifiedFactors =
-    factorsData?.totp?.filter((f) => f.status === "unverified") ?? [];
+    factorsData?.totp?.filter((f) => (f.status as string) === "unverified") ?? [];
   for (const factor of unverifiedFactors) {
     await supabase.auth.mfa.unenroll({ factorId: factor.id });
   }

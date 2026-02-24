@@ -13,7 +13,10 @@ import { TITLE_MAX_LENGTH } from "@/constants/validation";
 interface VideoEditorProps {
   formData: VideoFormData;
   onChange: (data: VideoFormData) => void;
-  onUploadVideo: (file: File, aspectRatio: "landscape" | "portrait") => Promise<{ success: boolean; url: string | null; error?: string }>;
+  onUploadVideo: (
+    file: File,
+    aspectRatio: "landscape" | "portrait"
+  ) => Promise<{ success: boolean; url: string | null; error?: string }>;
   onUploadThumbnail: (file: File) => Promise<{ success: boolean; url: string | null; error?: string }>;
   readOnly?: boolean;
   /** カテゴリーを変更不可にする（一覧タブから開いた場合など） */
@@ -100,9 +103,7 @@ export default function VideoEditor({
           <StudioLabel htmlFor="video" required>
             動画ファイル
           </StudioLabel>
-          <p className="text-[10px] text-gray-500">
-            推奨: 1920×1080（16:9）
-          </p>
+          <p className="text-[10px] text-gray-500">推奨: 1920×1080（16:9）</p>
           <div className="flex-1">
             {formData.video_url ? (
               <div className="space-y-3 h-full flex flex-col">

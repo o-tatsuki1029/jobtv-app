@@ -162,7 +162,19 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
 
   return (
     <>
-      <JobPostingJsonLd job={job} company={company} />
+      <JobPostingJsonLd
+        job={{
+          id: job.id!,
+          title: job.title ?? "",
+          description: job.description ?? null,
+          created_at: (job as { created_at?: string }).created_at ?? "",
+          prefecture: job.prefecture ?? null,
+          location_detail: job.location_detail ?? null,
+          employment_type: job.employment_type ?? null,
+          graduation_year: job.graduation_year ?? 0
+        }}
+        company={company}
+      />
       <JobDetailView job={jobData} initialHasApplied={hasApplied ?? false} />
     </>
   );

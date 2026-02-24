@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { User, Building, Users, HelpCircle, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getLoginPathByRole } from "@/lib/auth/redirect";
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const tabs = [
