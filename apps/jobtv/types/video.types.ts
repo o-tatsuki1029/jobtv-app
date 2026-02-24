@@ -19,8 +19,10 @@ export interface VideoItem {
   id: string;
   title: string;
   video_url: string; // 従来のMP4 URL（フォールバック用）
+  source_url?: string | null; // アップロード元の動画ファイルURL
   streaming_url?: string | null; // HLS URL
   thumbnail_url?: string | null;
+  auto_thumbnail_url?: string | null; // MediaConvert自動生成サムネイル
   category: VideoCategory;
   display_order: number;
   status?: "active" | "closed";
@@ -43,6 +45,8 @@ export interface VideoDraftItem extends VideoItem {
   conversion_status?: ConversionStatus | null;
   mediaconvert_job_id?: string | null;
   streaming_url?: string | null;
+  aspect_ratio?: string | null;
+  auto_thumbnail_url?: string | null;
 }
 
 // 動画フォームデータ型
@@ -75,7 +79,7 @@ export const VIDEO_CATEGORIES: VideoCategoryInfo[] = [
   {
     id: "main",
     label: "メインビデオ",
-    description: "企業ページ上部に表示されるメイン動画",
+    description: "メインビデオ",
     icon: "PlaySquare",
     maxCount: 1
   },

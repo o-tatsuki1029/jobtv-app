@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useParams, useSearchParams } from "next/navigation";
 import LoadingSpinner from "@/components/studio/atoms/LoadingSpinner";
 import ErrorMessage from "@/components/studio/atoms/ErrorMessage";
 import StudioBackButton from "@/components/studio/atoms/StudioBackButton";
@@ -17,15 +17,25 @@ import {
   updateVideoDraft,
   submitVideoForReview,
   uploadVideoToS3Action,
-  uploadThumbnailToS3Action
+  uploadThumbnailToS3Action,
+  saveMediaConvertJobToDraft
 } from "@/lib/actions/video-actions";
-import type { VideoFormData, VideoDraft, VideoDraftItem } from "@/types/video.types";
-import { useCallback } from "react";
+import type { VideoFormData, VideoCategory, VideoDraft, VideoDraftItem } from "@/types/video.types";
+
+const VALID_CATEGORIES: VideoCategory[] = ["main", "short", "documentary"];
+
+function categoryFromSearchParams(searchParams: ReturnType<typeof useSearchParams>): VideoCategory {
+  const category = searchParams.get("category");
+  if (category && VALID_CATEGORIES.includes(category as VideoCategory)) return category as VideoCategory;
+  return "documentary";
+}
 
 export default function VideoEditPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const id = params.id as string;
   const isNew = id === "new";
+  const initialCategoryFromQuery = categoryFromSearchParams(searchParams);
 
   const [video, setVideo] = useState<VideoDraftItem | null>(null);
   const [initialVideo, setInitialVideo] = useState<VideoDraftItem | null>(null);
@@ -38,6 +48,11 @@ export default function VideoEditPage() {
   });
   const [isLoading, setIsLoading] = useState(!isNew);
   const [error, setError] = useState<string | null>(null);
+  const pendingJobRef = useRef<{
+    jobId: string;
+    aspectRatio: "landscape" | "portrait";
+    s3VideoId: string;
+  } | null>(null);
 
   // データ取得
   useEffect(() => {
@@ -50,7 +65,7 @@ export default function VideoEditPage() {
         title: "",
         video_url: "",
         thumbnail_url: null,
-        category: "documentary",
+        category: initialCategoryFromQuery,
         display_order: 0,
         draft_status: "draft"
       };
@@ -60,11 +75,11 @@ export default function VideoEditPage() {
         title: "",
         video_url: "",
         thumbnail_url: "",
-        category: "" as any,
+        category: initialCategoryFromQuery,
         display_order: 0
       });
     }
-  }, [id, isNew]);
+  }, [id, isNew, initialCategoryFromQuery]);
 
   const loadVideo = async () => {
     setIsLoading(true);
@@ -121,7 +136,24 @@ export default function VideoEditPage() {
         if (isNew) {
           const result = await createVideoDraft(formData);
           if (result.error) return { error: result.error };
-          return { error: null, draftId: result.data?.id };
+          // 新規動画でジョブIDがpending状態なら紐付ける
+          const newDraftId = result.data?.id;
+          if (newDraftId && pendingJobRef.current) {
+            await saveMediaConvertJobToDraft(
+              newDraftId,
+              pendingJobRef.current.jobId,
+              pendingJobRef.current.aspectRatio,
+              pendingJobRef.current.s3VideoId
+            );
+            pendingJobRef.current = null;
+            // ポーリング開始のためにドラフトを再取得
+            const refreshed = await getVideoDraftById(newDraftId);
+            if (refreshed.data) {
+              setVideo(refreshed.data);
+              setInitialVideo(JSON.parse(JSON.stringify(refreshed.data)));
+            }
+          }
+          return { error: null, draftId: newDraftId };
         } else {
           const result = await updateVideoDraft(id, formData);
           if (result.error) return { error: result.error };
@@ -152,7 +184,7 @@ export default function VideoEditPage() {
       }
       return null;
     },
-    redirectTo: "/studio/videos"
+    redirectTo: `/studio/videos?tab=${formData.category || "main"}`
   });
 
   // 変更検知
@@ -169,18 +201,22 @@ export default function VideoEditPage() {
 
   // 動画アップロード
   const handleVideoUpload = async (file: File, aspectRatio: "landscape" | "portrait") => {
-    // S3アップロードを使用（MediaConvertジョブも自動起動）
-    const result = await uploadVideoToS3Action(file, aspectRatio, id === "new" ? undefined : id);
-    
-    // 新規作成の場合、ジョブIDを保存するためにvideo_urlを更新後に処理
-    // 注意: 新規作成時はcreateVideoDraftの後にジョブIDを保存する必要がある
-    // 現在は既存動画の場合のみ自動保存される
-    
+    const result = await uploadVideoToS3Action(file, aspectRatio, isNew ? undefined : id);
+
+    // 新規動画の場合はジョブ情報をrefに保存し、保存後に紐付ける（s3VideoIdでURLをDBに書き込む）
+    if (isNew && result.data?.jobId && result.data?.s3VideoId) {
+      pendingJobRef.current = {
+        jobId: result.data.jobId,
+        aspectRatio,
+        s3VideoId: result.data.s3VideoId
+      };
+    }
+
     return {
       success: !result.error,
       url: result.data?.url || null,
       error: result.error || undefined,
-      jobId: result.data?.jobId // ジョブIDを返す（将来の拡張用）
+      jobId: result.data?.jobId
     };
   };
 
@@ -206,7 +242,7 @@ export default function VideoEditPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen gap-4">
         <ErrorMessage message={error || "動画が見つかりません"} />
-        <StudioBackButton href="/studio/videos" className="bg-white border border-gray-200" />
+        <StudioBackButton href={`/studio/videos?tab=${formData.category || "main"}`} className="bg-white border border-gray-200" />
       </div>
     );
   }
@@ -219,14 +255,18 @@ export default function VideoEditPage() {
         onClose={() => setIsPreviewOpen(false)}
         device={previewDevice}
         setDevice={setPreviewDevice}
-        companyData={formData as any}
+        companyData={{
+          ...formData,
+          // 変換完了時はストリーミングURL、未完了時は元のS3 URLを使用
+          video_url: (video as any)?.streaming_url || formData.video_url
+        } as any}
         previewUrl="/studio/videos/preview-content"
       />
 
       {/* ヘッダー */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <StudioBackButton href="/studio/videos" />
+          <StudioBackButton href={`/studio/videos?tab=${formData.category || "main"}`} />
           <div>
             <h1 className="text-3xl font-black tracking-tight text-gray-900">
               {isNew ? "新規動画を追加" : "動画を編集"}
@@ -257,7 +297,7 @@ export default function VideoEditPage() {
       {video && (video as any).conversion_status === "processing" && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
           <p className="text-yellow-800 text-sm font-bold">
-            ⚠️ 動画を変換中です。変換完了までお待ちください。申請は可能ですが、承認時には変換が完了している必要があります。
+            ⚠️ 動画を変換中です。変換完了までお待ちください。一覧に戻ると最新の状態が反映されます。申請は可能ですが、承認時には変換が完了している必要があります。
           </p>
         </div>
       )}
@@ -286,6 +326,7 @@ export default function VideoEditPage() {
           onUploadVideo={handleVideoUpload}
           onUploadThumbnail={handleThumbnailUpload}
           readOnly={isReadOnly}
+          categoryDisabled
         />
       </div>
 

@@ -4,11 +4,10 @@ import React, { useState, useCallback } from "react";
 import { Upload, Video as VideoIcon, Loader2, X } from "lucide-react";
 import StudioFormField from "@/components/studio/molecules/StudioFormField";
 import StudioLabel from "@/components/studio/atoms/StudioLabel";
-import StudioSelect from "@/components/studio/atoms/StudioSelect";
 import StudioButton from "@/components/studio/atoms/StudioButton";
 import StudioImageUpload from "@/components/studio/molecules/StudioImageUpload";
 import { VIDEO_CATEGORIES } from "../../../types/video.types";
-import type { VideoFormData, VideoCategory } from "../../../types/video.types";
+import type { VideoFormData } from "../../../types/video.types";
 import { TITLE_MAX_LENGTH } from "@/constants/validation";
 
 interface VideoEditorProps {
@@ -17,6 +16,8 @@ interface VideoEditorProps {
   onUploadVideo: (file: File, aspectRatio: "landscape" | "portrait") => Promise<{ success: boolean; url: string | null; error?: string }>;
   onUploadThumbnail: (file: File) => Promise<{ success: boolean; url: string | null; error?: string }>;
   readOnly?: boolean;
+  /** カテゴリーを変更不可にする（一覧タブから開いた場合など） */
+  categoryDisabled?: boolean;
 }
 
 export default function VideoEditor({
@@ -24,11 +25,11 @@ export default function VideoEditor({
   onChange,
   onUploadVideo,
   onUploadThumbnail,
-  readOnly = false
+  readOnly = false,
+  categoryDisabled = false
 }: VideoEditorProps) {
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
-  const [aspectRatio, setAspectRatio] = useState<"landscape" | "portrait">("landscape");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleChange = useCallback(
@@ -51,6 +52,8 @@ export default function VideoEditor({
   const handleVideoUpload = async (file: File) => {
     setIsUploadingVideo(true);
     try {
+      // ショート動画は縦長（9:16）、それ以外は横長（16:9）
+      const aspectRatio = formData.category === "short" ? "portrait" : "landscape";
       const result = await onUploadVideo(file, aspectRatio);
       if (result.success && result.url) {
         onChange({ ...formData, video_url: result.url! });
@@ -68,28 +71,11 @@ export default function VideoEditor({
 
   return (
     <div className="space-y-6">
-      {/* カテゴリー選択 */}
+      {/* カテゴリ（表示のみ） */}
       <div className="space-y-2">
-        <StudioLabel htmlFor="category" required>
-          カテゴリー
-        </StudioLabel>
-        <StudioSelect
-          id="category"
-          value={formData.category}
-          onChange={(e) => handleChange("category", e.target.value as VideoCategory)}
-          disabled={readOnly}
-          required
-        >
-          <option value="">選択してください</option>
-          {VIDEO_CATEGORIES.map((cat) => (
-            <option key={cat.id} value={cat.id}>
-              {cat.label}
-              {cat.description ? ` - ${cat.description}` : ""}
-            </option>
-          ))}
-        </StudioSelect>
-        <p className="text-[10px] text-gray-400">
-          動画のカテゴリーを選択してください。メインビデオは1つまでしか登録できません。
+        <StudioLabel required>カテゴリ</StudioLabel>
+        <p className="text-sm font-medium text-gray-900">
+          {VIDEO_CATEGORIES.find((c) => c.id === formData.category)?.label ?? formData.category}
         </p>
       </div>
 
@@ -108,44 +94,21 @@ export default function VideoEditor({
         showCharCount
       />
 
-      {/* アスペクト比選択 */}
-      <div className="space-y-2">
-        <StudioLabel htmlFor="aspectRatio" required>
-          動画の向き
-        </StudioLabel>
-        <StudioSelect
-          id="aspectRatio"
-          value={aspectRatio}
-          onChange={(e) => setAspectRatio(e.target.value as "landscape" | "portrait")}
-          disabled={readOnly || isUploadingVideo || !!formData.video_url}
-          required
-        >
-          <option value="landscape">横長（16:9）</option>
-          <option value="portrait">縦長（9:16）</option>
-        </StudioSelect>
-        <p className="text-[10px] text-gray-400">
-          動画のアスペクト比を選択してください。アップロード後は変更できません。
-        </p>
-      </div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* 動画アップロード */}
         <div className="space-y-3 flex flex-col">
           <StudioLabel htmlFor="video" required>
             動画ファイル
           </StudioLabel>
-
+          <p className="text-[10px] text-gray-500">
+            推奨: 1920×1080（16:9）
+          </p>
           <div className="flex-1">
             {formData.video_url ? (
               <div className="space-y-3 h-full flex flex-col">
                 {/* 動画プレビュー */}
                 <div className="border border-gray-200 rounded-xl overflow-hidden bg-black aspect-video flex items-center justify-center">
                   <video src={formData.video_url} controls className="w-full h-full object-contain" />
-                </div>
-
-                {/* 動画URL表示 */}
-                <div className="border border-gray-200 rounded-lg p-3 bg-gray-50 mt-auto">
-                  <p className="text-xs text-gray-600 truncate font-mono">{formData.video_url}</p>
                 </div>
 
                 {!readOnly && (

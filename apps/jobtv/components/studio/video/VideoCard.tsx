@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Play, Edit2, Trash2, Eye } from "lucide-react";
+import { Play, Edit2, Eye } from "lucide-react";
 import StudioBadge from "@/components/studio/atoms/StudioBadge";
 import StudioButton from "@/components/studio/atoms/StudioButton";
 import { DRAFT_STATUS_BADGES, VIDEO_CATEGORIES } from "../../../types/video.types";
@@ -10,16 +10,14 @@ import type { VideoDraftItem } from "../../../types/video.types";
 interface VideoCardProps {
   video: VideoDraftItem;
   onEdit: (id: string) => void;
-  onDelete: (id: string) => void;
   onPreview?: (video: VideoDraftItem) => void;
 }
 
-export default function VideoCard({ video, onEdit, onDelete, onPreview }: VideoCardProps) {
+export default function VideoCard({ video, onEdit, onPreview }: VideoCardProps) {
   const statusBadge = DRAFT_STATUS_BADGES[video.draft_status];
   const categoryInfo = VIDEO_CATEGORIES.find((c) => c.id === video.category);
 
   const canEdit = video.draft_status === "draft" || video.draft_status === "rejected";
-  const canDelete = video.draft_status === "draft" || video.draft_status === "rejected";
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow group">
@@ -110,16 +108,6 @@ export default function VideoCard({ video, onEdit, onDelete, onPreview }: VideoC
             >
               編集
             </StudioButton>
-          )}
-
-          {canDelete && (
-            <button
-              onClick={() => onDelete(video.id)}
-              className="p-2 text-red-600 hover:bg-red-50 rounded-md transition-colors"
-              aria-label="削除"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
           )}
         </div>
       </div>

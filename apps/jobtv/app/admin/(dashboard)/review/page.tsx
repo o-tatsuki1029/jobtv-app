@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import ErrorMessage from "@/components/studio/atoms/ErrorMessage";
 import LoadingSpinner from "@/components/studio/atoms/LoadingSpinner";
@@ -13,6 +13,7 @@ import ReviewCompanyInfoCard from "@/components/admin/review/ReviewCompanyInfoCa
 import ReviewCompanyPageCard from "@/components/admin/review/ReviewCompanyPageCard";
 import ReviewVideoCard from "@/components/admin/review/ReviewVideoCard";
 import ReviewDiffModal from "@/components/admin/review/ReviewDiffModal";
+import VideoPreviewModal from "@/components/VideoPreviewModal";
 import {
   getAllJobsForReview,
   getAllSessionsForReview,
@@ -28,6 +29,7 @@ import {
   rejectCompanyPage
 } from "@/lib/actions/admin-actions";
 import { getAllVideosDraft, approveVideo, rejectVideo } from "@/lib/actions/admin-video-actions";
+import { checkAndUpdateConversionStatus } from "@/lib/actions/video-actions";
 import { getJobDraftByProductionId, getJobDraftById } from "@/lib/actions/job-actions";
 import { getSessionDraftByProductionId, getSessionDraftById } from "@/lib/actions/session-actions";
 import { getCompanyPageDraftByIdAdmin } from "@/lib/actions/company-page-actions";
@@ -87,6 +89,9 @@ export default function ReviewPage() {
   const [previewDevice, setPreviewDevice] = useState<"desktop" | "mobile">("desktop");
   const [previewData, setPreviewData] = useState<any>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("/studio/company/preview-content");
+
+  // 動画プレビュー用のstate（モーダルで再生）
+  const [previewVideo, setPreviewVideo] = useState<any>(null);
 
   // 差分表示用のstate
   const [isDiffOpen, setIsDiffOpen] = useState(false);
@@ -234,7 +239,21 @@ export default function ReviewPage() {
     if (videosResult.error) {
       console.error("Videos load error:", videosResult.error);
     } else if (videosResult.data) {
-      setVideos(videosResult.data);
+      const videoList = videosResult.data;
+      setVideos(videoList);
+      const processingIds = videoList
+        .filter(
+          (v: any) =>
+            v.conversion_status === "processing" || v.conversion_status === "pending"
+        )
+        .map((v: any) => v.id);
+      if (processingIds.length > 0) {
+        await Promise.all(
+          processingIds.map((id: string) => checkAndUpdateConversionStatus(id))
+        );
+        const refreshed = await getAllVideosDraft({ draft_status: "submitted" });
+        if (refreshed.data) setVideos(refreshed.data);
+      }
     }
 
     setLoading(false);
@@ -656,6 +675,11 @@ export default function ReviewPage() {
         fields={diffData?.fields || []}
       />
 
+      {/* 動画プレビューモーダル */}
+      {previewVideo && (
+        <VideoPreviewModal video={previewVideo} onClose={() => setPreviewVideo(null)} />
+      )}
+
       <div className="space-y-10 animate-in fade-in duration-300">
         <ErrorMessage message={error || ""} />
 
@@ -779,6 +803,7 @@ export default function ReviewPage() {
                             video={video}
                             onApprove={handleApproveVideo}
                             onReject={handleRejectVideo}
+                            onPreview={setPreviewVideo}
                           />
                         ))}
                       </div>

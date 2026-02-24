@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Play, Edit2, Trash2, GripVertical, Loader2 } from "lucide-react";
+import { Play, Edit2, GripVertical, Loader2 } from "lucide-react";
 import StudioBadge from "@/components/studio/atoms/StudioBadge";
 import { DRAFT_STATUS_BADGES, VIDEO_CATEGORIES } from "../../../types/video.types";
 import type { VideoDraftItem } from "../../../types/video.types";
@@ -9,7 +9,6 @@ import type { VideoDraftItem } from "../../../types/video.types";
 interface VideoListItemProps {
   video: VideoDraftItem;
   onEdit: (id: string) => void;
-  onDelete: (id: string) => void;
   onPreview?: (video: VideoDraftItem) => void;
   onToggleStatus?: (id: string, currentStatus: "active" | "closed") => void;
   isToggling?: boolean;
@@ -20,7 +19,6 @@ interface VideoListItemProps {
 export default function VideoListItem({
   video,
   onEdit,
-  onDelete,
   onPreview,
   onToggleStatus,
   isToggling = false,
@@ -29,8 +27,8 @@ export default function VideoListItem({
 }: VideoListItemProps) {
   const statusBadge = DRAFT_STATUS_BADGES[video.draft_status];
   const categoryInfo = VIDEO_CATEGORIES.find((c) => c.id === video.category);
+  const displayThumbnail = video.thumbnail_url || video.auto_thumbnail_url || null;
 
-  const canEdit = video.draft_status === "draft" || video.draft_status === "rejected";
   const hasProduction = !!video.production_video_id;
 
   // 更新中の場合はステータスを反転させて表示（トグルを先に動かすため）
@@ -52,14 +50,14 @@ export default function VideoListItem({
         </div>
       )}
 
-      {/* サムネイル */}
+      {/* サムネイル（手動アップロード or 自動生成） */}
       <div 
         className="relative w-32 aspect-video bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer"
         onClick={() => onPreview?.(video)}
       >
-        {video.thumbnail_url ? (
+        {displayThumbnail ? (
           <img
-            src={video.thumbnail_url}
+            src={displayThumbnail}
             alt={video.title}
             className="w-full h-full object-cover"
           />
@@ -125,22 +123,12 @@ export default function VideoListItem({
 
       {/* アクション */}
       <div className="flex items-center gap-1">
-        {canEdit && (
-          <button
-            onClick={() => onEdit(video.id)}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-            title="編集"
-          >
-            <Edit2 className="w-4 h-4" />
-          </button>
-        )}
-
         <button
-          onClick={() => onDelete(video.id)}
-          className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-          title="削除"
+          onClick={() => onEdit(video.id)}
+          className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+          title="編集"
         >
-          <Trash2 className="w-4 h-4" />
+          <Edit2 className="w-4 h-4" />
         </button>
       </div>
     </div>

@@ -12,6 +12,8 @@ interface StreamingVideoPlayerProps {
   className?: string;
   muted?: boolean;
   loop?: boolean;
+  /** true のとき右クリックでコンテキストメニューを出さない（デフォルト true） */
+  disableContextMenu?: boolean;
 }
 
 export default function StreamingVideoPlayer({
@@ -22,7 +24,8 @@ export default function StreamingVideoPlayer({
   controls = true,
   className = "",
   muted = false,
-  loop = false
+  loop = false,
+  disableContextMenu = true
 }: StreamingVideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -56,8 +59,13 @@ export default function StreamingVideoPlayer({
           if (data.fatal) {
             switch (data.type) {
               case Hls.ErrorTypes.NETWORK_ERROR:
-                console.error("HLS network error, trying to recover");
-                hls.startLoad();
+                console.warn("HLS network error, using fallback");
+                hls.destroy();
+                if (fallbackUrl) {
+                  video.src = fallbackUrl;
+                } else {
+                  setError("動画の読み込みに失敗しました");
+                }
                 break;
               case Hls.ErrorTypes.MEDIA_ERROR:
                 console.error("HLS media error, trying to recover");
@@ -66,7 +74,6 @@ export default function StreamingVideoPlayer({
               default:
                 console.error("HLS fatal error, destroying");
                 hls.destroy();
-                // フォールバックに切り替え
                 if (fallbackUrl) {
                   video.src = fallbackUrl;
                 } else {
@@ -138,9 +145,8 @@ export default function StreamingVideoPlayer({
         playsInline
         autoPlay={autoplay}
         controlsList="nodownload"
-        onContextMenu={(e) => e.preventDefault()}
+        {...(disableContextMenu ? { onContextMenu: (e: React.MouseEvent<HTMLVideoElement>) => e.preventDefault() } : {})}
       />
     </div>
   );
 }
-

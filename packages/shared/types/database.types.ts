@@ -1925,36 +1925,45 @@ export type Database = {
       }
       videos: {
         Row: {
+          auto_thumbnail_url: string | null
           category: Database["public"]["Enums"]["video_category"]
           company_id: string
           created_at: string
           display_order: number
           id: string
+          source_url: string | null
           status: Database["public"]["Enums"]["company_page_status"]
+          streaming_url: string | null
           thumbnail_url: string | null
           title: string
           updated_at: string
           video_url: string
         }
         Insert: {
+          auto_thumbnail_url?: string | null
           category: Database["public"]["Enums"]["video_category"]
           company_id: string
           created_at?: string
           display_order?: number
           id?: string
+          source_url?: string | null
           status?: Database["public"]["Enums"]["company_page_status"]
+          streaming_url?: string | null
           thumbnail_url?: string | null
           title: string
           updated_at?: string
           video_url: string
         }
         Update: {
+          auto_thumbnail_url?: string | null
           category?: Database["public"]["Enums"]["video_category"]
           company_id?: string
           created_at?: string
           display_order?: number
           id?: string
+          source_url?: string | null
           status?: Database["public"]["Enums"]["company_page_status"]
+          streaming_url?: string | null
           thumbnail_url?: string | null
           title?: string
           updated_at?: string
@@ -1973,6 +1982,8 @@ export type Database = {
       videos_draft: {
         Row: {
           approved_at: string | null
+          aspect_ratio: string | null
+          auto_thumbnail_url: string | null
           category: Database["public"]["Enums"]["video_category"]
           company_id: string
           conversion_status: string | null
@@ -1993,6 +2004,8 @@ export type Database = {
         }
         Insert: {
           approved_at?: string | null
+          aspect_ratio?: string | null
+          auto_thumbnail_url?: string | null
           category: Database["public"]["Enums"]["video_category"]
           company_id: string
           conversion_status?: string | null
@@ -2013,6 +2026,8 @@ export type Database = {
         }
         Update: {
           approved_at?: string | null
+          aspect_ratio?: string | null
+          auto_thumbnail_url?: string | null
           category?: Database["public"]["Enums"]["video_category"]
           company_id?: string
           conversion_status?: string | null

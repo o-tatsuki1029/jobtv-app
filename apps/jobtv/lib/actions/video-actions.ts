@@ -16,7 +16,8 @@ import type {
 } from "../../types/video.types";
 import { getUserCompanyId, checkCompanyEditPermission } from "@jobtv-app/shared/actions/company-utils";
 import { uploadVideoToS3, uploadThumbnailToS3 } from "@/lib/aws/s3-client";
-import { createMediaConvertJob } from "@/lib/aws/mediaconvert-client";
+import { createMediaConvertJob, getMediaConvertJobStatus } from "@/lib/aws/mediaconvert-client";
+import { getHlsManifestUrl, getMediaConvertThumbnailUrl } from "@/lib/aws/cloudfront-client";
 
 /**
  * ログイン企業の本番動画一覧を取得
@@ -713,7 +714,7 @@ export async function uploadVideoToS3Action(
   aspectRatio: "landscape" | "portrait",
   videoId?: string
 ): Promise<{
-  data: { s3Key: string; url: string; s3Url: string; jobId?: string } | null;
+  data: { s3Key: string; url: string; s3Url: string; jobId?: string; s3VideoId?: string } | null;
   error: string | null;
 }> {
   try {
@@ -731,12 +732,13 @@ export async function uploadVideoToS3Action(
     // videoIdが指定されていない場合は一時的なIDを生成
     const targetVideoId = videoId || `temp-${Date.now()}`;
 
-    const result = await uploadVideoToS3(file, companyId, targetVideoId, aspectRatio);
+    const result = await uploadVideoToS3(file, companyId, targetVideoId);
 
     if (result.error || !result.data) {
       return result;
     }
 
+    console.log("[VideoUpload] S3 done, starting MediaConvert: targetVideoId=" + targetVideoId);
     // S3アップロード成功後、MediaConvertジョブを自動起動
     const jobResult = await createMediaConvertJob({
       videoId: targetVideoId,
@@ -746,21 +748,36 @@ export async function uploadVideoToS3Action(
     });
 
     if (jobResult.error) {
+      console.log("[VideoUpload] MediaConvert job create NG: error=" + jobResult.error);
       console.error("MediaConvert job creation failed:", jobResult.error);
       // ジョブ作成失敗でもS3アップロードは成功しているので、警告のみ
       // 必要に応じて後で手動でジョブを作成できる
-    } else if (jobResult.jobId && videoId) {
-      // 既存の動画の場合、ジョブIDとステータスをDBに保存
-      const supabase = await createClient();
-      await supabase
-        .from("videos_draft")
-        .update({
-          mediaconvert_job_id: jobResult.jobId,
-          conversion_status: "processing",
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", videoId)
-        .eq("company_id", companyId);
+    } else if (jobResult.jobId) {
+      console.log("[VideoUpload] MediaConvert job create OK: jobId=" + jobResult.jobId + ", videoId=" + targetVideoId);
+      if (videoId) {
+        // 既存の動画の場合、ジョブID・ステータス・aspect_ratio・URLをDBに保存（Webhook未実装でも表示用URLを即時保存）
+        const supabase = await createClient();
+        let streamingUrl: string | null = null;
+        let autoThumbnailUrl: string | null = null;
+        try {
+          streamingUrl = await getHlsManifestUrl(companyId, targetVideoId, aspectRatio);
+          autoThumbnailUrl = await getMediaConvertThumbnailUrl(companyId, targetVideoId, aspectRatio);
+        } catch {
+          // CloudFront未設定時はnullのまま
+        }
+        await supabase
+          .from("videos_draft")
+          .update({
+            mediaconvert_job_id: jobResult.jobId,
+            conversion_status: "processing",
+            aspect_ratio: aspectRatio,
+            streaming_url: streamingUrl,
+            auto_thumbnail_url: autoThumbnailUrl,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", videoId)
+          .eq("company_id", companyId);
+      }
     }
 
     return {
@@ -768,7 +785,8 @@ export async function uploadVideoToS3Action(
       data: result.data
         ? {
             ...result.data,
-            jobId: jobResult.jobId || undefined
+            jobId: jobResult.jobId || undefined,
+            s3VideoId: targetVideoId
           }
         : null
     };
@@ -777,6 +795,198 @@ export async function uploadVideoToS3Action(
     return {
       data: null,
       error: error instanceof Error ? error.message : "動画のアップロードに失敗しました"
+    };
+  }
+}
+
+/**
+ * 新規動画作成後にMediaConvertジョブ情報をDBに保存する
+ * 新規動画（id="new"）では uploadVideoToS3Action 時点でドラフトIDが未確定のため、
+ * createVideoDraft 完了後にこのActionを呼び出してジョブ情報を紐付ける。
+ * s3VideoId（S3/MediaConvertで使用したID、例: temp-xxx）を使って streaming_url / auto_thumbnail_url も保存する（Webhook未実装対応）。
+ */
+export async function saveMediaConvertJobToDraft(
+  draftId: string,
+  jobId: string,
+  aspectRatio: "landscape" | "portrait",
+  s3VideoId: string
+): Promise<{ error: string | null }> {
+  try {
+    const { companyId, error: companyIdError } = await getUserCompanyId();
+    if (companyIdError) {
+      return { error: companyIdError };
+    }
+
+    let streamingUrl: string | null = null;
+    let autoThumbnailUrl: string | null = null;
+    try {
+      streamingUrl = await getHlsManifestUrl(companyId, s3VideoId, aspectRatio);
+      autoThumbnailUrl = await getMediaConvertThumbnailUrl(companyId, s3VideoId, aspectRatio);
+    } catch {
+      // CloudFront未設定時はnullのまま
+    }
+
+    const supabase = await createClient();
+
+    const { error } = await supabase
+      .from("videos_draft")
+      .update({
+        mediaconvert_job_id: jobId,
+        conversion_status: "processing",
+        aspect_ratio: aspectRatio,
+        streaming_url: streamingUrl,
+        auto_thumbnail_url: autoThumbnailUrl,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", draftId)
+      .eq("company_id", companyId);
+
+    if (error) {
+      console.error("Save MediaConvert job to draft error:", error);
+      return { error: error.message };
+    }
+
+    return { error: null };
+  } catch (error) {
+    console.error("Save MediaConvert job to draft error:", error);
+    return { error: error instanceof Error ? error.message : "ジョブ情報の保存に失敗しました" };
+  }
+}
+
+/**
+ * MediaConvert変換ステータスをポーリングして更新するServer Action
+ * SNSが使えない環境でのフォールバック用
+ */
+export async function checkAndUpdateConversionStatus(draftId: string): Promise<{
+  data: {
+    conversionStatus: string;
+    percentComplete: number;
+    streamingUrl?: string | null;
+    autoThumbnailUrl?: string | null;
+  } | null;
+  error: string | null;
+}> {
+  try {
+    const { companyId, error: companyIdError } = await getUserCompanyId();
+    if (companyIdError) {
+      return { data: null, error: companyIdError };
+    }
+
+    const supabase = await createClient();
+
+    const { data: draft, error: draftError } = await supabase
+      .from("videos_draft")
+      .select("mediaconvert_job_id, conversion_status, aspect_ratio, streaming_url")
+      .eq("id", draftId)
+      .eq("company_id", companyId)
+      .single();
+
+    if (draftError || !draft) {
+      return { data: null, error: "下書きが見つかりません" };
+    }
+
+    // 既に完了/失敗している場合はそのまま返す
+    if (draft.conversion_status === "completed" || draft.conversion_status === "failed") {
+      return {
+        data: {
+          conversionStatus: draft.conversion_status,
+          percentComplete: draft.conversion_status === "completed" ? 100 : 0,
+          streamingUrl: draft.streaming_url
+        },
+        error: null
+      };
+    }
+
+    // jobIdがない場合はDBのステータスをそのまま返す
+    if (!draft.mediaconvert_job_id) {
+      return {
+        data: {
+          conversionStatus: draft.conversion_status || "pending",
+          percentComplete: 0
+        },
+        error: null
+      };
+    }
+
+    // MediaConvertからステータスを取得
+    const jobStatus = await getMediaConvertJobStatus(draft.mediaconvert_job_id);
+    if (jobStatus.error) {
+      return { data: null, error: jobStatus.error };
+    }
+
+    const status = jobStatus.status || "";
+    const percentComplete = jobStatus.percentComplete ?? 0;
+
+    if (status === "COMPLETE") {
+      const updatePayload: {
+        conversion_status: string;
+        updated_at: string;
+        streaming_url?: string | null;
+        auto_thumbnail_url?: string | null;
+      } = {
+        conversion_status: "completed",
+        updated_at: new Date().toISOString()
+      };
+      // streaming_url が未設定のときは draft.id と aspect_ratio で組み立てて保存（既存動画はdraft.idでS3出力、新規はsaveMediaConvertJobToDraftで既に設定済み）
+      if (draft.streaming_url == null && draft.aspect_ratio) {
+        try {
+          const ar = draft.aspect_ratio === "portrait" ? "portrait" : "landscape";
+          updatePayload.streaming_url = await getHlsManifestUrl(companyId, draftId, ar);
+          updatePayload.auto_thumbnail_url = await getMediaConvertThumbnailUrl(companyId, draftId, ar);
+        } catch {
+          // CloudFront未設定時はURLのみスキップ
+        }
+      }
+      await supabase
+        .from("videos_draft")
+        .update(updatePayload)
+        .eq("id", draftId)
+        .eq("company_id", companyId);
+
+      const { data: updatedDraft } = await supabase
+        .from("videos_draft")
+        .select("streaming_url, auto_thumbnail_url")
+        .eq("id", draftId)
+        .eq("company_id", companyId)
+        .single();
+
+      return {
+        data: {
+          conversionStatus: "completed",
+          percentComplete: 100,
+          streamingUrl: updatedDraft?.streaming_url ?? undefined,
+          autoThumbnailUrl: updatedDraft?.auto_thumbnail_url ?? undefined
+        },
+        error: null
+      };
+    }
+
+    if (status === "ERROR" || status === "CANCELED") {
+      await supabase
+        .from("videos_draft")
+        .update({
+          conversion_status: "failed",
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", draftId)
+        .eq("company_id", companyId);
+
+      return {
+        data: { conversionStatus: "failed", percentComplete: 0 },
+        error: null
+      };
+    }
+
+    // PROGRESSING / SUBMITTED
+    return {
+      data: { conversionStatus: "processing", percentComplete },
+      error: null
+    };
+  } catch (error) {
+    console.error("Check conversion status error:", error);
+    return {
+      data: null,
+      error: error instanceof Error ? error.message : "変換ステータスの確認に失敗しました"
     };
   }
 }

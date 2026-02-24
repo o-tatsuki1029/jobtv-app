@@ -12,7 +12,7 @@ interface VideoCategoryTabsProps {
 
 export default function VideoCategoryTabs({ activeCategory, onCategoryChange, counts }: VideoCategoryTabsProps) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+    <div className="w-fit bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
       <div className="flex border-b border-gray-200 overflow-x-auto">
         {/* カテゴリータブ */}
         {VIDEO_CATEGORIES.map((category) => (

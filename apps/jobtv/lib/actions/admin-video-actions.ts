@@ -84,6 +84,21 @@ export async function getAllVideosDraft(filters?: {
 }
 
 /**
+ * DBのdraftレコードから HLS の streaming_url を組み立てる（SNS Webhook 未設定時のフォールバック）
+ * aspect_ratio カラムを使用してURLを構築する
+ */
+function buildStreamingUrlFromDb(draft: {
+  id: string;
+  company_id: string;
+  aspect_ratio?: string | null;
+}): string | null {
+  const cloudFrontBase = process.env.AWS_CLOUDFRONT_URL?.replace(/\/$/, "");
+  if (!cloudFrontBase) return null;
+  const ar = draft.aspect_ratio === "portrait" ? "portrait" : "landscape";
+  return `${cloudFrontBase}/companies/${draft.company_id}/videos/${draft.id}/hls/${ar}/original.m3u8`;
+}
+
+/**
  * 動画を承認（videos_draft → videos）
  */
 export async function approveVideo(draftId: string): Promise<{
@@ -123,27 +138,41 @@ export async function approveVideo(draftId: string): Promise<{
       .single();
 
     if (draftError || !draft) {
+      console.log("[Approval] NG: draft not found draftId=" + draftId);
       return { data: null, error: "下書きが見つかりません" };
     }
 
+    console.log("[Approval] draft loaded: draftId=" + draftId);
+
     // 審査中でない場合はエラー
     if (draft.draft_status !== "submitted") {
+      console.log("[Approval] NG: draft_status is not submitted");
       return { data: null, error: "審査中の動画のみ承認できます" };
     }
 
-    // 変換完了チェック（必須）
+    // 変換完了時のみ承認可能
     if (draft.conversion_status !== "completed") {
-      return {
-        data: null,
-        error: "動画の変換が完了していません。変換完了後に承認してください。"
-      };
+      const statusLabel =
+        draft.conversion_status === "failed"
+          ? "変換に失敗しています。再アップロード後に審査申請してください"
+          : "変換が完了していません。変換完了後に承認してください";
+      console.log("[Approval] NG: conversion_status=" + (draft.conversion_status || "null"));
+      return { data: null, error: `動画の${statusLabel}。` };
     }
 
-    // streaming_urlが設定されているか確認
-    if (!draft.streaming_url) {
+    // streaming_url を決定（Webhook で設定されていなければ DBレコードから組み立て）
+    let streamingUrl = draft.streaming_url;
+    if (!streamingUrl) {
+      streamingUrl = buildStreamingUrlFromDb(draft);
+      if (streamingUrl) {
+        console.log("[Approval] streamingUrl resolved from DB: draftId=" + draftId);
+      }
+    }
+    if (!streamingUrl) {
+      console.log("[Approval] NG: could not resolve streamingUrl");
       return {
         data: null,
-        error: "HLS動画のURLが設定されていません。変換処理を確認してください。"
+        error: "HLS動画のURLを特定できません。動画URLの形式を確認するか、変換完了後に再度お試しください。"
       };
     }
 
@@ -165,7 +194,10 @@ export async function approveVideo(draftId: string): Promise<{
         .from("videos")
         .update({
           title: draft.title,
-          video_url: draft.streaming_url || draft.video_url, // HLS URLを優先
+          video_url: streamingUrl,
+          source_url: draft.video_url,
+          streaming_url: streamingUrl,
+          auto_thumbnail_url: draft.auto_thumbnail_url,
           thumbnail_url: draft.thumbnail_url,
           category: draft.category,
           display_order: draft.display_order,
@@ -177,6 +209,7 @@ export async function approveVideo(draftId: string): Promise<{
         .single();
 
       if (updateError) {
+        console.log("[Approval] NG: update production video error=" + updateError.message);
         console.error("Update production video error:", updateError);
         return { data: null, error: updateError.message };
       }
@@ -187,7 +220,10 @@ export async function approveVideo(draftId: string): Promise<{
       const videoData: VideoInsert = {
         company_id: draft.company_id,
         title: draft.title,
-        video_url: draft.streaming_url || draft.video_url, // HLS URLを優先
+        video_url: streamingUrl,
+        source_url: draft.video_url,
+        streaming_url: streamingUrl,
+        auto_thumbnail_url: draft.auto_thumbnail_url,
         thumbnail_url: draft.thumbnail_url,
         category: draft.category,
         display_order: draft.display_order,
@@ -201,6 +237,7 @@ export async function approveVideo(draftId: string): Promise<{
         .single();
 
       if (insertError) {
+        console.log("[Approval] NG: insert production video error=" + insertError.message);
         console.error("Insert production video error:", insertError);
         return { data: null, error: insertError.message };
       }
@@ -209,6 +246,7 @@ export async function approveVideo(draftId: string): Promise<{
     }
 
     if (!productionVideo) {
+      console.log("[Approval] NG: productionVideo is null");
       return { data: null, error: "本番動画の作成・更新に失敗しました" };
     }
 
@@ -223,19 +261,23 @@ export async function approveVideo(draftId: string): Promise<{
       .eq("id", draftId);
 
     if (updateDraftError) {
+      console.log("[Approval] NG: update draft status error=" + updateDraftError.message);
       console.error("Update draft status error:", updateDraftError);
       return { data: null, error: updateDraftError.message };
     }
 
+    console.log("[Approval] OK: draftId=" + draftId);
     revalidatePath("/admin/review");
     revalidatePath("/studio/videos");
     revalidatePath(`/company/${draft.company_id}`);
     return { data: productionVideo, error: null };
   } catch (error) {
+    const msg = error instanceof Error ? error.message : "動画の承認に失敗しました";
+    console.log("[Approval] NG: " + msg);
     console.error("Approve video error:", error);
     return {
       data: null,
-      error: error instanceof Error ? error.message : "動画の承認に失敗しました"
+      error: msg
     };
   }
 }

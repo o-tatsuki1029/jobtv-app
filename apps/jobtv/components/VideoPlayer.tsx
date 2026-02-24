@@ -11,6 +11,8 @@ interface VideoPlayerProps {
   className?: string;
   muted?: boolean;
   loop?: boolean;
+  /** true のとき右クリックでコンテキストメニューを出さない（デフォルト true） */
+  disableContextMenu?: boolean;
 }
 
 export default function VideoPlayer({
@@ -21,18 +23,25 @@ export default function VideoPlayer({
   controls = true,
   className = "",
   muted = false,
-  loop = true
+  loop = true,
+  disableContextMenu = true
 }: VideoPlayerProps) {
+  // srcが.m3u8で終わる場合はHLS URLとして扱う（フロントページのvideo_urlはHLS URL）
+  const isHlsUrl = src?.endsWith(".m3u8");
+  const effectiveHlsUrl = streamingUrl || (isHlsUrl ? src : null);
+  const effectiveFallback = isHlsUrl ? undefined : src;
+
   return (
     <StreamingVideoPlayer
-      hlsUrl={streamingUrl}
-      fallbackUrl={src}
+      hlsUrl={effectiveHlsUrl}
+      fallbackUrl={effectiveFallback}
       poster={poster}
       autoplay={autoplay}
       controls={controls}
       className={className}
       muted={muted}
       loop={loop}
+      disableContextMenu={disableContextMenu}
     />
   );
 }

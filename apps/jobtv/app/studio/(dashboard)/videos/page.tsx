@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useCallback, useEffect } from "react";
-import { Plus, GripVertical, X } from "lucide-react";
-import { useRouter } from "next/navigation";
+import React, { useState, useCallback, useEffect, useRef } from "react";
+import { Plus, GripVertical } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
 import PageHeader from "@/components/studio/molecules/PageHeader";
 import StudioButton from "@/components/studio/atoms/StudioButton";
 import LoadingSpinner from "@/components/studio/atoms/LoadingSpinner";
@@ -10,9 +10,19 @@ import ErrorMessage from "@/components/studio/atoms/ErrorMessage";
 import EmptyState from "@/components/studio/atoms/EmptyState";
 import VideoListItem from "@/components/studio/video/VideoListItem";
 import VideoCategoryTabs from "@/components/studio/video/VideoCategoryTabs";
+import VideoPreviewModal from "@/components/VideoPreviewModal";
 import { useVideoManagement } from "@/hooks/useVideoManagement";
-import { reorderVideosDraft, toggleVideoStatus } from "@/lib/actions/video-actions";
+import { reorderVideosDraft, toggleVideoStatus, checkAndUpdateConversionStatus } from "@/lib/actions/video-actions";
 import type { VideoCategory, VideoDraftItem } from "@/types/video.types";
+import { VIDEO_CATEGORIES } from "@/types/video.types";
+
+const VALID_TABS: VideoCategory[] = ["main", "short", "documentary"];
+
+function tabFromSearchParams(searchParams: ReturnType<typeof useSearchParams>): VideoCategory {
+  const tab = searchParams.get("tab");
+  if (tab && VALID_TABS.includes(tab as VideoCategory)) return tab as VideoCategory;
+  return "main";
+}
 import {
   DndContext,
   closestCenter,
@@ -35,7 +45,6 @@ import { CSS } from "@dnd-kit/utilities";
 function SortableVideoListItem({
   video,
   onEdit,
-  onDelete,
   onPreview,
   onToggleStatus,
   isToggling,
@@ -43,7 +52,6 @@ function SortableVideoListItem({
 }: {
   video: VideoDraftItem;
   onEdit: (id: string) => void;
-  onDelete: (id: string) => void;
   onPreview: (video: VideoDraftItem) => void;
   onToggleStatus: (id: string, currentStatus: "active" | "closed") => void;
   isToggling: boolean;
@@ -66,7 +74,6 @@ function SortableVideoListItem({
       <VideoListItem
         video={video}
         onEdit={onEdit}
-        onDelete={onDelete}
         onPreview={onPreview}
         onToggleStatus={onToggleStatus}
         isToggling={isToggling}
@@ -79,14 +86,39 @@ function SortableVideoListItem({
 
 export default function VideosPage() {
   const router = useRouter();
-  const [activeCategory, setActiveCategory] = useState<VideoCategory>("main");
+  const searchParams = useSearchParams();
+  const tabFromUrl = tabFromSearchParams(searchParams);
+  const [activeCategory, setActiveCategory] = useState<VideoCategory>(tabFromUrl);
   const [sortedVideos, setSortedVideos] = useState<VideoDraftItem[]>([]);
   const [isReordering, setIsReordering] = useState(false);
   const [previewVideo, setPreviewVideo] = useState<VideoDraftItem | null>(null);
   const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set());
 
-  const { videos, allVideos, isLoading, error, deleteVideo, updateFilters, getCountByCategory, loadVideos } =
-    useVideoManagement({ autoLoad: true, category: "main" });
+  const { videos, allVideos, isLoading, error, updateFilters, getCountByCategory, loadVideos } = useVideoManagement({
+    autoLoad: true,
+    category: tabFromUrl
+  });
+  const conversionCheckDoneRef = useRef(false);
+
+  // 初回ロード後、未完了（processing/pending）の動画があれば1回だけ完了確認して一覧を再取得
+  useEffect(() => {
+    if (isLoading || conversionCheckDoneRef.current || allVideos.length === 0) return;
+    const processingIds = allVideos
+      .filter((v) => v.conversion_status === "processing" || v.conversion_status === "pending")
+      .map((v) => v.id);
+    if (processingIds.length === 0) return;
+    conversionCheckDoneRef.current = true;
+    (async () => {
+      await Promise.all(processingIds.map((id) => checkAndUpdateConversionStatus(id)));
+      await loadVideos();
+    })();
+  }, [allVideos, isLoading, loadVideos]);
+
+  // URLのtabとactiveCategoryを同期（ブラウザバック等）
+  useEffect(() => {
+    setActiveCategory(tabFromUrl);
+    updateFilters({ category: tabFromUrl });
+  }, [tabFromUrl, updateFilters]);
 
   // センサーの設定
   const sensors = useSensors(
@@ -105,13 +137,14 @@ export default function VideosPage() {
     setSortedVideos(videos);
   }, [videos]);
 
-  // カテゴリー変更
+  // カテゴリー変更（URLを更新）
   const handleCategoryChange = useCallback(
     (category: VideoCategory) => {
       setActiveCategory(category);
       updateFilters({ category });
+      router.push(`/studio/videos?tab=${category}`);
     },
-    [updateFilters]
+    [updateFilters, router]
   );
 
   // ドラッグ終了時の処理
@@ -145,22 +178,14 @@ export default function VideosPage() {
   // 並び替えが可能かどうか（動画が複数ある場合）
   const isSortable = sortedVideos.length > 1;
 
-  // 新規作成
+  // 新規作成（現在のタブのカテゴリをクエリで渡す）
   const handleCreate = () => {
-    router.push("/studio/videos/new");
+    router.push(`/studio/videos/new?category=${activeCategory}`);
   };
 
   // 編集
   const handleEdit = (id: string) => {
     router.push(`/studio/videos/${id}`);
-  };
-
-  // 削除
-  const handleDelete = async (id: string) => {
-    const result = await deleteVideo(id);
-    if (result.success) {
-      // 成功時は自動でリロードされる
-    }
   };
 
   // プレビュー
@@ -208,6 +233,18 @@ export default function VideosPage() {
     documentary: getCountByCategory("documentary")
   };
 
+  // 現在タブのカテゴリが上限かどうか（追加ボタン無効化用）
+  const activeCategoryInfo = VIDEO_CATEGORIES.find((c) => c.id === activeCategory);
+  const activeCount = getCountByCategory(activeCategory);
+  const isAddDisabled = activeCategoryInfo?.maxCount != null && activeCount >= activeCategoryInfo.maxCount;
+
+  // タブごとの追加ボタンラベル
+  const addButtonLabel: Record<VideoCategory, string> = {
+    main: "メインビデオを追加",
+    short: "ショート動画を追加",
+    documentary: "動画を追加"
+  };
+
   if (isLoading && allVideos.length === 0) {
     return (
       <div className="space-y-10">
@@ -224,9 +261,23 @@ export default function VideosPage() {
         title="動画管理"
         description="企業紹介動画の管理・審査申請を行います"
         action={
-          <StudioButton icon={<Plus className="w-4 h-4" />} onClick={handleCreate}>
-            新規動画を追加
-          </StudioButton>
+          isAddDisabled ? (
+            <span className="relative inline-block group">
+              <StudioButton icon={<Plus className="w-4 h-4" />} disabled>
+                {addButtonLabel[activeCategory]}
+              </StudioButton>
+              <span
+                role="tooltip"
+                className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1.5 text-xs font-medium text-white bg-gray-800 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-none pointer-events-none z-10"
+              >
+                作成上限に達しています。既存の動画を編集してください。
+              </span>
+            </span>
+          ) : (
+            <StudioButton icon={<Plus className="w-4 h-4" />} onClick={handleCreate}>
+              {addButtonLabel[activeCategory]}
+            </StudioButton>
+          )
         }
       />
 
@@ -259,7 +310,6 @@ export default function VideosPage() {
                   key={video.id}
                   video={video}
                   onEdit={handleEdit}
-                  onDelete={handleDelete}
                   onPreview={handlePreview}
                   onToggleStatus={handleToggleStatus}
                   isToggling={togglingIds.has(video.production_video_id || "")}
@@ -273,25 +323,7 @@ export default function VideosPage() {
 
       {/* プレビューモーダル */}
       {previewVideo && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
-          onClick={() => setPreviewVideo(null)}
-        >
-          <div className="relative w-full max-w-4xl mx-4" onClick={(e) => e.stopPropagation()}>
-            <button
-              onClick={() => setPreviewVideo(null)}
-              className="absolute -top-12 right-0 p-2 text-white hover:bg-white/10 rounded-full transition-colors"
-            >
-              <X className="w-6 h-6" />
-            </button>
-            <div className="bg-black rounded-lg overflow-hidden">
-              <video src={previewVideo.video_url} controls autoPlay className="w-full" />
-            </div>
-            <div className="mt-4 text-white">
-              <h3 className="text-lg font-bold">{previewVideo.title}</h3>
-            </div>
-          </div>
-        </div>
+        <VideoPreviewModal video={previewVideo} onClose={() => setPreviewVideo(null)} />
       )}
     </div>
   );

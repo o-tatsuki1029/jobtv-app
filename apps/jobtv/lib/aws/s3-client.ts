@@ -103,13 +103,11 @@ export async function uploadToS3(
 
 /**
  * 動画ファイルをS3にアップロード（専用関数）
- * @param aspectRatio 横長（landscape）または縦長（portrait）
  */
 export async function uploadVideoToS3(
   file: File,
   companyId: string,
-  videoId: string,
-  aspectRatio: "landscape" | "portrait" = "landscape"
+  videoId: string
 ): Promise<{
   data: { s3Key: string; url: string; s3Url: string } | null;
   error: string | null;
@@ -125,8 +123,8 @@ export async function uploadVideoToS3(
 
     // ファイル拡張子を取得
     const fileExt = file.name.split(".").pop()?.toLowerCase() || "mp4";
-    // 横長/縦長でディレクトリを分ける
-    const s3Key = `source/${aspectRatio}/${companyId}/videos/${videoId}/original.${fileExt}`;
+    const s3Key = `companies/${companyId}/videos/${videoId}/original.${fileExt}`;
+    console.log("[VideoUpload] S3 upload start: key=" + s3Key);
 
     // ファイルサイズチェック（50MB以下）
     const maxSize = 50 * 1024 * 1024; // 50MB
@@ -154,6 +152,7 @@ export async function uploadVideoToS3(
     });
 
     if (!result.success) {
+      console.log("[VideoUpload] S3 upload NG: error=" + (result.error || "動画のアップロードに失敗しました"));
       return {
         data: null,
         error: result.error || "動画のアップロードに失敗しました"
@@ -163,6 +162,7 @@ export async function uploadVideoToS3(
     // CloudFront URLを生成（必須）
     try {
       const cloudFrontUrl = getCloudFrontUrl(result.key!);
+      console.log("[VideoUpload] S3 upload OK: key=" + result.key);
       return {
         data: {
           s3Key: result.key!,
@@ -172,16 +172,20 @@ export async function uploadVideoToS3(
         error: null
       };
     } catch (error) {
+      const msg = error instanceof Error ? error.message : "CloudFront URLの生成に失敗しました";
+      console.log("[VideoUpload] S3 upload NG: error=" + msg);
       return {
         data: null,
-        error: error instanceof Error ? error.message : "CloudFront URLの生成に失敗しました"
+        error: msg
       };
     }
   } catch (error) {
+    const msg = error instanceof Error ? error.message : "動画のアップロードに失敗しました";
+    console.log("[VideoUpload] S3 upload NG: error=" + msg);
     console.error("Upload video to S3 error:", error);
     return {
       data: null,
-      error: error instanceof Error ? error.message : "動画のアップロードに失敗しました"
+      error: msg
     };
   }
 }
@@ -208,7 +212,7 @@ export async function uploadThumbnailToS3(
 
     // ファイル拡張子を取得
     const fileExt = file.name.split(".").pop()?.toLowerCase() || "jpg";
-    const s3Key = `thumbnails/${companyId}/videos/${videoId}/thumbnail.${fileExt}`;
+    const s3Key = `companies/${companyId}/videos/${videoId}/thumbnail.${fileExt}`;
 
     // ファイルサイズチェック（10MB以下）
     const maxSize = 10 * 1024 * 1024; // 10MB
