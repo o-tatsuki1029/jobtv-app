@@ -57,7 +57,7 @@ BASIC_AUTH_PASSWORD=your-password
 NEXT_PUBLIC_SUPABASE_URL=https://tdewumilkltljbqryjpg.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-BASIC_AUTH_USERNAME=admin
+BASIC_AUTH_USER=admin
 BASIC_AUTH_PASSWORD=your-password
 ```
 

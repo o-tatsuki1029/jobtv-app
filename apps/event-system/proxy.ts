@@ -12,7 +12,7 @@ function checkBasicAuth(request: NextRequest): boolean {
   const credentials = Buffer.from(base64Credentials, "base64").toString("utf-8");
   const [username, password] = credentials.split(":");
 
-  const validUsername = process.env.BASIC_AUTH_USERNAME;
+  const validUsername = process.env.BASIC_AUTH_USER;
   const validPassword = process.env.BASIC_AUTH_PASSWORD;
 
   if (!validUsername || !validPassword) {
@@ -54,7 +54,7 @@ export async function proxy(request: NextRequest) {
   });
 
   // Basic認証のチェック（環境変数が設定されている場合のみ）
-  const basicAuthUsername = process.env.BASIC_AUTH_USERNAME;
+  const basicAuthUsername = process.env.BASIC_AUTH_USER;
   const basicAuthPassword = process.env.BASIC_AUTH_PASSWORD;
 
   if (basicAuthUsername && basicAuthPassword) {

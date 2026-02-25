@@ -16,7 +16,7 @@
 ### 設定方法
 
 - **jobtv** の環境変数に以下を設定する：
-  - `BASIC_AUTH_USERNAME`: Basic 認証のユーザー名
+  - `BASIC_AUTH_USER`: Basic 認証のユーザー名
   - `BASIC_AUTH_PASSWORD`: Basic 認証のパスワード
 - 両方設定されている場合、静的ファイル（`/_next/`、`favicon.ico`、画像・CSS・JS 等）以外の**全ルート**で Basic 認証がかかる。
 - 認証通過後、従来どおり Supabase のセッションやロールに応じたリダイレクトが行われる。

@@ -12,7 +12,7 @@ function checkBasicAuth(request: NextRequest): boolean {
   try {
     const credentials = atob(base64Credentials);
     const [username, password] = credentials.split(":");
-    const validUsername = process.env.BASIC_AUTH_USERNAME;
+    const validUsername = process.env.BASIC_AUTH_USER;
     const validPassword = process.env.BASIC_AUTH_PASSWORD;
     if (!validUsername || !validPassword) {
       return true;
@@ -27,7 +27,7 @@ export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   // Basic認証（環境変数が両方設定されている場合のみ）
-  const basicAuthUsername = process.env.BASIC_AUTH_USERNAME;
+  const basicAuthUsername = process.env.BASIC_AUTH_USER;
   const basicAuthPassword = process.env.BASIC_AUTH_PASSWORD;
 
   if (basicAuthUsername && basicAuthPassword) {
@@ -35,8 +35,9 @@ export async function proxy(request: NextRequest) {
       pathname.startsWith("/_next") ||
       pathname.startsWith("/favicon.ico") ||
       /\.(svg|png|jpg|jpeg|gif|webp|ico|css|js|woff|woff2|ttf|eot)$/.test(pathname);
+    const basicOk = checkBasicAuth(request);
 
-    if (!isStaticFile && !checkBasicAuth(request)) {
+    if (!isStaticFile && !basicOk) {
       return new NextResponse("Unauthorized", {
         status: 401,
         headers: {

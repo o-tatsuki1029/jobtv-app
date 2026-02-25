@@ -152,7 +152,7 @@ apps/event-system/
 NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-BASIC_AUTH_USERNAME=admin
+BASIC_AUTH_USER=admin
 BASIC_AUTH_PASSWORD=your-password
 ```
 
