@@ -8,6 +8,7 @@ interface VideoModalProps {
   isOpen: boolean;
   onClose: () => void;
   videoUrl: string;
+  streamingUrl?: string | null;
   title: string;
   thumbnail?: string;
   aspectRatio?: "video" | "portrait";
@@ -17,6 +18,7 @@ export default function VideoModal({
   isOpen,
   onClose,
   videoUrl,
+  streamingUrl,
   title,
   thumbnail,
   aspectRatio = "video"
@@ -62,7 +64,7 @@ export default function VideoModal({
             aspectRatio === "portrait" ? "aspect-[9/16] max-h-[80vh] mx-auto" : "aspect-video"
           }`}
         >
-          <VideoPlayer src={videoUrl} poster={thumbnail} autoplay={true} className="w-full h-full" />
+          <VideoPlayer src={videoUrl} streamingUrl={streamingUrl} poster={thumbnail} autoplay={true} className="w-full h-full" />
         </div>
 
         {/* タイトル */}

@@ -6,12 +6,20 @@ import { ImageIcon, ExternalLink, Play } from "lucide-react";
 import StudioButton from "@/components/studio/atoms/StudioButton";
 import StudioBadge from "@/components/studio/atoms/StudioBadge";
 import ApprovalActions from "@/components/admin/ApprovalActions";
+import type { VideoPreviewModalVideo } from "@/components/VideoPreviewModal";
+
+/** 審査用動画（プレビュー用の型を拡張したもの）。admin/review の一覧とプレビューで利用 */
+export type ReviewVideo = VideoPreviewModalVideo & {
+  id: string;
+  category: string;
+  company_name?: string | null;
+};
 
 interface ReviewVideoCardProps {
-  video: any;
+  video: ReviewVideo;
   onApprove: (draftId: string) => Promise<{ error: string | null }>;
   onReject: (draftId: string) => Promise<{ error: string | null }>;
-  onPreview?: (video: any) => void;
+  onPreview?: (video: VideoPreviewModalVideo) => void;
 }
 
 export default function ReviewVideoCard({

@@ -11,9 +11,9 @@ import ReviewJobCard from "@/components/admin/review/ReviewJobCard";
 import ReviewSessionCard from "@/components/admin/review/ReviewSessionCard";
 import ReviewCompanyInfoCard from "@/components/admin/review/ReviewCompanyInfoCard";
 import ReviewCompanyPageCard from "@/components/admin/review/ReviewCompanyPageCard";
-import ReviewVideoCard from "@/components/admin/review/ReviewVideoCard";
+import ReviewVideoCard, { type ReviewVideo } from "@/components/admin/review/ReviewVideoCard";
 import ReviewDiffModal from "@/components/admin/review/ReviewDiffModal";
-import VideoPreviewModal from "@/components/VideoPreviewModal";
+import VideoPreviewModal, { type VideoPreviewModalVideo } from "@/components/VideoPreviewModal";
 import {
   getAllJobsForReview,
   getAllSessionsForReview,
@@ -79,7 +79,7 @@ export default function ReviewPage() {
   const [sessions, setSessions] = useState<SessionWithCompany[]>([]);
   const [companyInfo, setCompanyInfo] = useState<Company[]>([]);
   const [companyPages, setCompanyPages] = useState<Company[]>([]);
-  const [videos, setVideos] = useState<any[]>([]);
+  const [videos, setVideos] = useState<ReviewVideo[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -91,7 +91,7 @@ export default function ReviewPage() {
   const [previewUrl, setPreviewUrl] = useState<string>("/studio/company/preview-content");
 
   // 動画プレビュー用のstate（モーダルで再生）
-  const [previewVideo, setPreviewVideo] = useState<any>(null);
+  const [previewVideo, setPreviewVideo] = useState<VideoPreviewModalVideo | null>(null);
 
   // 差分表示用のstate
   const [isDiffOpen, setIsDiffOpen] = useState(false);

@@ -30,13 +30,38 @@ export default function StreamingVideoPlayer({
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+
+  const handleRetry = () => {
+    setError(null);
+    setRetryCount((c) => c + 1);
+  };
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
+    // URL が変わったらエラー表示をリセット
+    setError(null);
+
+    const hasHls = hlsUrl && hlsUrl.trim() !== "";
+    const hasFallback = fallbackUrl && fallbackUrl.trim() !== "";
+
+    // ソースが無い場合は video をクリアしてエラー表示
+    if (!hasHls && !hasFallback) {
+      video.removeAttribute("src");
+      video.load();
+      setError("再生できる動画がありません");
+      return () => {
+        if (hlsRef.current) {
+          hlsRef.current.destroy();
+          hlsRef.current = null;
+        }
+      };
+    }
+
     // HLS URLが利用可能な場合
-    if (hlsUrl) {
+    if (hasHls) {
       if (Hls.isSupported()) {
         // HLS.jsを使用（Chrome, Firefox, Edge等）
         const hls = new Hls({
@@ -61,8 +86,16 @@ export default function StreamingVideoPlayer({
               case Hls.ErrorTypes.NETWORK_ERROR:
                 console.warn("HLS network error, using fallback");
                 hls.destroy();
-                if (fallbackUrl) {
-                  video.src = fallbackUrl;
+                if (hasFallback) {
+                  const url = fallbackUrl!;
+                  const isM3u8 = url.trim().toLowerCase().endsWith(".m3u8");
+                  // .m3u8 を video.src にしても Chrome 等では再生されず poster のみになるため、エラー表示にする
+                  if (isM3u8) {
+                    setError("動画の読み込みに失敗しました");
+                  } else {
+                    video.src = url;
+                    if (autoplay) video.play().catch(() => {});
+                  }
                 } else {
                   setError("動画の読み込みに失敗しました");
                 }
@@ -74,8 +107,15 @@ export default function StreamingVideoPlayer({
               default:
                 console.error("HLS fatal error, destroying");
                 hls.destroy();
-                if (fallbackUrl) {
-                  video.src = fallbackUrl;
+                if (hasFallback) {
+                  const url = fallbackUrl!;
+                  const isM3u8 = url.trim().toLowerCase().endsWith(".m3u8");
+                  if (isM3u8) {
+                    setError("動画の読み込みに失敗しました");
+                  } else {
+                    video.src = url;
+                    if (autoplay) video.play().catch(() => {});
+                  }
                 } else {
                   setError("動画の読み込みに失敗しました");
                 }
@@ -101,15 +141,15 @@ export default function StreamingVideoPlayer({
         }
       } else {
         // HLS未対応ブラウザはフォールバック
-        if (fallbackUrl) {
-          video.src = fallbackUrl;
+        if (hasFallback) {
+          video.src = fallbackUrl!;
         } else {
           setError("このブラウザでは動画を再生できません");
         }
       }
-    } else if (fallbackUrl) {
+    } else if (hasFallback) {
       // HLS URLがない場合は従来のMP4を使用
-      video.src = fallbackUrl;
+      video.src = fallbackUrl!;
       if (autoplay) {
         video.play().catch((err) => {
           console.log("Autoplay prevented:", err);
@@ -123,12 +163,19 @@ export default function StreamingVideoPlayer({
         hlsRef.current = null;
       }
     };
-  }, [hlsUrl, fallbackUrl, autoplay]);
+  }, [hlsUrl, fallbackUrl, autoplay, retryCount]);
 
   if (error) {
     return (
-      <div className={`flex items-center justify-center bg-gray-900 ${className}`}>
+      <div className={`flex flex-col items-center justify-center gap-3 bg-gray-900 ${className}`}>
         <p className="text-white">{error}</p>
+        <button
+          type="button"
+          onClick={handleRetry}
+          className="px-4 py-2 text-sm font-medium text-gray-900 bg-white rounded-lg hover:bg-gray-100 transition-colors"
+        >
+          再試行
+        </button>
       </div>
     );
   }

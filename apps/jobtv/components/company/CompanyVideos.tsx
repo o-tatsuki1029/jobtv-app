@@ -20,6 +20,7 @@ interface CompanyVideosProps {
 export default function CompanyVideos({ company }: CompanyVideosProps) {
   const [selectedVideo, setSelectedVideo] = useState<{
     videoUrl: string;
+    streamingUrl?: string | null;
     title: string;
     thumbnail?: string;
   } | null>(null);
@@ -42,6 +43,7 @@ export default function CompanyVideos({ company }: CompanyVideosProps) {
               onClick={() =>
                 setSelectedVideo({
                   videoUrl: video.video,
+                  streamingUrl: video.streamingUrl ?? undefined,
                   title: video.title,
                   thumbnail: video.thumbnail || company.coverImage || undefined
                 })
@@ -84,6 +86,7 @@ export default function CompanyVideos({ company }: CompanyVideosProps) {
           isOpen={!!selectedVideo}
           onClose={() => setSelectedVideo(null)}
           videoUrl={selectedVideo.videoUrl}
+          streamingUrl={selectedVideo.streamingUrl}
           title={selectedVideo.title}
           thumbnail={selectedVideo.thumbnail}
           aspectRatio="video"

@@ -22,7 +22,8 @@ export default function CompanyMainHeader({ company, onEntryClick }: CompanyMain
         <div className={cn("overflow-hidden md:rounded-lg shadow-2xl border-y md:border bg-black", classes.headerVideoBorder)}>
           <VideoPlayer
             src={company.mainVideo}
-            poster={company.coverImage || undefined}
+            streamingUrl={company.mainStreamingUrl ?? undefined}
+            poster={company.mainVideoPoster || company.coverImage || undefined}
             className={cn("w-full", HORIZONTAL_CARD_ASPECT_RATIO_16_9_CLASS)}
           />
         </div>

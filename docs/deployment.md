@@ -6,6 +6,27 @@
 
 ---
 
+## JobTV アプリ全体の Basic 認証（オプション）
+
+### 方針
+
+- **ステージングなどでアプリ全体をガードしたい場合**に、環境変数で Basic 認証を有効にできる。
+- 環境変数を設定したときだけ有効。未設定のときは Basic 認証はかからない。
+
+### 設定方法
+
+- **jobtv** の環境変数に以下を設定する：
+  - `BASIC_AUTH_USERNAME`: Basic 認証のユーザー名
+  - `BASIC_AUTH_PASSWORD`: Basic 認証のパスワード
+- 両方設定されている場合、静的ファイル（`/_next/`、`favicon.ico`、画像・CSS・JS 等）以外の**全ルート**で Basic 認証がかかる。
+- 認証通過後、従来どおり Supabase のセッションやロールに応じたリダイレクトが行われる。
+
+### 実装
+
+- [apps/jobtv/proxy.ts](apps/jobtv/proxy.ts) で Basic 認証をチェックし、失敗時は 401 と `WWW-Authenticate: Basic` を返す。
+
+---
+
 ## 管理者画面（/admin）のアクセス制限
 
 ### 方針

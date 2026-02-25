@@ -15,6 +15,8 @@ interface Program {
   time?: string;
   viewers?: number;
   isLive?: boolean;
+  videoUrl?: string;
+  streamingUrl?: string | null;
 }
 
 interface ProgramSectionProps {
@@ -23,6 +25,7 @@ interface ProgramSectionProps {
   showMore?: boolean;
   largeCards?: boolean;
   vertical?: boolean;
+  onProgramClick?: (program: Program) => void;
 }
 
 export default function ProgramSection({
@@ -30,7 +33,8 @@ export default function ProgramSection({
   programs,
   showMore = true,
   largeCards = false,
-  vertical = false
+  vertical = false,
+  onProgramClick
 }: ProgramSectionProps) {
   const { classes } = useMainTheme();
 
@@ -44,7 +48,11 @@ export default function ProgramSection({
           <HorizontalScrollContainer>
             <div className="flex gap-4 min-w-max px-4 pb-6">
               {programs.map((program) => (
-                <div key={program.id} className="w-[120px] sm:w-[140px] md:w-[160px] flex-shrink-0">
+                <div
+                  key={program.id}
+                  className="w-[120px] sm:w-[140px] md:w-[160px] flex-shrink-0"
+                  onClick={() => onProgramClick?.(program)}
+                >
                   <ProgramCard
                     title={program.title}
                     thumbnail={program.thumbnail}
@@ -84,16 +92,17 @@ export default function ProgramSection({
           }`}
         >
           {programs.map((program) => (
-            <ProgramCard
-              key={program.id}
-              title={program.title}
-              thumbnail={program.thumbnail}
-              channel={program.channel}
-              time={program.time}
-              viewers={program.viewers}
-              isLive={program.isLive}
-              vertical={vertical}
-            />
+            <div key={program.id} onClick={() => onProgramClick?.(program)}>
+              <ProgramCard
+                title={program.title}
+                thumbnail={program.thumbnail}
+                channel={program.channel}
+                time={program.time}
+                viewers={program.viewers}
+                isLive={program.isLive}
+                vertical={vertical}
+              />
+            </div>
           ))}
         </div>
       </div>

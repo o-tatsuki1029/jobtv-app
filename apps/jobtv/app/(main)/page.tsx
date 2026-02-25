@@ -1,5 +1,6 @@
 import MainPageContent from "@/components/main/MainPageContent";
 import { getCompaniesByIndustry, type CompanyWithPage } from "@/lib/actions/company-list-actions";
+import { getPublicVideos } from "@/lib/actions/video-actions";
 import { INDUSTRIES } from "@/constants/company-options";
 import { SITE_TITLE, SITE_DESCRIPTION } from "@/constants/site";
 import type { Metadata } from "next";
@@ -59,151 +60,6 @@ const heroProgram = {
   viewers: 12543
 };
 
-const documentaryPrograms = [
-  {
-    id: "1",
-    title: "就活生の1年間 - 内定までの道のり",
-    thumbnail: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=400&h=225&fit=crop",
-    channel: "就活ドキュメンタリー",
-    time: "45分"
-  },
-  {
-    id: "2",
-    title: "新卒採用のリアル - 企業と学生の本音",
-    thumbnail: "https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=225&fit=crop",
-    channel: "就活ドキュメンタリー",
-    time: "38分"
-  },
-  {
-    id: "3",
-    title: "内定者座談会 - 選考を突破した理由",
-    thumbnail: "https://images.unsplash.com/photo-1551434678-e076c223a692?w=400&h=225&fit=crop",
-    channel: "就活ドキュメンタリー",
-    time: "52分"
-  },
-  {
-    id: "4",
-    title: "就活のリアル - 失敗から学ぶ",
-    thumbnail: "https://images.unsplash.com/photo-1561070791-2526d30994b5?w=400&h=225&fit=crop",
-    channel: "就活ドキュメンタリー",
-    time: "42分"
-  },
-  {
-    id: "5",
-    title: "エントリーシートの書き方 完全解説",
-    thumbnail: "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=400&h=225&fit=crop",
-    channel: "就活ドキュメンタリー",
-    time: "35分"
-  },
-  {
-    id: "6",
-    title: "面接対策 - 先輩たちの体験談",
-    thumbnail: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=400&h=225&fit=crop",
-    channel: "就活ドキュメンタリー",
-    time: "48分"
-  },
-  {
-    id: "7",
-    title: "グループディスカッション 実践編",
-    thumbnail: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=400&h=225&fit=crop",
-    channel: "就活ドキュメンタリー",
-    time: "40分"
-  },
-  {
-    id: "8",
-    title: "内定獲得までのストーリー - 複数社から内定",
-    thumbnail: "https://images.unsplash.com/photo-1497366216548-37526070297c?w=400&h=225&fit=crop",
-    channel: "就活ドキュメンタリー",
-    time: "55分"
-  }
-];
-
-const shortVideos = [
-  {
-    id: "s1",
-    title: "社員の1日 - エンジニア編",
-    thumbnail: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=400&h=711&fit=crop",
-    channel: "社員インタビュー",
-    duration: "0:30"
-  },
-  {
-    id: "s2",
-    title: "オフィスツアー 30秒",
-    thumbnail: "https://images.unsplash.com/photo-1497366216548-37526070297c?w=400&h=711&fit=crop",
-    channel: "職場紹介",
-    duration: "0:45"
-  },
-  {
-    id: "s3",
-    title: "先輩社員のメッセージ",
-    thumbnail: "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=400&h=711&fit=crop",
-    channel: "社員インタビュー",
-    duration: "1:00"
-  },
-  {
-    id: "s4",
-    title: "チームワークの魅力",
-    thumbnail: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=400&h=711&fit=crop",
-    channel: "企業文化",
-    duration: "0:30"
-  },
-  {
-    id: "s5",
-    title: "新入社員の声",
-    thumbnail: "https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=711&fit=crop",
-    channel: "新入社員",
-    duration: "0:40"
-  },
-  {
-    id: "s6",
-    title: "採用担当者からのメッセージ",
-    thumbnail: "https://images.unsplash.com/photo-1551434678-e076c223a692?w=400&h=711&fit=crop",
-    channel: "採用情報",
-    duration: "0:25"
-  },
-  {
-    id: "s7",
-    title: "リモートワークの様子",
-    thumbnail: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=400&h=711&fit=crop",
-    channel: "働き方",
-    duration: "0:35"
-  },
-  {
-    id: "s8",
-    title: "職種紹介 - 営業職",
-    thumbnail: "https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=711&fit=crop",
-    channel: "職種紹介",
-    duration: "0:50"
-  },
-  {
-    id: "s9",
-    title: "インターン体験談",
-    thumbnail: "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=400&h=711&fit=crop",
-    channel: "インターン",
-    duration: "1:15"
-  },
-  {
-    id: "s10",
-    title: "福利厚生のご紹介",
-    thumbnail: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=400&h=711&fit=crop",
-    channel: "福利厚生",
-    duration: "0:30"
-  },
-  {
-    id: "s11",
-    title: "キャリアパス 成長ストーリー",
-    thumbnail: "https://images.unsplash.com/photo-1551434678-e076c223a692?w=400&h=711&fit=crop",
-    channel: "キャリア",
-    duration: "0:45"
-  },
-  {
-    id: "s12",
-    title: "企業理念・ビジョン",
-    thumbnail: "https://images.unsplash.com/photo-1497366216548-37526070297c?w=400&h=711&fit=crop",
-    channel: "企業紹介",
-    duration: "0:40"
-  }
-];
 
 const accounts = [
   {
@@ -316,10 +172,34 @@ export default async function Home() {
     companies: Array<{ id: string; name: string; logo_url: string | null; thumbnail_url: string | null }>;
   }> = [];
 
-  try {
-    const companiesResult = await getCompaniesByIndustry();
-    const companiesByIndustry = companiesResult.data ?? new Map<string, CompanyWithPage[]>();
+  let shortVideos: Array<{
+    id: string;
+    title: string;
+    thumbnail: string | null;
+    channel: string;
+    duration?: string;
+    videoUrl?: string;
+    streamingUrl?: string | null;
+  }> = [];
 
+  let documentaryPrograms: Array<{
+    id: string;
+    title: string;
+    thumbnail: string;
+    channel: string;
+    time?: string;
+    videoUrl?: string;
+    streamingUrl?: string | null;
+  }> = [];
+
+  try {
+    const [companiesResult, shortResult, documentaryResult] = await Promise.all([
+      getCompaniesByIndustry(),
+      getPublicVideos("short"),
+      getPublicVideos("documentary")
+    ]);
+
+    const companiesByIndustry = companiesResult.data ?? new Map<string, CompanyWithPage[]>();
     const industries = INDUSTRIES.filter((industry) => industry.value !== "");
 
     industrySections = industries
@@ -338,8 +218,26 @@ export default async function Home() {
         };
       })
       .filter((s): s is NonNullable<typeof s> => s !== null);
+
+    shortVideos = (shortResult.data ?? []).map((v) => ({
+      id: v.id,
+      title: v.title,
+      thumbnail: v.thumbnail_url || v.auto_thumbnail_url || null,
+      channel: v.company_name || "",
+      streamingUrl: v.streaming_url ?? null,
+      videoUrl: v.video_url ?? undefined
+    }));
+
+    documentaryPrograms = (documentaryResult.data ?? []).map((v) => ({
+      id: v.id,
+      title: v.title,
+      thumbnail: v.thumbnail_url || v.auto_thumbnail_url || "",
+      channel: v.company_name || "",
+      streamingUrl: v.streaming_url ?? null,
+      videoUrl: v.video_url ?? undefined
+    }));
   } catch (e) {
-    console.error("Home: getCompaniesByIndustry error", e);
+    console.error("Home: data fetch error", e);
   }
 
   return (

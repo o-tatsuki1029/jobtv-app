@@ -27,9 +27,14 @@ export default function VideoPlayer({
   disableContextMenu = true
 }: VideoPlayerProps) {
   // srcが.m3u8で終わる場合はHLS URLとして扱う（フロントページのvideo_urlはHLS URL）
+  const hasSrc = src != null && src.trim() !== "";
   const isHlsUrl = src?.endsWith(".m3u8");
-  const effectiveHlsUrl = streamingUrl || (isHlsUrl ? src : null);
-  const effectiveFallback = isHlsUrl ? undefined : src;
+  const effectiveHlsUrl =
+    (streamingUrl != null && streamingUrl.trim() !== "")
+      ? streamingUrl
+      : (isHlsUrl && hasSrc ? src : null);
+  // HLS のみのときも同じ URL を fallback に渡す（HLS 失敗時に Safari ネイティブで試すため）
+  const effectiveFallback = isHlsUrl ? (hasSrc ? src : undefined) : (hasSrc ? src : undefined);
 
   return (
     <StreamingVideoPlayer

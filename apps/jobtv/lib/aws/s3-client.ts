@@ -1,6 +1,14 @@
 "use server";
 
+import crypto from "crypto";
 import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+
+/**
+ * S3メタデータ用の32桁英数字（0-9a-f）を生成。x-amz-meta-* はASCIIのみ許容のため使用。
+ */
+function randomAlphanumeric32(): string {
+  return crypto.randomBytes(16).toString("hex");
+}
 
 /**
  * CloudFrontのベースURLを取得（内部関数）
@@ -147,7 +155,7 @@ export async function uploadVideoToS3(
     const result = await uploadToS3(bucket, s3Key, file, file.type, {
       companyId,
       videoId,
-      originalFileName: file.name,
+      originalFileName: randomAlphanumeric32(),
       uploadedAt: new Date().toISOString()
     });
 
@@ -235,7 +243,7 @@ export async function uploadThumbnailToS3(
     const result = await uploadToS3(bucket, s3Key, file, file.type, {
       companyId,
       videoId,
-      originalFileName: file.name,
+      originalFileName: randomAlphanumeric32(),
       uploadedAt: new Date().toISOString()
     });
 

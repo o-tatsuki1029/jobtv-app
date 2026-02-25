@@ -15,6 +15,7 @@ interface ShortVideo {
   channel: string;
   duration?: string;
   videoUrl?: string;
+  streamingUrl?: string | null;
 }
 
 interface ShortVideoSectionProps {

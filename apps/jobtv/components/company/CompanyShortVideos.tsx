@@ -14,6 +14,7 @@ interface CompanyShortVideosProps {
 export default function CompanyShortVideos({ company }: CompanyShortVideosProps) {
   const [selectedVideo, setSelectedVideo] = useState<{
     videoUrl: string;
+    streamingUrl?: string | null;
     title: string;
     thumbnail?: string;
   } | null>(null);
@@ -35,13 +36,15 @@ export default function CompanyShortVideos({ company }: CompanyShortVideosProps)
           thumbnail: v.thumbnail || null,
           channel: "ショート動画",
           duration: "0:00",
-          videoUrl: v.video
+          videoUrl: v.video,
+          streamingUrl: v.streamingUrl ?? null
         }))}
         showMore={false}
         onVideoClick={(video) => {
-          if (video.videoUrl) {
+          if (video.videoUrl || video.streamingUrl) {
             setSelectedVideo({
-              videoUrl: video.videoUrl,
+              videoUrl: video.videoUrl || video.streamingUrl || "",
+              streamingUrl: video.streamingUrl ?? undefined,
               title: video.title,
               thumbnail: video.thumbnail || undefined
             });
@@ -54,6 +57,7 @@ export default function CompanyShortVideos({ company }: CompanyShortVideosProps)
           isOpen={!!selectedVideo}
           onClose={() => setSelectedVideo(null)}
           videoUrl={selectedVideo.videoUrl}
+          streamingUrl={selectedVideo.streamingUrl}
           title={selectedVideo.title}
           thumbnail={selectedVideo.thumbnail}
           aspectRatio="portrait"

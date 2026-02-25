@@ -293,27 +293,6 @@ export default function VideoEditPage() {
       {/* エラー表示 */}
       {(error || studioError) && <ErrorMessage message={error || studioError || ""} />}
 
-      {/* 変換ステータス表示 */}
-      {video && (video as any).conversion_status === "processing" && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <p className="text-yellow-800 text-sm font-bold">
-            ⚠️ 動画を変換中です。変換完了までお待ちください。一覧に戻ると最新の状態が反映されます。申請は可能ですが、承認時には変換が完了している必要があります。
-          </p>
-        </div>
-      )}
-      {video && (video as any).conversion_status === "completed" && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <p className="text-green-800 text-sm font-bold">✓ 動画の変換が完了しました。申請可能です。</p>
-        </div>
-      )}
-      {video && (video as any).conversion_status === "failed" && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-800 text-sm font-bold">
-            ❌ 動画の変換に失敗しました。再度アップロードしてください。
-          </p>
-        </div>
-      )}
-
       {/* エディター */}
       <div
         className={`bg-white rounded-xl border border-gray-200 shadow-sm p-8 ${

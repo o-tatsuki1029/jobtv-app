@@ -992,6 +992,33 @@ export async function checkAndUpdateConversionStatus(draftId: string): Promise<{
 }
 
 /**
+ * 公開動画一覧を取得（トップページ用）
+ */
+export async function getPublicVideos(category: VideoCategory): Promise<{
+  data: (Video & { company_name: string | null })[] | null;
+  error: string | null;
+}> {
+  try {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from("videos")
+      .select("*, companies(name)")
+      .eq("status", "active")
+      .eq("category", category)
+      .order("display_order", { ascending: true })
+      .order("created_at", { ascending: false });
+
+    if (error) return { data: null, error: error.message };
+    return {
+      data: data?.map((v: any) => ({ ...v, company_name: v.companies?.name ?? null })) ?? [],
+      error: null
+    };
+  } catch (e) {
+    return { data: null, error: e instanceof Error ? e.message : "取得失敗" };
+  }
+}
+
+/**
  * サムネイルをS3にアップロード
  * @param file アップロードするサムネイル画像ファイル
  * @param videoId 動画ID

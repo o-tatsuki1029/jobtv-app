@@ -10,6 +10,10 @@ export interface CompanyData {
   logo: string;
   coverImage: string;
   mainVideo?: string;
+  /** メインビデオのHLSストリーミングURL（ある場合） */
+  mainStreamingUrl?: string | null;
+  /** メインビデオのサムネイル（poster用。未設定時はcoverImageを使用） */
+  mainVideoPoster?: string;
   industry: string;
   employees: string;
   prefecture?: string;
@@ -32,12 +36,14 @@ export interface CompanyData {
     id: string;
     title: string;
     video: string;
+    streamingUrl?: string | null;
     thumbnail?: string;
   }>;
   documentaryVideos?: Array<{
     id: string;
     title: string;
     video: string;
+    streamingUrl?: string | null;
     thumbnail?: string;
   }>;
   benefits: string[];
@@ -158,7 +164,7 @@ export function dbToCompanyData(
       id: v.id || crypto.randomUUID(),
       title: v.title || "",
       video: v.video_url || v.video || "",
-      thumbnail: v.thumbnail_url || v.thumbnail
+      thumbnail: v.thumbnail_url || v.auto_thumbnail_url || v.thumbnail
     }));
   };
 
@@ -168,22 +174,33 @@ export function dbToCompanyData(
   const hasVideosFromTable = videosByTable !== undefined;
   
   const mainVideoFromTable = videosByTable?.find((v) => v.category === "main");
+  const mainVideoRow = mainVideoFromTable as
+    | { video_url: string; streaming_url?: string | null; thumbnail_url?: string | null; auto_thumbnail_url?: string | null }
+    | undefined;
   const shortVideosFromTable = videosByTable
     ?.filter((v) => v.category === "short")
-    .map((v) => ({
-      id: v.id,
-      title: v.title,
-      video: v.video_url,
-      thumbnail: v.thumbnail_url || undefined
-    }));
+    .map((v) => {
+      const row = v as { thumbnail_url?: string | null; auto_thumbnail_url?: string | null; streaming_url?: string | null };
+      return {
+        id: v.id,
+        title: v.title,
+        video: v.video_url,
+        streamingUrl: row.streaming_url ?? undefined,
+        thumbnail: row.thumbnail_url || row.auto_thumbnail_url || undefined
+      };
+    });
   const documentaryVideosFromTable = videosByTable
     ?.filter((v) => v.category === "documentary")
-    .map((v) => ({
-      id: v.id,
-      title: v.title,
-      video: v.video_url,
-      thumbnail: v.thumbnail_url || undefined
-    }));
+    .map((v) => {
+      const row = v as { thumbnail_url?: string | null; auto_thumbnail_url?: string | null; streaming_url?: string | null };
+      return {
+        id: v.id,
+        title: v.title,
+        video: v.video_url,
+        streamingUrl: row.streaming_url ?? undefined,
+        thumbnail: row.thumbnail_url || row.auto_thumbnail_url || undefined
+      };
+    });
 
   return {
     id: dbCompany.id,
@@ -192,9 +209,14 @@ export function dbToCompanyData(
     tagline: dbCompany.tagline || undefined,
     logo: dbCompany.logo_url || "",
     coverImage: dbCompany.cover_image_url || "",
-    mainVideo: hasVideosFromTable 
-      ? (mainVideoFromTable?.video_url || undefined) 
+    mainVideo: hasVideosFromTable
+      ? (mainVideoRow?.video_url || undefined)
       : (dbCompany.main_video_url || undefined),
+    mainStreamingUrl: hasVideosFromTable ? (mainVideoRow?.streaming_url ?? undefined) : undefined,
+    mainVideoPoster:
+      hasVideosFromTable && mainVideoRow
+        ? (mainVideoRow.thumbnail_url || mainVideoRow.auto_thumbnail_url || undefined)
+        : undefined,
     industry: dbCompany.industry || "",
     employees: dbCompany.employees || "",
     prefecture: (dbCompany as any).prefecture || "",

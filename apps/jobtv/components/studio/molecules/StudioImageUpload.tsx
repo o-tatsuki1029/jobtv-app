@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Upload, X, Loader2 } from "lucide-react";
 import { uploadCompanyAsset } from "@/lib/actions/company-profile-actions";
 import StudioButton from "../atoms/StudioButton";
+import { ALLOWED_IMAGE_HOSTS } from "@/constants/site";
 
 interface StudioImageUploadProps {
   label: string;
@@ -13,7 +14,7 @@ interface StudioImageUploadProps {
   onUploadComplete: (url: string) => void;
   onError?: (error: string) => void;
   onUploadingChange?: (isUploading: boolean) => void;
-  aspectRatio?: "square" | "wide" | "auto";
+  aspectRatio?: "square" | "wide" | "auto" | "video" | "portrait";
   helperText?: string;
   customUploadFunction?: (file: File) => Promise<{ data: string | null; error: string | null }>;
   disabled?: boolean;
@@ -142,8 +143,12 @@ export default function StudioImageUpload({
         return "aspect-square";
       case "wide":
         return "aspect-[3/1]";
+      case "video":
+        return "aspect-video";
+      case "portrait":
+        return "aspect-[9/16]";
       default:
-        return "aspect-auto";
+        return "aspect-auto min-h-[160px]";
     }
   };
 
@@ -166,7 +171,9 @@ export default function StudioImageUpload({
         onClick={disabled || isUploading ? undefined : () => fileInputRef.current?.click()}
       >
         {previewUrl ? (
-          <div className={`relative w-full h-full ${type === "logo" ? "bg-white" : ""}`}>
+          <div
+            className={`relative w-full h-full min-h-[160px] ${type === "logo" ? "bg-white" : ""}`}
+          >
             {isVideo ? (
               <video src={previewUrl} className="w-full h-full object-cover" controls={false} muted loop playsInline />
             ) : (
@@ -175,7 +182,10 @@ export default function StudioImageUpload({
                 alt={label}
                 fill
                 className={type === "logo" ? "object-contain p-2" : "object-cover"}
-                unoptimized={previewUrl.startsWith("blob:")}
+                unoptimized={
+                  previewUrl.startsWith("blob:") ||
+                  !ALLOWED_IMAGE_HOSTS.some((host) => previewUrl.includes(host))
+                }
               />
             )}
             {!isUploading && !disabled && (

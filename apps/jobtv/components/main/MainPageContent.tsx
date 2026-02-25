@@ -1,11 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import HeroSection from "@/components/HeroSection";
 import ProgramSection from "@/components/ProgramSection";
 import ShortVideoSection from "@/components/ShortVideoSection";
 import BannerList from "@/components/BannerList";
 import AccountList from "@/components/AccountList";
 import CompanySection from "@/components/CompanySection";
+import VideoModal from "@/components/VideoModal";
 import { useMainTheme } from "@/components/theme/PageThemeContext";
 import { cn } from "@jobtv-app/shared/utils/cn";
 
@@ -34,10 +36,11 @@ export interface MainPageContentProps {
   shortVideos: Array<{
     id: string;
     title: string;
-    thumbnail: string;
+    thumbnail: string | null;
     channel: string;
-    duration: string;
+    duration?: string;
     videoUrl?: string;
+    streamingUrl?: string | null;
   }>;
   accounts: Array<{ id: string; name: string; avatar: string }>;
   documentaryPrograms: Array<{
@@ -45,7 +48,9 @@ export interface MainPageContentProps {
     title: string;
     thumbnail: string;
     channel: string;
-    time: string;
+    time?: string;
+    videoUrl?: string;
+    streamingUrl?: string | null;
   }>;
   industrySections: MainPageIndustrySection[];
 }
@@ -59,6 +64,13 @@ export default function MainPageContent({
   industrySections
 }: MainPageContentProps) {
   const { classes } = useMainTheme();
+  const [modalVideo, setModalVideo] = useState<{
+    videoUrl: string;
+    streamingUrl?: string | null;
+    title: string;
+    thumbnail?: string;
+    aspectRatio?: "video" | "portrait";
+  } | null>(null);
 
   return (
     <div className={cn("min-h-screen", classes.pageBg, classes.pageText)}>
@@ -76,14 +88,43 @@ export default function MainPageContent({
         </div>
 
         <div id="short" className="scroll-mt-20 py-8">
-          <ShortVideoSection title="就活Shorts" videos={shortVideos} />
+          <ShortVideoSection
+            title="就活Shorts"
+            videos={shortVideos}
+            onVideoClick={(video) => {
+              if (video.videoUrl || video.streamingUrl) {
+                setModalVideo({
+                  videoUrl: video.videoUrl || video.streamingUrl || "",
+                  streamingUrl: video.streamingUrl,
+                  title: video.title,
+                  thumbnail: video.thumbnail ?? undefined,
+                  aspectRatio: "portrait"
+                });
+              }
+            }}
+          />
         </div>
         <AccountList accounts={accounts} />
         <div
           id="documentary"
           className={cn("py-8 scroll-mt-20", classes.contentSectionBg, classes.contentSectionBorder)}
         >
-          <ProgramSection title="就活ドキュメンタリー" programs={documentaryPrograms} largeCards={true} />
+          <ProgramSection
+            title="就活ドキュメンタリー"
+            programs={documentaryPrograms}
+            largeCards={true}
+            onProgramClick={(program) => {
+              if (program.videoUrl || program.streamingUrl) {
+                setModalVideo({
+                  videoUrl: program.videoUrl || program.streamingUrl || "",
+                  streamingUrl: program.streamingUrl,
+                  title: program.title,
+                  thumbnail: program.thumbnail,
+                  aspectRatio: "video"
+                });
+              }
+            }}
+          />
         </div>
         {Array.isArray(industrySections) &&
           industrySections.map((industry) => (
@@ -100,6 +141,18 @@ export default function MainPageContent({
             </div>
           ))}
       </div>
+
+      {modalVideo && (
+        <VideoModal
+          isOpen={true}
+          onClose={() => setModalVideo(null)}
+          videoUrl={modalVideo.videoUrl}
+          streamingUrl={modalVideo.streamingUrl}
+          title={modalVideo.title}
+          thumbnail={modalVideo.thumbnail}
+          aspectRatio={modalVideo.aspectRatio}
+        />
+      )}
     </div>
   );
 }
