@@ -7,16 +7,14 @@ function checkBasicAuth(request: NextRequest): boolean {
   if (!authHeader || !authHeader.startsWith("Basic ")) {
     return false;
   }
-  const base64Credentials = authHeader.split(" ")[1]?.trim();
+  const base64Credentials = authHeader.split(" ")[1];
   if (!base64Credentials) return false;
   try {
     const credentials = atob(base64Credentials);
-    const colonIndex = credentials.indexOf(":");
-    const username = colonIndex >= 0 ? credentials.slice(0, colonIndex) : credentials;
-    const password = colonIndex >= 0 ? credentials.slice(colonIndex + 1) : "";
-    const validUsername = process.env.BASIC_AUTH_USERNAME?.trim();
+    const [username, password] = credentials.split(":");
+    const validUsername = process.env.BASIC_AUTH_USERNAME;
     const validPassword = process.env.BASIC_AUTH_PASSWORD;
-    if (!validUsername || validPassword === undefined || validPassword === "") {
+    if (!validUsername || !validPassword) {
       return true;
     }
     return username === validUsername && password === validPassword;
@@ -42,8 +40,7 @@ export async function proxy(request: NextRequest) {
       return new NextResponse("Unauthorized", {
         status: 401,
         headers: {
-          "WWW-Authenticate": 'Basic realm="Secure Area"',
-          "Cache-Control": "no-store"
+          "WWW-Authenticate": 'Basic realm="Secure Area"'
         }
       });
     }

@@ -15,12 +15,10 @@
 
 ### 設定方法
 
-- **jobtv** の環境変数に以下を設定する（Vercel の場合は Project → Settings → Environment Variables）：
-  - `BASIC_AUTH_USERNAME`: Basic 認証のユーザー名（空白のみは不可）
-  - `BASIC_AUTH_PASSWORD`: Basic 認証のパスワード（空文字は「未設定」扱いのため、必ず値を入れる）
-- **両方に値を設定した場合のみ** Basic 認証が有効になる。片方だけ・未設定の場合はかからない。
-- 設定後は再デプロイが必要。
-- 有効時は静的ファイル（`/_next/`、`favicon.ico`、画像・CSS・JS 等）以外の**全ルート**で Basic 認証がかかる。
+- **jobtv** の環境変数に以下を設定する：
+  - `BASIC_AUTH_USERNAME`: Basic 認証のユーザー名
+  - `BASIC_AUTH_PASSWORD`: Basic 認証のパスワード
+- 両方設定されている場合、静的ファイル（`/_next/`、`favicon.ico`、画像・CSS・JS 等）以外の**全ルート**で Basic 認証がかかる。
 - 認証通過後、従来どおり Supabase のセッションやロールに応じたリダイレクトが行われる。
 
 ### 実装
