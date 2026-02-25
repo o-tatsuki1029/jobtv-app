@@ -79,4 +79,7 @@ export const ROBOTS_NOINDEX = {
 } as const;
 
 // 許可する画像ホスト
-export const ALLOWED_IMAGE_HOSTS = ["images.unsplash.com"];
+export const ALLOWED_IMAGE_HOSTS = [
+  "images.unsplash.com",
+  "d3ulvrrnhlrak2.cloudfront.net" // サムネ・動画用 CloudFront（STG 等）
+];
