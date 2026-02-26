@@ -9,6 +9,7 @@ import {
   Shield,
   CheckCircle,
   Bell,
+  MessageCircle,
   // MessageSquare, // チャット用（後々追加）
   UserCog
 } from "lucide-react";
@@ -56,7 +57,8 @@ export const ADMIN_NAVIGATION = [
   { name: "ダッシュボード", href: "/admin", icon: LayoutDashboard },
   { name: "審査管理", href: "/admin/review", icon: CheckCircle },
   { name: "お知らせ管理", href: "/admin/notifications", icon: Bell },
-  { name: "企業アカウント管理", href: "/admin/company-accounts", icon: Building }
+  { name: "企業アカウント管理", href: "/admin/company-accounts", icon: Building },
+  { name: "LINE配信", href: "/admin/line-broadcast", icon: MessageCircle }
 ];
 
 export const ADMIN_BOTTOM_NAVIGATION = [{ name: "設定", href: "/admin/settings/user", icon: Settings }];

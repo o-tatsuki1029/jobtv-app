@@ -205,6 +205,7 @@ export type Database = {
           jobtv_id: string | null
           last_name: string
           last_name_kana: string
+          line_user_id: string | null
           major_field: string | null
           notes: string | null
           phone: string | null
@@ -236,6 +237,7 @@ export type Database = {
           jobtv_id?: string | null
           last_name: string
           last_name_kana: string
+          line_user_id?: string | null
           major_field?: string | null
           notes?: string | null
           phone?: string | null
@@ -267,6 +269,7 @@ export type Database = {
           jobtv_id?: string | null
           last_name?: string
           last_name_kana?: string
+          line_user_id?: string | null
           major_field?: string | null
           notes?: string | null
           phone?: string | null
