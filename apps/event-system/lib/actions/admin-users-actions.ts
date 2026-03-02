@@ -17,11 +17,6 @@ function getAdminClient() {
     throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set");
   }
 
-  // Service Role Keyの形式を簡易チェック
-  if (!supabaseServiceKey.startsWith('eyJ')) {
-    console.warn("SUPABASE_SERVICE_ROLE_KEYの形式が正しくない可能性があります");
-  }
-
   return createClient(supabaseUrl, supabaseServiceKey, {
     auth: {
       autoRefreshToken: false,

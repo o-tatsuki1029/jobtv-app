@@ -85,5 +85,5 @@
 
 - **認証情報取得・配布**: `apps/jobtv/app/(main)/layout.tsx`（`getHeaderAuthInfo()` を await → `HeaderAuthProvider`）、`HeaderAuthContext`（`onAuthStateChange` で更新）、各 UI は `useHeaderAuth()` で参照
 - **認可・ルート保護**: `apps/jobtv/lib/auth/require-auth.ts`（`requireAdmin()`, `requireRecruiterOrAdmin()`, `requireStudioAuth()`）、`apps/jobtv/lib/auth/redirect.ts`（`getRedirectPathByRole()`）
-- **レイアウトでの使用**: `apps/jobtv/app/admin/(dashboard)/layout.tsx`（`requireAdmin()`）、`apps/jobtv/app/studio/layout.tsx`（`requireRecruiterOrAdmin()`）
+- **レイアウトでの使用**: `apps/jobtv/app/admin/(dashboard)/layout.tsx`（`requireAdmin()`）、`apps/jobtv/app/admin/line/layout.tsx`（`requireAdmin()`）、`apps/jobtv/app/studio/layout.tsx`（`requireRecruiterOrAdmin()`）
 - **RLS を触る場合**: `supabase/migrations/` の RLS 定義も参照する。ロール追加・RLS 変更時は [database-domain.md](database-domain.md) もあわせて更新する。

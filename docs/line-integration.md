@@ -34,7 +34,7 @@
 
 ## Messaging API（配信）
 
-- Admin が `/admin/line-broadcast` でセグメント条件（卒年度・業界・職種・学校種別・文理など）を指定し、対象件数を確認したうえで配信文を入力して送信する。
+- Admin が `/admin/line`（配信は `/admin/line/broadcast`）でセグメント条件（卒年度・業界・職種・学校種別・文理など）を指定し、対象件数を確認したうえで配信文を入力して送信する。
 - 配信対象は「条件に合致し、かつ `line_user_id IS NOT NULL`」の候補者のみ。
 - LINE Messaging API の **Push Message**（`POST https://api.line.me/v2/bot/message/push`）で 1 件ずつ送信。レート制限を考慮し、送信間隔（例: 50ms）を空けている。
 - 失敗時はログに記録し、成功・失敗件数を返す。リトライは現状未実装（必要に応じて line-broadcast-actions やキューで対応）。
@@ -44,7 +44,7 @@
 | 役割 | パス（jobtv） |
 |------|----------------|
 | 件数取得・配信実行 | `lib/actions/line-broadcast-actions.ts`（getLineBroadcastEligibleCount, sendLineBroadcast） |
-| 配信画面（セグメント UI・送信） | `app/admin/(dashboard)/line-broadcast/page.tsx` |
+| 配信画面（セグメント UI・送信） | `app/admin/line/broadcast/page.tsx` |
 
 ---
 

@@ -58,7 +58,13 @@ export const ADMIN_NAVIGATION = [
   { name: "審査管理", href: "/admin/review", icon: CheckCircle },
   { name: "お知らせ管理", href: "/admin/notifications", icon: Bell },
   { name: "企業アカウント管理", href: "/admin/company-accounts", icon: Building },
-  { name: "LINE配信", href: "/admin/line-broadcast", icon: MessageCircle }
+  { name: "LINE管理", href: "/admin/line", icon: MessageCircle }
 ];
 
 export const ADMIN_BOTTOM_NAVIGATION = [{ name: "設定", href: "/admin/settings/user", icon: Settings }];
+
+/** LINE 管理エリア用サイドバー（/admin/line 配下） */
+export const ADMIN_LINE_NAVIGATION = [
+  { name: "配信", href: "/admin/line/broadcast", icon: MessageCircle },
+  { name: "管理トップへ", href: "/admin", icon: LayoutDashboard }
+];

@@ -21,13 +21,6 @@ export function createAdminClient() {
     );
   }
 
-  // Service Role Keyの形式を簡易チェック（通常は`eyJ...`で始まるJWT）
-  if (!supabaseServiceKey.startsWith("eyJ")) {
-    console.warn(
-      "SUPABASE_SERVICE_ROLE_KEYの形式が正しくない可能性があります（通常は'eyJ'で始まるJWT形式です）"
-    );
-  }
-
   // 開発環境用のTLS設定を適用
   configureDevelopmentTLS();
 
