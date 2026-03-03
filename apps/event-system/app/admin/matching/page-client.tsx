@@ -265,7 +265,7 @@ export default function MatchingPageClient() {
       let companyRatings: CompanyRating[] = [];
       if (companyIds.length > 0 && candidateIds.length > 0) {
         const { data, error: companyRatingsError } = await supabase
-          .from("ratings_recruiter_to_candidate")
+          .from("event_ratings_recruiter_to_candidate")
           .select("company_id, candidate_id")
           .eq("event_id", eventId)
           .in("company_id", companyIds)
@@ -287,7 +287,7 @@ export default function MatchingPageClient() {
       let candidateRatings: CandidateRating[] = [];
       if (companyIds.length > 0 && candidateIds.length > 0) {
         const { data, error: candidateRatingsError } = await supabase
-          .from("ratings_candidate_to_company")
+          .from("event_ratings_candidate_to_company")
           .select("company_id, candidate_id")
           .eq("event_id", eventId)
           .in("company_id", companyIds)
@@ -624,14 +624,14 @@ export default function MatchingPageClient() {
       if (candidateToCompanyInserts.length > 0) {
         promises.push(
           supabase
-            .from("ratings_candidate_to_company")
+            .from("event_ratings_candidate_to_company")
             .insert(candidateToCompanyInserts)
         );
       }
       if (recruiterToCandidateInserts.length > 0) {
         promises.push(
           supabase
-            .from("ratings_recruiter_to_candidate")
+            .from("event_ratings_recruiter_to_candidate")
             .insert(recruiterToCandidateInserts)
         );
       }
@@ -663,12 +663,12 @@ export default function MatchingPageClient() {
     try {
       const supabase = createClient();
       const { error: error1 } = await supabase
-        .from("ratings_candidate_to_company")
+        .from("event_ratings_candidate_to_company")
         .delete()
         .eq("event_id", selectedEventId);
 
       const { error: error2 } = await supabase
-        .from("ratings_recruiter_to_candidate")
+        .from("event_ratings_recruiter_to_candidate")
         .delete()
         .eq("event_id", selectedEventId);
 
@@ -827,7 +827,7 @@ export default function MatchingPageClient() {
                             onClick={async () => {
                               const supabase = createClient();
                               const { data: ratingData } = await supabase
-                                .from("ratings_candidate_to_company")
+                                .from("event_ratings_candidate_to_company")
                                 .select("rating, comment")
                                 .eq("candidate_id", c.id)
                                 .eq("company_id", company.id)
@@ -879,7 +879,7 @@ export default function MatchingPageClient() {
                             onClick={async () => {
                               const supabase = createClient();
                               const { data: ratingData } = await supabase
-                                .from("ratings_candidate_to_company")
+                                .from("event_ratings_candidate_to_company")
                                 .select("rating, comment")
                                 .eq("candidate_id", c.id)
                                 .eq("company_id", company.id)
@@ -991,7 +991,7 @@ export default function MatchingPageClient() {
                             onClick={async () => {
                               const supabase = createClient();
                               const { data: existingRating } = await supabase
-                                .from("ratings_recruiter_to_candidate")
+                                .from("event_ratings_recruiter_to_candidate")
                                 .select("overall_rating, comment")
                                 .eq("company_id", c.id)
                                 .eq("candidate_id", candidate.id)
@@ -999,7 +999,7 @@ export default function MatchingPageClient() {
                                 .single();
 
                               const { data: candidateRating } = await supabase
-                                .from("ratings_candidate_to_company")
+                                .from("event_ratings_candidate_to_company")
                                 .select("rating, comment")
                                 .eq("candidate_id", candidate.id)
                                 .eq("company_id", c.id)
@@ -1061,7 +1061,7 @@ export default function MatchingPageClient() {
                             onClick={async () => {
                               const supabase = createClient();
                               const { data: existingRating } = await supabase
-                                .from("ratings_recruiter_to_candidate")
+                                .from("event_ratings_recruiter_to_candidate")
                                 .select("overall_rating, comment")
                                 .eq("company_id", c.id)
                                 .eq("candidate_id", candidate.id)
@@ -1069,7 +1069,7 @@ export default function MatchingPageClient() {
                                 .single();
 
                               const { data: candidateRating } = await supabase
-                                .from("ratings_candidate_to_company")
+                                .from("event_ratings_candidate_to_company")
                                 .select("rating, comment")
                                 .eq("candidate_id", candidate.id)
                                 .eq("company_id", c.id)

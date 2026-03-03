@@ -27,7 +27,7 @@ export default function HelpSettingsPage() {
       description: "本サービスの利用規約をご確認いただけます。",
       icon: ExternalLink,
       action: "規約を見る",
-      href: "/terms",
+      href: "/docs/terms",
       external: true,
     },
   ];

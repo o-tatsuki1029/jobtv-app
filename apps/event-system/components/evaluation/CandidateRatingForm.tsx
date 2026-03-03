@@ -81,7 +81,7 @@ export default function CandidateRatingForm({
 
         // 既存の評価を確認
         const { data: existingRatingData, error: checkError } = await supabase
-          .from("ratings_candidate_to_company")
+          .from("event_ratings_candidate_to_company")
           .select("id")
           .eq("candidate_id", candidateId)
           .eq("company_id", companyId)
@@ -95,7 +95,7 @@ export default function CandidateRatingForm({
         if (existingRatingData) {
           // 更新
           const { error: updateError } = await supabase
-            .from("ratings_candidate_to_company")
+            .from("event_ratings_candidate_to_company")
             .update({
               rating,
               comment: JSON.stringify(likedPoints),
@@ -107,7 +107,7 @@ export default function CandidateRatingForm({
         } else {
           // 新規作成
           const { error: insertError } = await supabase
-            .from("ratings_candidate_to_company")
+            .from("event_ratings_candidate_to_company")
             .insert({
               candidate_id: candidateId,
               company_id: companyId,

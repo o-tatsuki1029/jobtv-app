@@ -1018,6 +1018,50 @@ export async function getPublicVideos(category: VideoCategory): Promise<{
   }
 }
 
+/** kind は 'short' | 'documentary'（VideoCategory のうちトップで使う2種） */
+export type TopPageVideoKind = "short" | "documentary";
+
+/**
+ * トップページ用：admin が選択した動画のみ取得。top_page_featured_videos の表示順で返す。
+ */
+export async function getPublicVideosForTopPage(kind: TopPageVideoKind): Promise<{
+  data: (Video & { company_name: string | null })[] | null;
+  error: string | null;
+}> {
+  try {
+    const supabase = createAdminClient();
+    const { data: featuredRows, error: featuredError } = await supabase
+      .from("top_page_featured_videos")
+      .select("video_id")
+      .eq("kind", kind)
+      .order("display_order", { ascending: true });
+
+    if (featuredError) return { data: null, error: featuredError.message };
+    const videoIds = (featuredRows ?? []).map((r) => r.video_id).filter(Boolean);
+    if (videoIds.length === 0) return { data: [], error: null };
+
+    const { data: videosData, error: videosError } = await supabase
+      .from("videos")
+      .select("*, companies(name)")
+      .in("id", videoIds)
+      .eq("status", "active");
+
+    if (videosError) return { data: null, error: videosError.message };
+    const byId = new Map(
+      (videosData ?? []).map((v: any) => [
+        v.id,
+        { ...v, company_name: v.companies?.name ?? null }
+      ])
+    );
+    const ordered = videoIds.map((id) => byId.get(id)).filter(Boolean) as (Video & {
+      company_name: string | null;
+    })[];
+    return { data: ordered, error: null };
+  } catch (e) {
+    return { data: null, error: e instanceof Error ? e.message : "取得失敗" };
+  }
+}
+
 /**
  * サムネイルをS3にアップロード
  * @param file アップロードするサムネイル画像ファイル

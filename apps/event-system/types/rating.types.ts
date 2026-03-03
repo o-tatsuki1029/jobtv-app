@@ -1,11 +1,11 @@
 import { Database, TablesInsert, TablesUpdate } from "@jobtv-app/shared/types";
 
-// ratings_recruiter_to_candidate テーブル（旧名：ratings_recruiter_to_jobseeker）
-export type Rating = Database["public"]["Tables"]["ratings_recruiter_to_candidate"]["Row"];
+// event_ratings_recruiter_to_candidate テーブル（旧名：ratings_recruiter_to_jobseeker）
+export type Rating = Database["public"]["Tables"]["event_ratings_recruiter_to_candidate"]["Row"];
 
-export type RatingInsert = TablesInsert<"ratings_recruiter_to_candidate">;
+export type RatingInsert = TablesInsert<"event_ratings_recruiter_to_candidate">;
 
-export type RatingUpdate = TablesUpdate<"ratings_recruiter_to_candidate">;
+export type RatingUpdate = TablesUpdate<"event_ratings_recruiter_to_candidate">;
 
 export type RatingFormData = {
   company_id: string;

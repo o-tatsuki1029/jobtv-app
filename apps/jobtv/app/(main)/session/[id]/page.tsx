@@ -43,7 +43,7 @@ export async function generateMetadata({ params }: SessionDetailPageProps): Prom
   const ogImage = session.cover_image_url || company?.logo_url || undefined;
 
   // キーワードを生成
-  const keywords = [session.title, company?.name, session.type, session.location_type, "説明会", "就活", "JobTV"].filter(
+  const keywords = [session.title, company?.name, session.type, session.location_type, "説明会", "就活", "JOBTV"].filter(
     Boolean
   );
 

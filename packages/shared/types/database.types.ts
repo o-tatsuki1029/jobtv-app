@@ -679,6 +679,191 @@ export type Database = {
           },
         ]
       }
+      event_matching_sessions: {
+        Row: {
+          candidate_weight: number
+          company_weight: number
+          created_at: string | null
+          event_id: string
+          id: string
+          session_count: number
+          special_interviews: Json | null
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          candidate_weight?: number
+          company_weight?: number
+          created_at?: string | null
+          event_id: string
+          id?: string
+          session_count: number
+          special_interviews?: Json | null
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          candidate_weight?: number
+          company_weight?: number
+          created_at?: string | null
+          event_id?: string
+          id?: string
+          session_count?: number
+          special_interviews?: Json | null
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "matching_sessions_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_ratings_candidate_to_company: {
+        Row: {
+          candidate_id: string
+          comment: string | null
+          company_id: string
+          created_at: string | null
+          event_id: string
+          id: string
+          rating: number
+          updated_at: string | null
+        }
+        Insert: {
+          candidate_id: string
+          comment?: string | null
+          company_id: string
+          created_at?: string | null
+          event_id: string
+          id?: string
+          rating: number
+          updated_at?: string | null
+        }
+        Update: {
+          candidate_id?: string
+          comment?: string | null
+          company_id?: string
+          created_at?: string | null
+          event_id?: string
+          id?: string
+          rating?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ratings_candidate_to_company_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ratings_candidate_to_company_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ratings_candidate_to_company_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_ratings_recruiter_to_candidate: {
+        Row: {
+          candidate_id: string
+          comment: string | null
+          communication_rating: number | null
+          company_id: string
+          cooperation_rating: number | null
+          created_at: string | null
+          creative_rating: number | null
+          evaluator_name: string | null
+          event_id: string
+          id: string
+          initiative_rating: number | null
+          logic_rating: number | null
+          memo: string | null
+          overall_rating: number | null
+          recruiter_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          candidate_id: string
+          comment?: string | null
+          communication_rating?: number | null
+          company_id: string
+          cooperation_rating?: number | null
+          created_at?: string | null
+          creative_rating?: number | null
+          evaluator_name?: string | null
+          event_id: string
+          id?: string
+          initiative_rating?: number | null
+          logic_rating?: number | null
+          memo?: string | null
+          overall_rating?: number | null
+          recruiter_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          candidate_id?: string
+          comment?: string | null
+          communication_rating?: number | null
+          company_id?: string
+          cooperation_rating?: number | null
+          created_at?: string | null
+          creative_rating?: number | null
+          evaluator_name?: string | null
+          event_id?: string
+          id?: string
+          initiative_rating?: number | null
+          logic_rating?: number | null
+          memo?: string | null
+          overall_rating?: number | null
+          recruiter_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ratings_recruiter_to_candidate_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ratings_recruiter_to_candidate_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ratings_recruiter_to_candidate_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ratings_recruiter_to_candidate_recruiter_id_fkey"
+            columns: ["recruiter_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_reservations: {
         Row: {
           attended: boolean
@@ -1149,51 +1334,7 @@ export type Database = {
             foreignKeyName: "matching_results_matching_session_id_fkey"
             columns: ["matching_session_id"]
             isOneToOne: false
-            referencedRelation: "matching_sessions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      matching_sessions: {
-        Row: {
-          candidate_weight: number
-          company_weight: number
-          created_at: string | null
-          event_id: string
-          id: string
-          session_count: number
-          special_interviews: Json | null
-          status: string
-          updated_at: string | null
-        }
-        Insert: {
-          candidate_weight?: number
-          company_weight?: number
-          created_at?: string | null
-          event_id: string
-          id?: string
-          session_count: number
-          special_interviews?: Json | null
-          status?: string
-          updated_at?: string | null
-        }
-        Update: {
-          candidate_weight?: number
-          company_weight?: number
-          created_at?: string | null
-          event_id?: string
-          id?: string
-          session_count?: number
-          special_interviews?: Json | null
-          status?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "matching_sessions_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "events"
+            referencedRelation: "event_matching_sessions"
             referencedColumns: ["id"]
           },
         ]
@@ -1501,147 +1642,6 @@ export type Database = {
           },
         ]
       }
-      ratings_candidate_to_company: {
-        Row: {
-          candidate_id: string
-          comment: string | null
-          company_id: string
-          created_at: string | null
-          event_id: string
-          id: string
-          rating: number
-          updated_at: string | null
-        }
-        Insert: {
-          candidate_id: string
-          comment?: string | null
-          company_id: string
-          created_at?: string | null
-          event_id: string
-          id?: string
-          rating: number
-          updated_at?: string | null
-        }
-        Update: {
-          candidate_id?: string
-          comment?: string | null
-          company_id?: string
-          created_at?: string | null
-          event_id?: string
-          id?: string
-          rating?: number
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ratings_candidate_to_company_candidate_id_fkey"
-            columns: ["candidate_id"]
-            isOneToOne: false
-            referencedRelation: "candidates"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ratings_candidate_to_company_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ratings_candidate_to_company_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "events"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      ratings_recruiter_to_candidate: {
-        Row: {
-          candidate_id: string
-          comment: string | null
-          communication_rating: number | null
-          company_id: string
-          cooperation_rating: number | null
-          created_at: string | null
-          creative_rating: number | null
-          evaluator_name: string | null
-          event_id: string
-          id: string
-          initiative_rating: number | null
-          logic_rating: number | null
-          memo: string | null
-          overall_rating: number | null
-          recruiter_id: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          candidate_id: string
-          comment?: string | null
-          communication_rating?: number | null
-          company_id: string
-          cooperation_rating?: number | null
-          created_at?: string | null
-          creative_rating?: number | null
-          evaluator_name?: string | null
-          event_id: string
-          id?: string
-          initiative_rating?: number | null
-          logic_rating?: number | null
-          memo?: string | null
-          overall_rating?: number | null
-          recruiter_id?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          candidate_id?: string
-          comment?: string | null
-          communication_rating?: number | null
-          company_id?: string
-          cooperation_rating?: number | null
-          created_at?: string | null
-          creative_rating?: number | null
-          evaluator_name?: string | null
-          event_id?: string
-          id?: string
-          initiative_rating?: number | null
-          logic_rating?: number | null
-          memo?: string | null
-          overall_rating?: number | null
-          recruiter_id?: string | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ratings_recruiter_to_candidate_candidate_id_fkey"
-            columns: ["candidate_id"]
-            isOneToOne: false
-            referencedRelation: "candidates"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ratings_recruiter_to_candidate_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ratings_recruiter_to_candidate_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "events"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ratings_recruiter_to_candidate_recruiter_id_fkey"
-            columns: ["recruiter_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       session_dates: {
         Row: {
           capacity: number | null
@@ -1922,6 +1922,38 @@ export type Database = {
             columns: ["production_session_id"]
             isOneToOne: false
             referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      top_page_featured_videos: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          kind: string
+          video_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          kind: string
+          video_id: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          kind?: string
+          video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "top_page_featured_videos_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: true
+            referencedRelation: "videos"
             referencedColumns: ["id"]
           },
         ]

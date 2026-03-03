@@ -606,7 +606,7 @@ function RecruiterRatingPageClient({
 
         // 評価データを取得（イベント-企業単位で取得）
         type RatingData =
-          Database["public"]["Tables"]["ratings_recruiter_to_candidate"]["Row"];
+          Database["public"]["Tables"]["event_ratings_recruiter_to_candidate"]["Row"];
         let ratingsList: RatingData[] = []; // すべての評価を保持
         const candidateRatingsMap = new Map<
           string,
@@ -632,13 +632,13 @@ function RecruiterRatingPageClient({
             const [ratingsResponse, candidateRatingsResponse] =
               await Promise.all([
                 supabase
-                  .from("ratings_recruiter_to_candidate")
+                  .from("event_ratings_recruiter_to_candidate")
                   .select("*")
                   .eq("event_id", selectedEventId)
                   .eq("company_id", companyId)
                   .in("candidate_id", candidateIds),
                 supabase
-                  .from("ratings_candidate_to_company")
+                  .from("event_ratings_candidate_to_company")
                   .select("candidate_id, rating, comment")
                   .eq("event_id", selectedEventId)
                   .eq("company_id", companyId)

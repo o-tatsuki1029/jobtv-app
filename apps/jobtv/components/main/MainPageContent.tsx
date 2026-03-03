@@ -4,6 +4,7 @@ import { useState } from "react";
 import HeroSection from "@/components/HeroSection";
 import ProgramSection from "@/components/ProgramSection";
 import ShortVideoSection from "@/components/ShortVideoSection";
+import ShundiarySection from "@/components/ShundiarySection";
 import BannerList from "@/components/BannerList";
 import AccountList from "@/components/AccountList";
 import CompanySection from "@/components/CompanySection";
@@ -42,7 +43,7 @@ export interface MainPageContentProps {
     videoUrl?: string;
     streamingUrl?: string | null;
   }>;
-  accounts: Array<{ id: string; name: string; avatar: string }>;
+  accounts: Array<{ id: string; name: string; avatar: string; href?: string }>;
   documentaryPrograms: Array<{
     id: string;
     title: string;
@@ -52,6 +53,7 @@ export interface MainPageContentProps {
     videoUrl?: string;
     streamingUrl?: string | null;
   }>;
+  shundiaryVideos: Array<{ id: string; title: string; thumbnail: string }>;
   industrySections: MainPageIndustrySection[];
 }
 
@@ -61,6 +63,7 @@ export default function MainPageContent({
   shortVideos,
   accounts,
   documentaryPrograms,
+  shundiaryVideos,
   industrySections
 }: MainPageContentProps) {
   const { classes } = useMainTheme();
@@ -90,6 +93,8 @@ export default function MainPageContent({
         <div id="short" className="scroll-mt-20 py-8">
           <ShortVideoSection
             title="就活Shorts"
+            description="短い動画で企業の雰囲気や社員の声をチェック。気になる企業を手軽に発見しよう。"
+            showMore={false}
             videos={shortVideos}
             onVideoClick={(video) => {
               if (video.videoUrl || video.streamingUrl) {
@@ -111,6 +116,8 @@ export default function MainPageContent({
         >
           <ProgramSection
             title="就活ドキュメンタリー"
+            description="企業密着や社員インタビューなど、企業を深く知れるドキュメンタリー動画をまとめてお届けします。"
+            showMore={false}
             programs={documentaryPrograms}
             largeCards={true}
             onProgramClick={(program) => {
@@ -126,9 +133,20 @@ export default function MainPageContent({
             }}
           />
         </div>
-        {Array.isArray(industrySections) &&
-          industrySections.map((industry) => (
-            <div key={industry.value} id={`company-${industry.value}`} className="scroll-mt-20 py-4">
+        <div
+          id="shundiary"
+          className={cn("py-8 scroll-mt-20", classes.contentSectionBg, classes.contentSectionBorder)}
+        >
+          <ShundiarySection
+            title="しゅんダイアリー就活対策動画"
+            description="就活対策に役立つ動画をまとめてお届けします。"
+            items={shundiaryVideos ?? []}
+          />
+        </div>
+        {Array.isArray(industrySections) && (
+          <div id="company" className="scroll-mt-20">
+            {industrySections.map((industry) => (
+              <div key={industry.value} id={`company-${industry.value}`} className="scroll-mt-20 py-4">
               <CompanySection
                 title={industry.label}
                 companies={industry.companies.map((c) => ({
@@ -138,8 +156,10 @@ export default function MainPageContent({
                   thumbnail_url: c.thumbnail_url ?? null
                 }))}
               />
-            </div>
-          ))}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {modalVideo && (

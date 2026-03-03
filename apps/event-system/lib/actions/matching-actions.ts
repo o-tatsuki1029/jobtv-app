@@ -19,7 +19,7 @@ export async function executeMatching(
 
     // 既存のマッチングセッションを確認（同じイベントで未完了のものがあれば削除）
     const { data: existingSessions } = await supabase
-      .from("matching_sessions")
+      .from("event_matching_sessions")
       .select("id")
       .eq("event_id", eventId)
       .eq("status", "pending");
@@ -34,7 +34,7 @@ export async function executeMatching(
       }
       // 既存のセッションを削除
       await supabase
-        .from("matching_sessions")
+        .from("event_matching_sessions")
         .delete()
         .eq("event_id", eventId)
         .eq("status", "pending");
@@ -49,7 +49,7 @@ export async function executeMatching(
 
     // マッチングセッションを作成（特別面談もJSONBで保存）
     const { data: session, error: sessionError } = await supabase
-      .from("matching_sessions")
+      .from("event_matching_sessions")
       .insert({
         event_id: eventId,
         session_count: sessionCount,
@@ -106,7 +106,7 @@ export async function executeMatching(
 
     // 企業評価を取得
     const { data: companyRatings, error: companyRatingsError } = await supabase
-      .from("ratings_recruiter_to_candidate")
+      .from("event_ratings_recruiter_to_candidate")
       .select("company_id, candidate_id, overall_rating")
       .eq("event_id", eventId)
       .in("company_id", companyIds)
@@ -129,7 +129,7 @@ export async function executeMatching(
     // 学生評価を取得
     const { data: candidateRatings, error: candidateRatingsError } =
       await supabase
-        .from("ratings_candidate_to_company")
+        .from("event_ratings_candidate_to_company")
         .select("company_id, candidate_id, rating")
         .eq("event_id", eventId)
         .in("company_id", companyIds)
@@ -255,7 +255,7 @@ export async function executeMatching(
 
     // セッションステータスを完了に更新
     const { error: updateError } = await supabase
-      .from("matching_sessions")
+      .from("event_matching_sessions")
       .update({ status: "completed" })
       .eq("id", session.id);
 
@@ -291,7 +291,7 @@ export async function getMatchingSession(eventId: string) {
     const supabase = await createClient();
 
     const { data, error } = await supabase
-      .from("matching_sessions")
+      .from("event_matching_sessions")
       .select("*")
       .eq("event_id", eventId)
       .eq("status", "completed")
@@ -331,7 +331,7 @@ export async function getAllMatchingSessions(eventId: string) {
     const supabase = await createClient();
 
     const { data, error } = await supabase
-      .from("matching_sessions")
+      .from("event_matching_sessions")
       .select("*")
       .eq("event_id", eventId)
       .eq("status", "completed")
@@ -366,7 +366,7 @@ export async function getMatchingResults(matchingSessionId: string) {
 
     // マッチングセッションを取得（重みとイベントIDを取得）
     const { data: session, error: sessionError } = await supabase
-      .from("matching_sessions")
+      .from("event_matching_sessions")
       .select("event_id, company_weight, candidate_weight")
       .eq("id", matchingSessionId)
       .single();
@@ -401,7 +401,7 @@ export async function getMatchingResults(matchingSessionId: string) {
 
     // 企業評価を取得
     const { data: companyRatings, error: companyRatingsError } = await supabase
-      .from("ratings_recruiter_to_candidate")
+      .from("event_ratings_recruiter_to_candidate")
       .select(
         "company_id, candidate_id, communication_rating, cooperation_rating, creative_rating, initiative_rating, logic_rating, overall_rating, comment"
       )
@@ -418,7 +418,7 @@ export async function getMatchingResults(matchingSessionId: string) {
     // 学生評価を取得
     const { data: candidateRatings, error: candidateRatingsError } =
       await supabase
-        .from("ratings_candidate_to_company")
+        .from("event_ratings_candidate_to_company")
         .select("company_id, candidate_id, rating")
         .eq("event_id", session.event_id)
         .in("company_id", companyIds)
@@ -583,7 +583,7 @@ export async function getSpecialInterviews(matchingSessionId: string) {
 
     // マッチングセッションから特別面談設定を取得
     const { data: session, error: sessionError } = await supabase
-      .from("matching_sessions")
+      .from("event_matching_sessions")
       .select("special_interviews")
       .eq("id", matchingSessionId)
       .single();

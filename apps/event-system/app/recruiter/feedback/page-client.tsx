@@ -168,7 +168,7 @@ function RecruiterFeedbackPageClient({
 
         // 企業に対する評価を取得（candidatesテーブルへのJOINはRLSでブロックされる可能性があるため、別途取得）
         const { data: ratingsData, error: ratingsError } = await supabase
-          .from("ratings_candidate_to_company")
+          .from("event_ratings_candidate_to_company")
           .select("*")
           .eq("company_id", activeCompanyId)
           .eq("event_id", eventId);
@@ -256,7 +256,7 @@ function RecruiterFeedbackPageClient({
 
         // データを整形
         type RatingDataItem =
-          Database["public"]["Tables"]["ratings_candidate_to_company"]["Row"];
+          Database["public"]["Tables"]["event_ratings_candidate_to_company"]["Row"];
         const formattedRatings: CandidateRating[] = ratingsData
           .map((item: RatingDataItem) => {
             const candidate = candidatesMap.get(item.candidate_id);

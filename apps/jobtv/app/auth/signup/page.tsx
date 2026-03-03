@@ -654,12 +654,22 @@ function SignUpPageContent() {
                     {fieldErrors.password && <p className={fieldErrorClass}>{fieldErrors.password}</p>}
                   </div>
 
-                  <p className="text-gray-700 text-xs">
-                    <a href="#" className="text-red-500 hover:underline">
+                  <p className="text-gray-700 text-xs text-center">
+                    <a
+                      href="/docs/terms"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-red-500 hover:underline"
+                    >
                       利用規約
                     </a>
                     および
-                    <a href="#" className="text-red-500 hover:underline">
+                    <a
+                      href="https://vectorinc.co.jp/privacy"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-red-500 hover:underline"
+                    >
                       プライバシーポリシー
                     </a>
                     に同意のうえ、下のボタンから送信してください。

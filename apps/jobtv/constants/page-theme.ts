@@ -122,8 +122,10 @@ export const MAIN_THEME_CLASSES: Record<MainTheme, MainThemeClasses> = {
     /* ----- 背景 ----- */
     pageBg: "bg-black",
     pageText: "text-white",
-    contentAreaBg: "bg-[radial-gradient(ellipse_80%_100%_at_50%_0%,_#111827_0%,_#000_100%)]",
-    contentSectionBg: "bg-[radial-gradient(ellipse_80%_100%_at_50%_0%,_#111827_0%,_#000_100%)]",
+    contentAreaBg:
+      "bg-[radial-gradient(ellipse_100%_120%_at_50%_0%,_#111827_0%,_#0d1321_35%,_#080c12_70%,_#000_100%)]",
+    contentSectionBg:
+      "bg-[radial-gradient(ellipse_100%_120%_at_50%_0%,_#111827_0%,_#0d1321_35%,_#080c12_70%,_#000_100%)]",
     heroSectionBg: "bg-gray-800/50",
     cardBg: "bg-gray-800/50",
     cardBgHover: "hover:bg-gray-800/60",
@@ -138,7 +140,8 @@ export const MAIN_THEME_CLASSES: Record<MainTheme, MainThemeClasses> = {
     sidebarCoverPlaceholder: "bg-gray-800",
     jobCardFooterBg: "bg-gray-800/80",
     videoThumbPlaceholder: "bg-gray-800",
-    bannerListBg: "bg-[radial-gradient(ellipse_80%_100%_at_50%_0%,_#111827_0%,_#000_100%)]",
+    bannerListBg:
+      "bg-[radial-gradient(ellipse_100%_120%_at_50%_0%,_#111827_0%,_#0d1321_35%,_#080c12_70%,_#000_100%)]",
 
     /* ----- テキスト ----- */
     textPrimary: "text-white",

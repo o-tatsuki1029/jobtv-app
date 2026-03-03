@@ -1,6 +1,6 @@
 import MainPageContent from "@/components/main/MainPageContent";
 import { getCompaniesByIndustry, type CompanyWithPage } from "@/lib/actions/company-list-actions";
-import { getPublicVideos } from "@/lib/actions/video-actions";
+import { getPublicVideosForTopPage } from "@/lib/actions/video-actions";
 import { INDUSTRIES } from "@/constants/company-options";
 import { SITE_TITLE, SITE_DESCRIPTION } from "@/constants/site";
 import type { Metadata } from "next";
@@ -60,108 +60,81 @@ const heroProgram = {
   viewers: 12543
 };
 
-
 const accounts = [
   {
-    id: "a1",
-    name: "JOB NEWS",
-    avatar: "https://images.unsplash.com/photo-1517849845537-4d257902454a?w=100&h=100&fit=crop"
-  },
-  {
-    id: "a2",
-    name: "JOB TIMES",
-    avatar: "https://images.unsplash.com/photo-1437622368342-7a3d73a34c8f?w=100&h=100&fit=crop"
-  },
-  {
-    id: "a3",
-    name: "JOB PICKS",
-    avatar: "https://images.unsplash.com/photo-1474511320723-9a56873867b5?w=100&h=100&fit=crop"
-  },
-  {
-    id: "a4",
-    name: "JOB PRESS",
-    avatar: "https://images.unsplash.com/photo-1504006833117-8886a355efbf?w=100&h=100&fit=crop"
-  },
-  {
-    id: "a5",
-    name: "JOB JOURNAL",
-    avatar: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=100&h=100&fit=crop"
-  },
-  {
-    id: "a6",
-    name: "JOB VOICE",
-    avatar: "https://images.unsplash.com/photo-1517849845537-4d257902454a?w=100&h=100&fit=crop"
-  },
-  {
-    id: "a7",
-    name: "JOB TV",
-    avatar: "https://images.unsplash.com/photo-1437622368342-7a3d73a34c8f?w=100&h=100&fit=crop"
-  },
-  {
     id: "a8",
-    name: "JOB TALK",
-    avatar: "https://images.unsplash.com/photo-1474511320723-9a56873867b5?w=100&h=100&fit=crop"
+    name: "企業研究ナビ",
+    avatar: "/shorts-icon/shukatsu_kigyokenkyuu.jpeg",
+    href: "https://www.tiktok.com/@shukatsu_kigyokenkyuu"
   },
   {
     id: "a9",
-    name: "JOB CHANNEL",
-    avatar: "https://images.unsplash.com/photo-1504006833117-8886a355efbf?w=100&h=100&fit=crop"
+    name: "就活おかP",
+    avatar: "/shorts-icon/shukatsu_okap.jpeg",
+    href: "https://www.tiktok.com/@shukatsu_okap"
   },
   {
     id: "a10",
-    name: "JOB HUNT",
-    avatar: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=100&h=100&fit=crop"
+    name: "りな先生の業界入門✏️",
+    avatar: "/shorts-icon/shukatsu_gyoukaikenkyuu.jpeg",
+    href: "https://www.tiktok.com/@shukatsu_gyoukaikenkyuu"
   },
   {
-    id: "a11",
-    name: "CAREER NEWS",
-    avatar: "https://images.unsplash.com/photo-1517849845537-4d257902454a?w=100&h=100&fit=crop"
+    id: "a1",
+    name: "JOBTV会社図鑑",
+    avatar: "/shorts-icon/jobtv_zukan.jpeg",
+    href: "https://www.tiktok.com/@jobtv_zukan"
   },
   {
-    id: "a12",
-    name: "RECRUIT JOURNAL",
-    avatar: "https://images.unsplash.com/photo-1437622368342-7a3d73a34c8f?w=100&h=100&fit=crop"
+    id: "a2",
+    name: "JOBTV企業ガイド",
+    avatar: "/shorts-icon/jobtv_kigyogaido.jpeg",
+    href: "https://www.tiktok.com/@jobtv_kigyogaido"
   },
   {
-    id: "a13",
-    name: "WORK STYLE PRESS",
-    avatar: "https://images.unsplash.com/photo-1474511320723-9a56873867b5?w=100&h=100&fit=crop"
+    id: "a3",
+    name: "JOBTV Voice / 社員の声",
+    avatar: "/shorts-icon/jobtv_voice.jpeg",
+    href: "https://www.tiktok.com/@jobtv_voice"
   },
   {
-    id: "a14",
-    name: "JOB PICKS",
-    avatar: "https://images.unsplash.com/photo-1504006833117-8886a355efbf?w=100&h=100&fit=crop"
+    id: "a4",
+    name: "JOBTV Real / 社員の１日",
+    avatar: "/shorts-icon/jobtv__real.jpeg",
+    href: "https://www.tiktok.com/@jobtv__real"
   },
   {
-    id: "a15",
-    name: "NEXT CAREER TIMES",
-    avatar: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=100&h=100&fit=crop"
+    id: "a5",
+    name: "JOBTV Tour / オフィス図鑑",
+    avatar: "/shorts-icon/jobtv_tour.jpeg",
+    href: "https://www.tiktok.com/@jobtv_tour"
   },
   {
-    id: "a16",
-    name: "HR TALK",
-    avatar: "https://images.unsplash.com/photo-1517849845537-4d257902454a?w=100&h=100&fit=crop"
+    id: "a6",
+    name: "JOBTV Guide / 企業名鑑",
+    avatar: "/shorts-icon/jobtv_guide.jpeg",
+    href: "https://www.tiktok.com/@jobtv_guide"
   },
   {
-    id: "a17",
-    name: "BIZREACH VOICE",
-    avatar: "https://images.unsplash.com/photo-1437622368342-7a3d73a34c8f?w=100&h=100&fit=crop"
-  },
-  {
-    id: "a18",
-    name: "CAREER HACK CHANNEL",
-    avatar: "https://images.unsplash.com/photo-1474511320723-9a56873867b5?w=100&h=100&fit=crop"
-  },
-  {
-    id: "a19",
-    name: "RECRUIT TV",
-    avatar: "https://images.unsplash.com/photo-1504006833117-8886a355efbf?w=100&h=100&fit=crop"
-  },
-  {
-    id: "a20",
-    name: "JOB HUNT JOURNAL",
-    avatar: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=100&h=100&fit=crop"
+    id: "a7",
+    name: "JOBTV HR / 就活のヒント",
+    avatar: "/shorts-icon/jobtv_hr.jpeg",
+    href: "https://www.tiktok.com/@jobtv_hr"
   }
+];
+
+/** しゅんダイアリー就活対策動画のダミーデータ（サムネは public/shundiary の画像） */
+const shundiaryVideos = [
+  { id: "sd-1", title: "就活対策動画 #1", thumbnail: "/shundiary/01.webp" },
+  { id: "sd-2", title: "就活対策動画 #2", thumbnail: "/shundiary/02.webp" },
+  { id: "sd-3", title: "就活対策動画 #3", thumbnail: "/shundiary/03.webp" },
+  { id: "sd-4", title: "就活対策動画 #4", thumbnail: "/shundiary/04.webp" },
+  { id: "sd-5", title: "就活対策動画 #5", thumbnail: "/shundiary/05.jpg" },
+  { id: "sd-6", title: "就活対策動画 #6", thumbnail: "/shundiary/06.webp" },
+  { id: "sd-7", title: "就活対策動画 #7", thumbnail: "/shundiary/07.jpg" },
+  { id: "sd-8", title: "就活対策動画 #8", thumbnail: "/shundiary/08.jpg" },
+  { id: "sd-9", title: "就活対策動画 #9", thumbnail: "/shundiary/09.webp" },
+  { id: "sd-10", title: "就活対策動画 #10", thumbnail: "/shundiary/10.webp" }
 ];
 
 export default async function Home() {
@@ -195,8 +168,8 @@ export default async function Home() {
   try {
     const [companiesResult, shortResult, documentaryResult] = await Promise.all([
       getCompaniesByIndustry(),
-      getPublicVideos("short"),
-      getPublicVideos("documentary")
+      getPublicVideosForTopPage("short"),
+      getPublicVideosForTopPage("documentary")
     ]);
 
     const companiesByIndustry = companiesResult.data ?? new Map<string, CompanyWithPage[]>();
@@ -247,6 +220,7 @@ export default async function Home() {
       shortVideos={shortVideos}
       accounts={accounts}
       documentaryPrograms={documentaryPrograms}
+      shundiaryVideos={shundiaryVideos}
       industrySections={industrySections}
     />
   );

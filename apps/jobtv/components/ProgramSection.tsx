@@ -21,6 +21,8 @@ interface Program {
 
 interface ProgramSectionProps {
   title: string;
+  /** 見出しの下に表示する説明文 */
+  description?: string;
   programs: Program[];
   showMore?: boolean;
   largeCards?: boolean;
@@ -30,6 +32,7 @@ interface ProgramSectionProps {
 
 export default function ProgramSection({
   title,
+  description,
   programs,
   showMore = true,
   largeCards = false,
@@ -43,7 +46,19 @@ export default function ProgramSection({
       <section className="mb-2 py-0">
         <div className="container mx-auto px-4">
           {title && (
-            <SectionHeader icon={Film} title={title} showMore={showMore} titleClassName={classes.textPrimary} />
+            <SectionHeader
+              icon={Film}
+              title={title}
+              showMore={showMore}
+              titleClassName={classes.textPrimary}
+              className="mb-2"
+            />
+          )}
+          {description && (
+            <p className={cn("text-sm mb-3", classes.textSecondary)}>{description}</p>
+          )}
+          {(title || description) && (
+            <div className={cn("border-b mb-4", classes.sectionBorder)} />
           )}
           <HorizontalScrollContainer>
             <div className="flex gap-4 min-w-max px-4 pb-6">
@@ -79,11 +94,14 @@ export default function ProgramSection({
             icon={Film}
             title={title}
             showMore={showMore}
-            showBorder
-            borderClassName={classes.sectionBorder}
             titleClassName={classes.textPrimary}
+            className="mb-2"
           />
         )}
+        {description && (
+          <p className={cn("text-sm mb-3", classes.textSecondary)}>{description}</p>
+        )}
+        <div className={cn("border-b mb-4", classes.sectionBorder)} />
         <div
           className={`grid gap-5 ${
             largeCards

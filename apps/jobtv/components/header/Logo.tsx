@@ -7,7 +7,7 @@ interface LogoProps {
 export default function Logo({ disableLink = false }: LogoProps) {
   const content = (
     <Image
-      src="https://jobtv.jp/assets/logo.svg"
+      src="/logo.svg"
       alt="JOBTV"
       width={120}
       height={28}

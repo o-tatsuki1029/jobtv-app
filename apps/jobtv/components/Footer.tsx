@@ -1,20 +1,20 @@
 import Link from "next/link";
 import Image from "next/image";
-import { SITE_NAME, LOGO_URL } from "@/constants/site";
+import { SITE_NAME } from "@/constants/site";
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
 
   const footerLinks = {
     service: [
-      { label: "就活Shorts", href: "#short" },
-      { label: "就活ドキュメンタリー", href: "#documentary" },
-      { label: "企業説明", href: "#company" },
-      { label: "採用イベント", href: "#" }
+      { label: "就活Shorts", href: "/#short" },
+      { label: "就活ドキュメンタリー", href: "/#documentary" },
+      { label: "企業説明", href: "/#company" },
+      { label: "採用イベント", href: "/" }
     ],
     about: [
       { label: "運営会社", href: "https://vectorinc.co.jp/company/about" },
-      { label: "利用規約", href: "#" },
+      { label: "利用規約", href: "/docs/terms" },
       {
         label: "プライバシーポリシー",
         href: "https://vectorinc.co.jp/privacy"
@@ -39,7 +39,7 @@ export default function Footer() {
             {/* サイト情報 */}
             <div>
               <Link href="/" className="inline-block mb-4">
-                <Image src={LOGO_URL} alt={SITE_NAME} width={120} height={28} className="h-6 md:h-7 w-auto" />
+                <Image src="/logo.svg" alt={SITE_NAME} width={120} height={28} className="h-6 md:h-7 w-auto" />
               </Link>
               <p className="text-gray-400 text-sm mb-4">動画就活で理想の企業と出会う</p>
               <div className="flex gap-4">

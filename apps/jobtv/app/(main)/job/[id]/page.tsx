@@ -58,7 +58,7 @@ export async function generateMetadata({ params }: JobDetailPageProps): Promise<
     job.prefecture,
     "新卒採用",
     "就活",
-    "JobTV"
+    "JOBTV"
   ].filter(Boolean);
 
   return {

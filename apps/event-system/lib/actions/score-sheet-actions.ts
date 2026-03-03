@@ -95,7 +95,7 @@ export async function getScoreSheetData(eventId: string, candidateId: string) {
 
     // 企業評価を取得
     const { data: ratings, error: ratingsError } = await supabase
-      .from("ratings_recruiter_to_candidate")
+      .from("event_ratings_recruiter_to_candidate")
       .select(
         "company_id, overall_rating, logic_rating, initiative_rating, cooperation_rating, creative_rating, communication_rating, comment, evaluator_name"
       )

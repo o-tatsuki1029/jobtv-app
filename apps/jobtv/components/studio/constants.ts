@@ -10,6 +10,7 @@ import {
   CheckCircle,
   Bell,
   MessageCircle,
+  LayoutList,
   // MessageSquare, // チャット用（後々追加）
   UserCog
 } from "lucide-react";
@@ -55,6 +56,7 @@ export const STUDIO_BOTTOM_NAVIGATION = [{ name: "設定", href: "/studio/settin
 
 export const ADMIN_NAVIGATION = [
   { name: "ダッシュボード", href: "/admin", icon: LayoutDashboard },
+  { name: "トップ掲載", href: "/admin/featured-videos", icon: LayoutList },
   { name: "審査管理", href: "/admin/review", icon: CheckCircle },
   { name: "お知らせ管理", href: "/admin/notifications", icon: Bell },
   { name: "企業アカウント管理", href: "/admin/company-accounts", icon: Building },

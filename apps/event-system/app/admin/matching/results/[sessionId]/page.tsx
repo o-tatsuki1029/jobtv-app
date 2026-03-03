@@ -30,7 +30,7 @@ export default async function MatchingResultsPage({
   // セッションIDからイベントIDと詳細情報を取得
   const supabase = await createClient();
   const { data: sessionData } = await supabase
-    .from("matching_sessions")
+    .from("event_matching_sessions")
     .select(
       "event_id, events(event_date, start_time, master_event_types(name))"
     )

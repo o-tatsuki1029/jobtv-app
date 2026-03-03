@@ -54,7 +54,7 @@ export async function saveRecruiterRating(
 
   // 既存の評価を確認
   const { data: existingRating, error: checkError } = await adminSupabase
-    .from("ratings_recruiter_to_candidate")
+    .from("event_ratings_recruiter_to_candidate")
     .select("id")
     .eq("company_id", companyId)
     .eq("candidate_id", candidateId)
@@ -69,7 +69,7 @@ export async function saveRecruiterRating(
   if (existingRating) {
     // 更新
     const { error: updateError } = await adminSupabase
-      .from("ratings_recruiter_to_candidate")
+      .from("event_ratings_recruiter_to_candidate")
       .update({
         overall_rating: overallRating,
         comment: comment?.trim() || null,
@@ -86,7 +86,7 @@ export async function saveRecruiterRating(
   } else {
     // 新規作成
     const { error: insertError } = await adminSupabase
-      .from("ratings_recruiter_to_candidate")
+      .from("event_ratings_recruiter_to_candidate")
       .insert({
         company_id: companyId,
         candidate_id: candidateId,

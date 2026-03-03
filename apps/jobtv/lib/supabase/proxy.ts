@@ -43,6 +43,7 @@ export async function updateSession(request: NextRequest) {
     "/session",
     "/api/auth",
     "/service",
+    "/docs",
     "/admin/login",
     "/studio/login"
   ];

@@ -167,7 +167,13 @@ src/
 - `company_id` (UUID, FK): `companies.id`を参照
 - `created_at`, `updated_at` (TIMESTAMPTZ)
 
-#### `ratings_recruiter_to_candidate` (企業 → 学生評価)
+#### `event_matching_sessions` (マッチング枠)
+
+- `id` (UUID, PK)
+- `event_id` (UUID, FK): `events.id`を参照
+- その他: マッチング枠の状態・日程など。`matching_results` がこのテーブルを参照する。
+
+#### `event_ratings_recruiter_to_candidate` (企業 → 学生評価、旧: `ratings_recruiter_to_candidate`)
 
 - `id` (UUID, PK)
 - `company_id` (UUID, FK): `companies.id`を参照（企業ベースの評価）
@@ -182,7 +188,7 @@ src/
 - `created_at`, `updated_at` (TIMESTAMPTZ)
 - UNIQUE 制約: `(company_id, candidate_id, event_id)` - 1 企業 1 学生 1 イベントあたり 1 評価
 
-#### `ratings_candidate_to_company` (学生 → 企業評価)
+#### `event_ratings_candidate_to_company` (学生 → 企業評価、旧: `ratings_candidate_to_company`)
 
 - `id` (UUID, PK)
 - `candidate_id` (UUID, FK): `candidates.id`を参照

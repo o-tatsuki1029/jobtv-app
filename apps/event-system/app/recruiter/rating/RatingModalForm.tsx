@@ -139,7 +139,7 @@ export default function RatingModalForm({
     const supabase = createClient();
     // 同じイベント・企業・学生の評価を取得
     const { data, error } = await supabase
-      .from("ratings_recruiter_to_candidate")
+      .from("event_ratings_recruiter_to_candidate")
       .select("*")
       .eq("company_id", companyId)
       .eq("event_id", eventId)
@@ -331,7 +331,7 @@ export default function RatingModalForm({
       if (existingRatingId) {
         // 既存の評価を更新する場合も担当者チェックを行う
         const { data: currentData } = await supabase
-          .from("ratings_recruiter_to_candidate")
+          .from("event_ratings_recruiter_to_candidate")
           .select("evaluator_name")
           .eq("id", existingRatingId)
           .maybeSingle();
@@ -349,7 +349,7 @@ export default function RatingModalForm({
         }
 
         const { error } = await supabase
-          .from("ratings_recruiter_to_candidate")
+          .from("event_ratings_recruiter_to_candidate")
           .update(ratingData)
           .eq("id", existingRatingId);
 
@@ -364,7 +364,7 @@ export default function RatingModalForm({
         }
       } else {
         const { error } = await supabase
-          .from("ratings_recruiter_to_candidate")
+          .from("event_ratings_recruiter_to_candidate")
           .insert(ratingData);
 
         if (error) {
@@ -381,7 +381,7 @@ export default function RatingModalForm({
               return;
             }
             const { data: existingData } = await supabase
-              .from("ratings_recruiter_to_candidate")
+              .from("event_ratings_recruiter_to_candidate")
               .select("id, evaluator_name")
               .eq("company_id", companyId)
               .eq("event_id", eventId)
@@ -403,7 +403,7 @@ export default function RatingModalForm({
               }
 
               const { error: updateError } = await supabase
-                .from("ratings_recruiter_to_candidate")
+                .from("event_ratings_recruiter_to_candidate")
                 .update(ratingData)
                 .eq("id", existingData.id);
 

@@ -20,12 +20,20 @@ interface ShortVideo {
 
 interface ShortVideoSectionProps {
   title: string;
+  /** 見出しの下に表示する説明文 */
+  description?: string;
   videos: ShortVideo[];
   showMore?: boolean;
   onVideoClick?: (video: ShortVideo) => void;
 }
 
-export default function ShortVideoSection({ title, videos, showMore = true, onVideoClick }: ShortVideoSectionProps) {
+export default function ShortVideoSection({
+  title,
+  description,
+  videos,
+  showMore = true,
+  onVideoClick
+}: ShortVideoSectionProps) {
   const { classes } = useMainTheme();
 
   return (
@@ -36,11 +44,14 @@ export default function ShortVideoSection({ title, videos, showMore = true, onVi
             icon={Smartphone}
             title={title}
             showMore={showMore}
-            showBorder
-            borderClassName={classes.sectionBorder}
             titleClassName={classes.textPrimary}
+            className="mb-2"
           />
         )}
+        {description && (
+          <p className={cn("text-sm mb-3", classes.textSecondary)}>{description}</p>
+        )}
+        <div className={cn("border-b mb-4", classes.sectionBorder)} />
         <HorizontalScrollContainer>
           <div className="flex gap-5 min-w-max">
             {videos.map((video) => (

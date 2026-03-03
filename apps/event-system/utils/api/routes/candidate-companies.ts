@@ -62,7 +62,7 @@ export async function getCandidateCompanies(eventId: string, candidateId: string
       .eq("event_id", eventId),
     // 既存の評価を取得（RLSポリシーで自分の評価のみアクセス可能）
     finalSupabase
-      .from("ratings_candidate_to_company")
+      .from("event_ratings_candidate_to_company")
       .select("id, company_id, rating, comment")
       .eq("candidate_id", candidateId)
       .eq("event_id", eventId),

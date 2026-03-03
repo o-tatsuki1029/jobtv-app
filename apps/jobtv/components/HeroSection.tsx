@@ -30,11 +30,11 @@ export default function HeroSection({ title, description, thumbnail, videoUrl, c
 
   return (
     <div className="relative w-full bg-black py-12 md:py-16 overflow-hidden">
-      {/* Background Image */}
+      {/* Background Image（public/hero-bg.jpg を配置） */}
       <div
         className="absolute inset-0 overflow-hidden"
         style={{
-          backgroundImage: `url(https://jobtv.jp/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Flive-week-back.a9963dc1.jpg&w=3840&q=75)`,
+          backgroundImage: "url(/hero-bg.jpg)",
           backgroundSize: "cover",
           backgroundPosition: "left top",
           backgroundRepeat: "no-repeat",

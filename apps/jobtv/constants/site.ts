@@ -5,12 +5,12 @@
 
 // 基本情報
 export const SITE_NAME = "JOBTV";
-export const SITE_TITLE = "JOBTV - 動画就活情報サイト";
+export const SITE_TITLE = "JOBTV - 就活生向け動画情報メディア";
 export const SITE_DESCRIPTION =
   "JOBTVは新卒採用をする企業の就活情報を動画で探せるサービスです。企業密着、社員インタビュー、職場見学など、リアルな情報を無料で視聴できます。";
 
 // URL関連
-import { getSiteUrl, getFullSiteUrl } from "@jobtv-app/shared/utils/dev-config";
+import { getSiteUrl } from "@jobtv-app/shared/utils/dev-config";
 
 // プロトコルなしのサイトURL（環境変数から取得、デフォルトはlocalhost:3000）
 const SITE_URL_WITHOUT_PROTOCOL = getSiteUrl(3000);
@@ -22,9 +22,9 @@ export const SITE_URL = `https://${SITE_URL_WITHOUT_PROTOCOL}`;
 export const TWITTER_HANDLE = "@jobtv";
 export const TWITTER_SITE = "@jobtv";
 
-// 画像URL
-export const OGP_IMAGE = `https://${SITE_URL}/ogp-image.jpg`;
-export const LOGO_URL = "https://jobtv.jp/assets/logo.svg";
+// 画像URL（OGP は app/opengraph-image.tsx の動的生成を参照）
+export const OGP_IMAGE = `${SITE_URL}/opengraph-image`;
+export const LOGO_URL = `${SITE_URL}/logo.svg`;
 
 // SEOキーワード
 export const SEO_KEYWORDS = [
@@ -36,7 +36,6 @@ export const SEO_KEYWORDS = [
   "転職",
   "キャリア",
   "動画配信",
-  "ライブ配信",
   "企業紹介"
 ];
 
@@ -52,8 +51,8 @@ export const PWA_CONFIG = {
   name: SITE_TITLE,
   shortName: SITE_NAME,
   description: SITE_DESCRIPTION,
-  backgroundColor: THEME_COLOR.dark,
-  themeColor: THEME_COLOR.dark,
+  backgroundColor: THEME_COLOR.light,
+  themeColor: THEME_COLOR.light,
   display: "standalone" as const,
   startUrl: "/"
 } as const;

@@ -91,7 +91,7 @@ export async function saveCandidateRating(
 
   // 既存の評価を確認
   const { data: existingRating, error: checkError } = await adminSupabase
-    .from("ratings_candidate_to_company")
+    .from("event_ratings_candidate_to_company")
     .select("id")
     .eq("candidate_id", targetCandidateId)
     .eq("company_id", companyId)
@@ -106,7 +106,7 @@ export async function saveCandidateRating(
   if (existingRating) {
     // 更新
     const { error: updateError } = await adminSupabase
-      .from("ratings_candidate_to_company")
+      .from("event_ratings_candidate_to_company")
       .update({
         rating: sanitizedRating,
         comment: sanitizedComment,
@@ -122,7 +122,7 @@ export async function saveCandidateRating(
   } else {
     // 新規作成
     const { error: insertError } = await adminSupabase
-      .from("ratings_candidate_to_company")
+      .from("event_ratings_candidate_to_company")
       .insert({
         candidate_id: targetCandidateId,
         company_id: companyId,

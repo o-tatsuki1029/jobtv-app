@@ -2,11 +2,11 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
-import type { Tables, TablesInsert } from "@jobtv-app/shared/types";
+import type { Tables, TablesInsert, TablesUpdate } from "@jobtv-app/shared/types";
+import { checkAdminPermission } from "@/lib/actions/admin-actions";
 
 type Company = Tables<"companies">;
 type CompanyInsert = TablesInsert<"companies">;
-
 
 /**
  * 企業一覧を取得
@@ -34,6 +34,60 @@ export async function getAllCompanies(): Promise<{
     return {
       data: null,
       error: error instanceof Error ? error.message : "企業一覧の取得に失敗しました",
+    };
+  }
+}
+
+/**
+ * 企業のみを作成（管理者のみ）
+ */
+export async function createCompany(companyData: {
+  name: string;
+  industry?: string | null;
+  prefecture?: string | null;
+  address_line1?: string | null;
+  address_line2?: string | null;
+  website?: string | null;
+  representative?: string | null;
+  established?: string | null;
+  employees?: string | null;
+  company_info?: string | null;
+  status?: "active" | "closed" | null;
+}): Promise<{ data: { companyId: string } | null; error: string | null }> {
+  const { isAdmin } = await checkAdminPermission();
+  if (!isAdmin) {
+    return { data: null, error: "管理者権限が必要です" };
+  }
+  try {
+    const supabaseAdmin = createAdminClient();
+    const { data: newCompany, error } = await supabaseAdmin
+      .from("companies")
+      .insert({
+        name: companyData.name,
+        industry: companyData.industry || null,
+        prefecture: companyData.prefecture || null,
+        address_line1: companyData.address_line1 || null,
+        address_line2: companyData.address_line2 || null,
+        website: companyData.website || null,
+        representative: companyData.representative || null,
+        established: companyData.established || null,
+        employees: companyData.employees || null,
+        company_info: companyData.company_info || null,
+        status: companyData.status || "active",
+      })
+      .select()
+      .single();
+    if (error || !newCompany) {
+      console.error("Create company error:", error);
+      return { data: null, error: error?.message ?? "企業の作成に失敗しました" };
+    }
+    revalidatePath("/admin/company-accounts");
+    return { data: { companyId: newCompany.id }, error: null };
+  } catch (err) {
+    console.error("Create company error:", err);
+    return {
+      data: null,
+      error: err instanceof Error ? err.message : "企業の作成に失敗しました",
     };
   }
 }
@@ -242,6 +296,171 @@ export async function createCompanyWithRecruiter(
     return {
       data: null,
       error: error instanceof Error ? error.message : "企業とリクルーターアカウントの作成に失敗しました",
+    };
+  }
+}
+
+/** 画像 MIME タイプ（サムネ用） */
+const ALLOWED_THUMBNAIL_MIME = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const MAX_THUMBNAIL_SIZE = 5 * 1024 * 1024; // 5MB
+
+/**
+ * 管理者が企業のサムネ画像をアップロードし、companies.thumbnail_url を更新する
+ */
+export async function uploadCompanyThumbnail(
+  companyId: string,
+  formData: FormData
+): Promise<{ data: { thumbnailUrl: string } | null; error: string | null }> {
+  const { isAdmin } = await checkAdminPermission();
+  if (!isAdmin) {
+    return { data: null, error: "管理者権限が必要です" };
+  }
+
+  const file = formData.get("file");
+  if (!file || !(file instanceof File)) {
+    return { data: null, error: "画像ファイルを選択してください" };
+  }
+
+  if (file.size > MAX_THUMBNAIL_SIZE) {
+    return { data: null, error: "ファイルサイズは5MB以下にしてください" };
+  }
+  if (!ALLOWED_THUMBNAIL_MIME.includes(file.type)) {
+    return {
+      data: null,
+      error: "サポートされていない形式です。JPEG, PNG, WebP, GIF をアップロードしてください。",
+    };
+  }
+
+  try {
+    const supabaseAdmin = createAdminClient();
+    const timestamp = Date.now();
+    const ext = file.name.split(".").pop() || "jpg";
+    const fileName = `admin/companies/${companyId}/thumbnail/${timestamp}.${ext}`;
+
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from("company-assets")
+      .upload(fileName, file, { cacheControl: "3600", upsert: false });
+
+    if (uploadError) {
+      console.error("Upload company thumbnail error:", uploadError);
+      return { data: null, error: uploadError.message };
+    }
+
+    const {
+      data: { publicUrl },
+    } = supabaseAdmin.storage.from("company-assets").getPublicUrl(fileName);
+
+    const { error: updateError } = await supabaseAdmin
+      .from("companies")
+      .update({ thumbnail_url: publicUrl, updated_at: new Date().toISOString() })
+      .eq("id", companyId);
+
+    if (updateError) {
+      console.error("Update company thumbnail_url error:", updateError);
+      return { data: null, error: updateError.message };
+    }
+
+    revalidatePath("/admin/company-accounts");
+    return { data: { thumbnailUrl: publicUrl }, error: null };
+  } catch (err) {
+    console.error("Upload company thumbnail error:", err);
+    return {
+      data: null,
+      error: err instanceof Error ? err.message : "サムネのアップロードに失敗しました",
+    };
+  }
+}
+
+/** 企業ページ本番用ダミーデータ */
+const DUMMY_COMPANY_PAGE = {
+  tagline: "テスト用キャッチコピー",
+  description:
+    "テスト用の企業ページです。本番公開用のダミーデータです。スタジオから正式な内容に差し替えてください。",
+  cover_image_url: null as string | null,
+  main_video_url: null as string | null,
+  sns_x_url: null as string | null,
+  sns_instagram_url: null as string | null,
+  sns_tiktok_url: null as string | null,
+  sns_youtube_url: null as string | null,
+  short_videos: null as Tables<"company_pages">["short_videos"],
+  documentary_videos: null as Tables<"company_pages">["documentary_videos"],
+  company_videos: null as Tables<"company_pages">["company_videos"],
+  benefits: null as string[] | null,
+  status: "active" as const,
+};
+
+/**
+ * 管理者が企業ページをダミーデータで作成し、本番で公開する（テスト用）
+ */
+export async function createCompanyPageWithDummyData(
+  companyId: string
+): Promise<{ data: { pageId: string } | null; error: string | null }> {
+  const { isAdmin } = await checkAdminPermission();
+  if (!isAdmin) {
+    return { data: null, error: "管理者権限が必要です" };
+  }
+
+  try {
+    const supabaseAdmin = createAdminClient();
+
+    const { data: existingPage, error: findError } = await supabaseAdmin
+      .from("company_pages")
+      .select("id")
+      .eq("company_id", companyId)
+      .maybeSingle();
+
+    if (findError) {
+      console.error("Find existing company page error:", findError);
+      return { data: null, error: findError.message };
+    }
+
+    const now = new Date().toISOString();
+    const payload: TablesUpdate<"company_pages"> = {
+      ...DUMMY_COMPANY_PAGE,
+      updated_at: now,
+    };
+
+    if (existingPage) {
+      const { data: updated, error: updateError } = await supabaseAdmin
+        .from("company_pages")
+        .update(payload)
+        .eq("id", existingPage.id)
+        .select("id")
+        .single();
+
+      if (updateError) {
+        console.error("Update company page with dummy error:", updateError);
+        return { data: null, error: updateError.message };
+      }
+      revalidatePath("/admin/company-accounts");
+      revalidatePath(`/company/${companyId}`);
+      return { data: { pageId: updated.id }, error: null };
+    }
+
+    const insertData: TablesInsert<"company_pages"> = {
+      company_id: companyId,
+      ...DUMMY_COMPANY_PAGE,
+    };
+
+    const { data: inserted, error: insertError } = await supabaseAdmin
+      .from("company_pages")
+      .insert(insertData)
+      .select("id")
+      .single();
+
+    if (insertError) {
+      console.error("Create company page with dummy error:", insertError);
+      return { data: null, error: insertError.message };
+    }
+
+    revalidatePath("/admin/company-accounts");
+    revalidatePath(`/company/${companyId}`);
+    return { data: { pageId: inserted.id }, error: null };
+  } catch (err) {
+    console.error("Create company page with dummy error:", err);
+    return {
+      data: null,
+      error: err instanceof Error ? err.message : "企業ページの作成に失敗しました",
     };
   }
 }

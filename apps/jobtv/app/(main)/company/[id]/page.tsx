@@ -3,6 +3,7 @@ import { getCompanyProfileById } from "@/lib/actions/company-profile-actions";
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import { SITE_NAME } from "@/constants/site";
 
 // モックデータ（フォールバック用）
 const mockCompany = {
@@ -181,7 +182,7 @@ export async function generateMetadata({ params }: CompanyDetailPageProps): Prom
       title: `${mockCompany.name} | 企業情報`,
       description: mockCompany.description.substring(0, 120) + "...",
       openGraph: {
-        title: `${mockCompany.name} | JobTV`,
+        title: `${mockCompany.name} | ${SITE_NAME}`,
         description: mockCompany.description.substring(0, 120) + "...",
         type: "website",
         images: [
@@ -192,11 +193,11 @@ export async function generateMetadata({ params }: CompanyDetailPageProps): Prom
             alt: mockCompany.name
           }
         ],
-        siteName: "JOBTV"
+        siteName: SITE_NAME
       },
       twitter: {
         card: "summary_large_image",
-        title: `${mockCompany.name} | JobTV`,
+        title: `${mockCompany.name} | ${SITE_NAME}`,
         description: mockCompany.description.substring(0, 120) + "...",
         images: [mockCompany.coverImage]
       },
@@ -232,7 +233,7 @@ export async function generateMetadata({ params }: CompanyDetailPageProps): Prom
   const ogImage = company.coverImage || company.logo || undefined;
 
   // キーワードを生成
-  const keywords = [company.name, company.industry, company.prefecture, "新卒採用", "就活", "企業情報", "JobTV"].filter(
+  const keywords = [company.name, company.industry, company.prefecture, "新卒採用", "就活", "企業情報", SITE_NAME].filter(
     Boolean
   );
 
@@ -254,7 +255,7 @@ export async function generateMetadata({ params }: CompanyDetailPageProps): Prom
             }
           ]
         : undefined,
-      siteName: "JobTV"
+      siteName: SITE_NAME
     },
     twitter: {
       card: "summary_large_image",
