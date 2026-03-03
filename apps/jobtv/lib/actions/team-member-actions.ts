@@ -1,9 +1,11 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import type { Tables } from "@jobtv-app/shared/types";
 import { getUserCompanyId, checkCompanyEditPermission } from "@jobtv-app/shared/actions/company-utils";
+import { sendTemplatedEmail } from "@/lib/email/send-templated-email";
 
 type ProfileRow = Tables<"profiles">;
 
@@ -258,11 +260,21 @@ export async function inviteTeamMember(
       }
     }
 
-    // Supabaseの招待機能を使用
-    // 注意: この機能を使用するには、Supabaseプロジェクトで招待機能が有効になっている必要があります
-    const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    const supabaseAdmin = createAdminClient();
+
+    // 企業名を取得（招待メールの変数用）
+    const { data: company } = await supabaseAdmin
+      .from("companies")
+      .select("name")
+      .eq("id", companyId)
+      .single();
+
+    // 招待リンクを生成（メールは SendGrid で自前送信）
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+      type: "invite",
       email,
-      {
+      options: {
         data: {
           first_name: firstName,
           last_name: lastName,
@@ -271,12 +283,30 @@ export async function inviteTeamMember(
           company_id: companyId,
           role: "recruiter",
         },
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
-      }
-    );
+        redirectTo: `${siteUrl}/auth/callback`,
+      },
+    });
 
-    if (inviteError) {
-      console.error("Invite user error:", inviteError);
+    if (linkError) {
+      console.error("generateLink error:", linkError);
+      return { data: null, error: "招待リンクの生成に失敗しました" };
+    }
+
+    // SendGrid で招待メールを送信
+    const { error: emailError } = await sendTemplatedEmail({
+      templateName:   "invite_team_member",
+      recipientEmail: email,
+      variables: {
+        first_name:   firstName,
+        last_name:    lastName,
+        company_name: company?.name ?? "",
+        invite_url:   linkData.properties.action_link,
+        site_url:     siteUrl,
+      },
+    });
+
+    if (emailError) {
+      console.error("招待メールの送信に失敗しました:", emailError);
       return { data: null, error: "招待メールの送信に失敗しました" };
     }
 

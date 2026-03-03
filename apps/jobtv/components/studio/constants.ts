@@ -11,6 +11,7 @@ import {
   Bell,
   MessageCircle,
   LayoutList,
+  Mail,
   // MessageSquare, // チャット用（後々追加）
   UserCog
 } from "lucide-react";
@@ -60,7 +61,8 @@ export const ADMIN_NAVIGATION = [
   { name: "審査管理", href: "/admin/review", icon: CheckCircle },
   { name: "お知らせ管理", href: "/admin/notifications", icon: Bell },
   { name: "企業アカウント管理", href: "/admin/company-accounts", icon: Building },
-  { name: "LINE管理", href: "/admin/line", icon: MessageCircle }
+  { name: "LINE管理", href: "/admin/line", icon: MessageCircle },
+  { name: "メール管理", href: "/admin/email/templates", icon: Mail }
 ];
 
 export const ADMIN_BOTTOM_NAVIGATION = [{ name: "設定", href: "/admin/settings/user", icon: Settings }];

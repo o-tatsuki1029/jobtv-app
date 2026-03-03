@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import type { Tables, TablesInsert, TablesUpdate } from "@jobtv-app/shared/types";
 import { checkAdminPermission } from "@/lib/actions/admin-actions";
+import { sendTemplatedEmail } from "@/lib/email/send-templated-email";
 
 type Company = Tables<"companies">;
 type CompanyInsert = TablesInsert<"companies">;
@@ -163,12 +164,13 @@ export async function createCompanyWithRecruiter(
 
     const companyId = newCompany.id;
 
-    // 2. リクルーターアカウントを招待（初期パスワード設定メールを送信）
+    // 2. リクルーターアカウントの招待リンクを生成（メールは SendGrid で自前送信）
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-    
-    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
-      recruiterData.email,
-      {
+
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+      type: "invite",
+      email: recruiterData.email,
+      options: {
         data: {
           first_name: recruiterData.first_name,
           last_name: recruiterData.last_name,
@@ -178,23 +180,23 @@ export async function createCompanyWithRecruiter(
           role: "recruiter",
         },
         redirectTo: `${siteUrl}/auth/update-password`,
-      }
-    );
+      },
+    });
 
-    if (inviteError) {
-      console.error("Invite user error:", inviteError);
-      
+    if (linkError || !linkData?.user?.id) {
+      console.error("generateLink error:", linkError);
+
       // 企業作成をロールバック（削除）
       await supabaseAdmin.from("companies").delete().eq("id", companyId);
 
       const errorMessage =
-        inviteError instanceof Error
-          ? inviteError.message
-          : typeof inviteError === "object" &&
-              inviteError !== null &&
-              "message" in inviteError
-            ? String((inviteError as { message: string }).message)
-            : "招待メールの送信に失敗しました";
+        linkError instanceof Error
+          ? linkError.message
+          : typeof linkError === "object" &&
+              linkError !== null &&
+              "message" in linkError
+            ? String((linkError as { message: string }).message)
+            : "招待リンクの生成に失敗しました";
 
       return {
         data: null,
@@ -202,17 +204,26 @@ export async function createCompanyWithRecruiter(
       };
     }
 
-    if (!inviteData?.user?.id) {
-      // 企業作成をロールバック（削除）
-      await supabaseAdmin.from("companies").delete().eq("id", companyId);
+    const userId    = linkData.user.id;
+    const inviteUrl = linkData.properties.action_link;
 
-      return {
-        data: null,
-        error: "リクルーターアカウントの招待に失敗しました（ユーザーIDが取得できませんでした）",
-      };
+    // 3. SendGrid で招待メールを送信
+    const { error: emailError } = await sendTemplatedEmail({
+      templateName:   "invite_recruiter",
+      recipientEmail: recruiterData.email,
+      variables: {
+        first_name:   recruiterData.first_name,
+        last_name:    recruiterData.last_name,
+        company_name: newCompany.name,
+        invite_url:   inviteUrl,
+        site_url:     siteUrl,
+      },
+    });
+
+    if (emailError) {
+      // auth user は作成済みのため企業をロールバックしない。警告のみ。
+      console.error("招待メールの送信に失敗しました（アカウントは作成済み）:", emailError);
     }
-
-    const userId = inviteData.user.id;
 
     // 3. profilesレコードを待機（最大3秒、100ms間隔でポーリング）
     let profileExists = false;

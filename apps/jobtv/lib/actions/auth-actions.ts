@@ -12,6 +12,7 @@ import { translateAuthError } from "@jobtv-app/shared/auth";
 import { getFullSiteUrl } from "@jobtv-app/shared/utils/dev-config";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendTemplatedEmail } from "@/lib/email/send-templated-email";
 
 /** 会員登録で RPC に渡す payload の型 */
 export interface SignUpCandidatePayload {
@@ -74,6 +75,17 @@ export async function signUp(formData: FormData) {
     console.error("create_candidate_and_link_profile RPC error:", rpcError);
     return { error: "登録情報の保存に失敗しました。しばらく経ってから再度お試しください。" };
   }
+
+  // サンクスメールを送信（失敗してもサインアップは成功とする）
+  sendTemplatedEmail({
+    templateName:   "candidate_welcome",
+    recipientEmail: email,
+    variables: {
+      first_name: payload.first_name,
+      last_name:  payload.last_name,
+      site_url:   getFullSiteUrl(3000),
+    },
+  }).catch((e) => console.error("candidate_welcome メール送信エラー:", e));
 
   revalidatePath("/", "layout");
   return { success: true };

@@ -227,6 +227,15 @@ max_frequency = "5s"
 # Force log out if the user has been inactive longer than the specified duration.
 # inactivity_timeout = "8h"
 
+# SendGrid メール送付 Hook（signup・recovery を自前の /api/webhooks/email で処理）
+# 現状は招待メールのみ SendGrid で送るため hooks は無効。
+# Supabase Auth のすべてのメール（signup 確認・パスワードリセット）も SendGrid に統一したい場合は
+# 下記のコメントを外し、SUPABASE_HOOK_SECRET を shell 環境変数として設定してから supabase db push を実行。
+# [auth.hook.send_email]
+# enabled = true
+# uri = "http://host.docker.internal:3000/api/webhooks/email"
+# secrets = "env(SUPABASE_HOOK_SECRET)"
+
 # This hook runs before a new user is created and allows developers to reject the request based on the incoming user object.
 # [auth.hook.before_user_created]
 # enabled = true
