@@ -35,9 +35,13 @@ export async function proxy(request: NextRequest) {
       pathname.startsWith("/_next") ||
       pathname.startsWith("/favicon.ico") ||
       /\.(svg|png|jpg|jpeg|gif|webp|ico|css|js|woff|woff2|ttf|eot)$/.test(pathname);
+    const isWebhook = pathname.startsWith("/api/webhooks/");
+    const isAuthCallback =
+      pathname === "/api/auth/callback" ||
+      pathname === "/api/line/callback";
     const basicOk = checkBasicAuth(request);
 
-    if (!isStaticFile && !basicOk) {
+    if (!isStaticFile && !isWebhook && !isAuthCallback && !basicOk) {
       return new NextResponse("Unauthorized", {
         status: 401,
         headers: {
