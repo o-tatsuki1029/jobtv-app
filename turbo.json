@@ -3,7 +3,32 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": [".next/**", "!.next/cache/**"]
+      "outputs": [".next/**", "!.next/cache/**"],
+      "env": [
+        "NEXT_PUBLIC_SUPABASE_URL",
+        "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+        "NEXT_PUBLIC_SITE_URL",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_JWT_SECRET",
+        "SUPABASE_HOOK_SECRET",
+        "BASIC_AUTH_USER",
+        "BASIC_AUTH_PASSWORD",
+        "AWS_REGION",
+        "AWS_ACCESS_KEY_ID",
+        "AWS_SECRET_ACCESS_KEY",
+        "AWS_S3_BUCKET",
+        "AWS_CLOUDFRONT_URL",
+        "AWS_MEDIACONVERT_ROLE_ARN",
+        "AWS_MEDIACONVERT_TEMPLATE_LANDSCAPE",
+        "AWS_MEDIACONVERT_TEMPLATE_PORTRAIT",
+        "SENDGRID_API_KEY",
+        "SENDGRID_FROM_EMAIL",
+        "SENDGRID_FROM_NAME",
+        "SLACK_EMAIL_WEBHOOK_URL",
+        "LINE_LOGIN_CHANNEL_ID",
+        "LINE_LOGIN_CHANNEL_SECRET",
+        "LINE_CHANNEL_ACCESS_TOKEN"
+      ]
     },
     "dev": {
       "cache": false,
