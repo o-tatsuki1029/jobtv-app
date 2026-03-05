@@ -24,3 +24,5 @@
 | Monorepo・パッケージ・環境変数 | `docs/monorepo.md` |
 | デプロイ・admin IP 制限 | `docs/deployment.md` |
 | アプリ構成・技術スタック | `docs/apps.md` |
+| MCP サーバー設定・用途・セットアップ | `docs/mcp.md` |
+| E2E テスト（Playwright） | `docs/testing.md` |

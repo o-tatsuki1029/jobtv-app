@@ -9,9 +9,12 @@
     "start": "turbo run start",
     "lint": "turbo run lint",
     "types": "supabase gen types typescript --project-id tdewumilkltljbqryjpg > packages/shared/types/database.types.ts",
-    "types:all": "turbo run types"
+    "types:all": "turbo run types",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "turbo": "^2.0.0"
   },
   "engines": {

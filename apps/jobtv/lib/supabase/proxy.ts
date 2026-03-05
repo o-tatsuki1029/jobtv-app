@@ -41,7 +41,7 @@ export async function updateSession(request: NextRequest) {
     "/company",
     "/job",
     "/session",
-    "/api/auth",
+    "/api",
     "/service",
     "/docs",
     "/admin/login",
