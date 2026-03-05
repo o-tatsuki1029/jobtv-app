@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { HelpCircle, ExternalLink, Mail, MessageSquare } from "lucide-react";
+import { HelpCircle, Mail, MessageSquare } from "lucide-react";
 import StudioButton from "@/components/studio/atoms/StudioButton";
 
 export default function HelpSettingsPage() {
@@ -21,14 +21,6 @@ export default function HelpSettingsPage() {
       action: "問い合わせる",
       href: "mailto:support@jobtv.jp",
       external: false,
-    },
-    {
-      title: "利用規約",
-      description: "本サービスの利用規約をご確認いただけます。",
-      icon: ExternalLink,
-      action: "規約を見る",
-      href: "/docs/terms",
-      external: true,
     },
   ];
 

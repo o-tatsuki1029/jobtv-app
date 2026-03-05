@@ -1,7 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { signInWithPassword as baseSignInWithPassword } from "@jobtv-app/shared/actions/auth";
+import {
+  signInWithPassword as baseSignInWithPassword,
+  resetPasswordForEmail as baseResetPasswordForEmail,
+  updatePassword as baseUpdatePassword,
+} from "@jobtv-app/shared/actions/auth";
+import { getFullSiteUrl } from "@jobtv-app/shared/utils/dev-config";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -51,4 +56,33 @@ export async function recruiterSignIn(formData: FormData): Promise<{
 
   revalidatePath("/", "layout");
   return { redirectUrl: "/studio", error: null };
+}
+
+/**
+ * 企業担当者用パスワード再設定メール送信
+ */
+export async function recruiterResetPassword(formData: FormData) {
+  const email = formData.get("email") as string;
+  const result = await baseResetPasswordForEmail(email, `${getFullSiteUrl(3000)}/studio/update-password`);
+
+  if (result.error) {
+    return { error: result.error };
+  }
+
+  return { success: true };
+}
+
+/**
+ * 企業担当者用パスワード更新
+ */
+export async function recruiterUpdatePassword(formData: FormData) {
+  const password = formData.get("password") as string;
+  const result = await baseUpdatePassword(password);
+
+  if (result.error) {
+    return { error: result.error };
+  }
+
+  revalidatePath("/", "layout");
+  return { success: true };
 }

@@ -35,7 +35,7 @@
 
 ## recruiter（掲載企業）の役割とルール
 
-- **ルート保護**: `/studio` 配下（`/studio/login` を除く）は `requireStudioAuth()` で保護（`app/studio/(dashboard)/layout.tsx`）。未認証時は `/studio/login` にリダイレクト。企業担当者ログインは `/studio/login`。
+- **ルート保護**: `/studio` 配下（`/studio/login` を除く）は `requireStudioAuth()` で保護（`app/studio/(dashboard)/layout.tsx`）。未認証時は `/studio/login` にリダイレクト。企業担当者さまログインは `/studio/login`。
 - **識別**: `profiles.company_id` で自社を特定。操作対象はすべて `company_id = profiles.company_id` に限定する。
 - **アクセス可能データ**: 自社の企業ページドラフト・本番、自社の求人・説明会・動画・説明会の予約一覧（誰が予約したか）。candidates は「参照用」で他機能から参照する場合あり（現行 RLS: admin and recruiters can view all candidates）。応募などは仕様に応じて自社求人分のみに限定する。
 - **禁止**: 他社の `company_id` のデータの変更・他社としての操作。求職者への直接の個人情報の横流し禁止。

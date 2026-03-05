@@ -121,7 +121,7 @@ function LoginPageContent() {
               href="/studio/login" 
               className="block text-center text-blue-600 hover:text-blue-500 text-sm font-medium transition-colors"
             >
-              企業担当者ログイン →
+              企業担当者さまログイン →
             </Link>
           </div>
         </div>

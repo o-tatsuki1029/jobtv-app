@@ -111,10 +111,12 @@ export async function POST(request: NextRequest) {
   const token      = email_data.token ?? "";
 
   // confirm_url の組み立て
+  // recovery の場合、redirect_to があればそのパスを使う（recruiter は /studio/update-password を渡す）
+  const recoveryPath = email_data.redirect_to || `${siteUrl}/auth/update-password`;
   const confirmUrl =
     emailActionType === "signup"
       ? `${siteUrl}/auth/confirm?token_hash=${encodeURIComponent(tokenHash)}&type=signup&next=/`
-      : `${siteUrl}/auth/update-password?token_hash=${encodeURIComponent(tokenHash)}&type=recovery`;
+      : `${recoveryPath}?token_hash=${encodeURIComponent(tokenHash)}&type=recovery`;
 
   const variables: Record<string, string> = {
     confirm_url: confirmUrl,

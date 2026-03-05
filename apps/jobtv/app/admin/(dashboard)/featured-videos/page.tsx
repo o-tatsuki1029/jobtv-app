@@ -37,7 +37,7 @@ import { CSS } from "@dnd-kit/utilities";
 
 type TabKind = TopPageVideoKind;
 
-interface VideoWithCompany extends Video {
+interface VideoWithCompany extends Omit<Video, "display_order"> {
   company_name: string | null;
   display_order?: number;
 }

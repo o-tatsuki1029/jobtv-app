@@ -9,8 +9,8 @@ import { validateEmail, validateUrlWithProtocol, validateKatakana } from "@jobtv
 import { revalidatePath } from "next/cache";
 
 const CSV_MAX_ROWS = 200;
-const INDUSTRY_VALUES = new Set(INDUSTRIES.map((i) => i.value).filter(Boolean));
-const EMPLOYEE_VALUES = new Set(EMPLOYEE_RANGES.map((e) => e.value).filter(Boolean));
+const INDUSTRY_VALUES: Set<string> = new Set(INDUSTRIES.map((i) => i.value).filter(Boolean));
+const EMPLOYEE_VALUES: Set<string> = new Set(EMPLOYEE_RANGES.map((e) => e.value).filter(Boolean));
 const PREFECTURE_SET = new Set(PREFECTURES);
 
 function parseCSVLine(line: string): string[] {

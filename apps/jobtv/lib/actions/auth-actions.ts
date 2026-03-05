@@ -231,7 +231,7 @@ export async function signIn(formData: FormData) {
   }
   if (profile.role === "recruiter") {
     await supabase.auth.signOut();
-    return { error: "企業担当者アカウントはこちらからはログインできません。企業担当者ログインページをご利用ください。" };
+    return { error: "企業担当者アカウントはこちらからはログインできません。企業担当者さまログインページをご利用ください。" };
   }
 
   revalidatePath("/", "layout");
