@@ -4,6 +4,7 @@ import { useState } from "react";
 import { resetPassword } from "@/lib/actions/auth-actions";
 import { primaryButtonClass } from "@/constants/navigation";
 import Link from "next/link";
+import { Loader2 } from "lucide-react";
 
 export default function ForgotPasswordPage() {
   const [error, setError] = useState<string | null>(null);
@@ -82,7 +83,12 @@ export default function ForgotPasswordPage() {
               disabled={loading}
               className={`w-full ${primaryButtonClass} py-4 text-base disabled:opacity-50 disabled:cursor-not-allowed`}
             >
-              {loading ? "送信中..." : "再設定メールを送信"}
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  送信中...
+                </span>
+              ) : "再設定メールを送信"}
             </button>
           </form>
         </div>

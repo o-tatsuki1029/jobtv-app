@@ -6,6 +6,7 @@ import { updatePassword } from "@/lib/actions/auth-actions";
 import { primaryButtonClass } from "@/constants/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
+import { Loader2 } from "lucide-react";
 
 function UpdatePasswordPageContent() {
   const searchParams = useSearchParams();
@@ -181,13 +182,12 @@ function UpdatePasswordPageContent() {
               disabled={loading}
               className={`w-full ${primaryButtonClass} py-4 text-base disabled:opacity-50 disabled:cursor-not-allowed`}
             >
-              {loading
-                ? isInitialSetup
-                  ? "設定中..."
-                  : "更新中..."
-                : isInitialSetup
-                ? "パスワードを設定"
-                : "パスワードを更新"}
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  {isInitialSetup ? "設定中..." : "更新中..."}
+                </span>
+              ) : isInitialSetup ? "パスワードを設定" : "パスワードを更新"}
             </button>
           </form>
         </div>

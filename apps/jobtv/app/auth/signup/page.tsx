@@ -4,6 +4,7 @@ import { Suspense, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { signUp, checkEmailForSignup } from "@/lib/actions/auth-actions";
 import { primaryButtonClass } from "@/constants/navigation";
+import { Loader2 } from "lucide-react";
 import { PREFECTURES } from "@/constants/prefectures";
 import {
   GENDERS,
@@ -226,7 +227,12 @@ function SignUpPageContent() {
                     "disabled:opacity-50 disabled:cursor-not-allowed"
                   )}
                 >
-                  {loadingCheck ? "確認中..." : "次へ"}
+                  {loadingCheck ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      確認中...
+                    </span>
+                  ) : "次へ"}
                 </button>
               </div>
             </div>
@@ -238,7 +244,7 @@ function SignUpPageContent() {
               <p className="text-gray-900 text-sm mb-4">すでにアカウントがあります。ログインしてください。</p>
               <div className="flex flex-col gap-2">
                 <Link
-                  href={next ? `/auth/login?next=${encodeURIComponent(next)}` : "/auth/login"}
+                  href={`/auth/login?email=${encodeURIComponent(emailForSignup)}${next ? `&next=${encodeURIComponent(next)}` : ""}`}
                   className={cn("w-full py-3 text-sm rounded-lg font-medium text-center", primaryButtonClass)}
                 >
                   ログイン
@@ -688,7 +694,12 @@ function SignUpPageContent() {
                       "disabled:opacity-50 disabled:cursor-not-allowed"
                     )}
                   >
-                    {loading ? "送信中..." : "同意して無料で始める"}
+                    {loading ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        送信中...
+                      </span>
+                    ) : "同意して無料で始める"}
                   </button>
                 </form>
               </div>

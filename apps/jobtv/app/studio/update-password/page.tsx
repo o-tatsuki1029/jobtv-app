@@ -4,7 +4,7 @@ import { Suspense, useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { recruiterUpdatePassword } from "@/lib/actions/recruiter-auth-actions";
 import { createClient } from "@/lib/supabase/client";
-import { Building2 } from "lucide-react";
+import { Building2, Loader2 } from "lucide-react";
 import Link from "next/link";
 
 function StudioUpdatePasswordContent() {
@@ -178,13 +178,12 @@ function StudioUpdatePasswordContent() {
               disabled={loading}
               className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold py-4 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading
-                ? isInitialSetup
-                  ? "設定中..."
-                  : "更新中..."
-                : isInitialSetup
-                  ? "パスワードを設定"
-                  : "パスワードを更新"}
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  {isInitialSetup ? "設定中..." : "更新中..."}
+                </span>
+              ) : isInitialSetup ? "パスワードを設定" : "パスワードを更新"}
             </button>
           </form>
         </div>

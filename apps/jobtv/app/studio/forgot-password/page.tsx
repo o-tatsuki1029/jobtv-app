@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { recruiterResetPassword } from "@/lib/actions/recruiter-auth-actions";
-import { Building2 } from "lucide-react";
+import { Building2, Loader2 } from "lucide-react";
 import Link from "next/link";
 
 export default function StudioForgotPasswordPage() {
@@ -87,7 +87,12 @@ export default function StudioForgotPasswordPage() {
               disabled={loading}
               className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold py-4 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? "送信中..." : "再設定メールを送信"}
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  送信中...
+                </span>
+              ) : "再設定メールを送信"}
             </button>
           </form>
         </div>
