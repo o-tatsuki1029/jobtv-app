@@ -10,7 +10,7 @@ const nextConfig: NextConfig = {
       bodySizeLimit: 50 * 1024 * 1024 // 50MB in bytes
     },
     // Middleware（proxy.ts）でのリクエストボディサイズ上限を50MBに設定
-    middlewareClientMaxBodySize: 50 * 1024 * 1024 // 50MB in bytes
+    proxyClientMaxBodySize: 50 * 1024 * 1024 // 50MB in bytes
   },
   images: {
     remotePatterns: ALLOWED_IMAGE_HOSTS.map((hostname) => ({

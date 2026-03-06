@@ -43,9 +43,11 @@ export function getSiteUrl(port: number): string {
 /**
  * 完全なサイトURLを取得（プロトコル付き）
  * 認証コールバックなどで使用
+ * localhost以外は自動的にhttpsを使用する
  */
-export function getFullSiteUrl(port: number, useHttps = false): string {
-  const protocol = useHttps ? "https" : "http";
+export function getFullSiteUrl(port: number): string {
   const siteUrl = getSiteUrl(port);
+  const isLocalhost = siteUrl.startsWith("localhost");
+  const protocol = isLocalhost ? "http" : "https";
   return `${protocol}://${siteUrl}`;
 }
