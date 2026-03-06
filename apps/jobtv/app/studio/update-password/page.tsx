@@ -18,7 +18,31 @@ function StudioUpdatePasswordContent() {
 
   useEffect(() => {
     const type = searchParams.get("type");
+    const tokenHash = searchParams.get("token_hash");
     setIsInitialSetup(type === "invite" || type === "recovery");
+
+    if (tokenHash && (type === "recovery" || type === "invite")) {
+      // PKCE フロー: token_hash がクエリパラメータにある場合
+      const supabase = createClient();
+      supabase.auth
+        .verifyOtp({ token_hash: tokenHash, type: type as "recovery" | "invite" })
+        .then(({ error: verifyError }) => {
+          if (verifyError) {
+            let errorMessage = "リンクが無効または期限切れです。新しいパスワードリセットメールを送信してください。";
+            if (verifyError.message?.toLowerCase().includes("expired")) {
+              errorMessage = "リンクの有効期限が切れています。新しいパスワードリセットメールを送信してください。";
+            }
+            setError(errorMessage);
+            setIsProcessingToken(false);
+          } else {
+            // セキュリティのため token_hash を URL から削除
+            window.history.replaceState(null, "", `${window.location.pathname}?type=${type}`);
+            setIsProcessingToken(false);
+            router.refresh();
+          }
+        });
+      return;
+    }
 
     const hash = window.location.hash;
     if (hash) {
