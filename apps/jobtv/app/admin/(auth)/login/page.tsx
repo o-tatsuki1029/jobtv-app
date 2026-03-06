@@ -34,7 +34,7 @@ function AdminLoginPageContent() {
                 name="email"
                 required
                 defaultValue={emailFromQuery}
-                autoComplete="email"
+                autoComplete="username"
                 className="w-full px-4 py-3 bg-gray-900/50 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
                 placeholder="admin@jobtv.jp"
               />

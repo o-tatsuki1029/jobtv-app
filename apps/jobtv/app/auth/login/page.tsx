@@ -36,7 +36,7 @@ function LoginPageContent() {
                 name="email"
                 required
                 defaultValue={emailFromQuery}
-                autoComplete="email"
+                autoComplete="username"
                 className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500 transition-all"
                 placeholder="example@jobtv.jp"
               />

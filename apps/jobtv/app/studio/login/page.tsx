@@ -35,7 +35,7 @@ function StudioLoginPageContent() {
                 name="email"
                 required
                 defaultValue={emailFromQuery}
-                autoComplete="email"
+                autoComplete="username"
                 className="w-full px-4 py-3 bg-gray-900/50 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
                 placeholder="recruiter@example.co.jp"
               />
