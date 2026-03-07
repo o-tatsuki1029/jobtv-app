@@ -102,8 +102,8 @@ export default function HorizontalScrollContainer({
 
   return (
     <div className={`flex items-center min-w-0 min-h-[5rem] ${className}`}>
-      {/* 左矢印 - スロット幅は常時確保、矢印はフェードのみ */}
-      <div className="flex-shrink-0 w-6 md:w-8 mr-2 flex items-center justify-center">
+      {/* 左矢印 - SP 非表示、MD 以上でスロット確保 */}
+      <div className="hidden md:flex flex-shrink-0 w-8 mr-2 items-center justify-center">
         <button
           onClick={() => scroll("left")}
           className={cn(
@@ -114,7 +114,7 @@ export default function HorizontalScrollContainer({
           tabIndex={canScrollLeft ? 0 : -1}
         >
           <svg
-            className="w-6 h-6 md:w-8 md:h-8 text-white flex-shrink-0"
+            className="w-8 h-8 text-white flex-shrink-0"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -124,7 +124,7 @@ export default function HorizontalScrollContainer({
         </button>
       </div>
 
-      {/* スクロールコンテナ（残り幅を取得、画面幅超過時はここが狭まる） */}
+      {/* スクロールコンテナ（SP では全幅） */}
       <div
         ref={scrollContainerRef}
         className="flex-1 min-w-0 overflow-x-auto hide-scrollbar transition-all duration-300"
@@ -132,8 +132,8 @@ export default function HorizontalScrollContainer({
         {children}
       </div>
 
-      {/* 右矢印 - スロット幅は常時確保、矢印はフェードのみ */}
-      <div className="flex-shrink-0 w-6 md:w-8 ml-2 flex items-center justify-center">
+      {/* 右矢印 - SP 非表示、MD 以上でスロット確保 */}
+      <div className="hidden md:flex flex-shrink-0 w-8 ml-2 items-center justify-center">
         <button
           onClick={() => scroll("right")}
           className={cn(
@@ -144,7 +144,7 @@ export default function HorizontalScrollContainer({
           tabIndex={canScrollRight ? 0 : -1}
         >
           <svg
-            className="w-6 h-6 md:w-8 md:h-8 text-white flex-shrink-0"
+            className="w-8 h-8 text-white flex-shrink-0"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"

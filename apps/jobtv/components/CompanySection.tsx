@@ -34,7 +34,7 @@ export default function CompanySection({ title, companies }: CompanySectionProps
           <SectionHeader icon={Building2} title={title} titleClassName={classes.textPrimary} />
         )}
         <HorizontalScrollContainer>
-          <div className="flex gap-4 min-w-max px-4 pb-6">
+          <div className="flex gap-4 min-w-max md:px-4 pb-6">
             {companies.map((company) => (
               <div key={company.id} className={cn(HORIZONTAL_CARD_WIDTH.company, "flex-shrink-0")}>
                 <CompanyCard

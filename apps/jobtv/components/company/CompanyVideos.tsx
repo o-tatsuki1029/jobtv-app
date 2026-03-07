@@ -35,7 +35,7 @@ export default function CompanyVideos({ company }: CompanyVideosProps) {
         動画
       </h2>
       <HorizontalScrollContainer>
-        <div className="flex gap-4 md:gap-6 min-w-max px-4 md:px-0">
+        <div className="flex gap-4 md:gap-6 min-w-max">
           {company.documentaryVideos.map((video) => (
             <div
               key={video.id}

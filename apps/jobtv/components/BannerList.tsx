@@ -21,7 +21,7 @@ export default function BannerList({ banners }: BannerListProps) {
   const { classes } = useMainTheme();
 
   return (
-    <div className="mx-4">
+    <div className="md:mx-4">
       <HorizontalScrollContainer scrollAmount={500}>
         <div className="flex gap-5 py-6">
           {banners.map((banner) => (
