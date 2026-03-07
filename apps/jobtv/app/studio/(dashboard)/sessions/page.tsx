@@ -239,7 +239,13 @@ export default function SessionsPage() {
   };
 
   const handleReservations = (session: SessionWithCount) => {
-    router.push(`/studio/candidates?sessionId=${session.production_session_id || session.id}`);
+    if (session.production_session_id) {
+      router.push(
+        `/studio/candidates?sessionId=${session.production_session_id}&sessionTitle=${encodeURIComponent(session.title || "")}`
+      );
+    } else {
+      router.push(`/studio/sessions/${session.id}/reservations`);
+    }
   };
 
   const handleCreate = () => {

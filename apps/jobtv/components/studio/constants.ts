@@ -13,7 +13,8 @@ import {
   LayoutList,
   Mail,
   // MessageSquare, // チャット用（後々追加）
-  UserCog
+  UserCog,
+  Image
 } from "lucide-react";
 
 export const STUDIO_NAVIGATION = [
@@ -58,11 +59,43 @@ export const STUDIO_BOTTOM_NAVIGATION = [{ name: "設定", href: "/studio/settin
 export const ADMIN_NAVIGATION = [
   { name: "ダッシュボード", href: "/admin", icon: LayoutDashboard },
   { name: "トップ掲載", href: "/admin/featured-videos", icon: LayoutList },
+  { name: "バナー管理", href: "/admin/banners", icon: Image },
   { name: "審査管理", href: "/admin/review", icon: CheckCircle },
   { name: "お知らせ管理", href: "/admin/notifications", icon: Bell },
   { name: "企業アカウント管理", href: "/admin/company-accounts", icon: Building },
   { name: "LINE管理", href: "/admin/line", icon: MessageCircle },
   { name: "メール管理", href: "/admin/email/templates", icon: Mail }
+];
+
+export const ADMIN_NAVIGATION_SECTIONS: {
+  sectionLabel?: string;
+  items: (typeof ADMIN_NAVIGATION)[number][];
+}[] = [
+  {
+    items: [{ name: "ダッシュボード", href: "/admin", icon: LayoutDashboard }]
+  },
+  {
+    sectionLabel: "トップページ",
+    items: [
+      { name: "トップ掲載", href: "/admin/featured-videos", icon: LayoutList },
+      { name: "バナー管理", href: "/admin/banners", icon: Image }
+    ]
+  },
+  {
+    sectionLabel: "コンテンツ管理",
+    items: [
+      { name: "審査管理", href: "/admin/review", icon: CheckCircle },
+      { name: "企業アカウント管理", href: "/admin/company-accounts", icon: Building }
+    ]
+  },
+  {
+    sectionLabel: "コミュニケーション",
+    items: [
+      { name: "お知らせ管理", href: "/admin/notifications", icon: Bell },
+      { name: "LINE管理", href: "/admin/line", icon: MessageCircle },
+      { name: "メール管理", href: "/admin/email/templates", icon: Mail }
+    ]
+  }
 ];
 
 export const ADMIN_BOTTOM_NAVIGATION = [{ name: "設定", href: "/admin/settings/user", icon: Settings }];

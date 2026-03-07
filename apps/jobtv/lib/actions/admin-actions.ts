@@ -41,25 +41,52 @@ export async function checkAdminPermission(): Promise<{
 /**
  * 審査待ちの求人一覧を取得（全企業）
  */
-export async function getAllJobsForReview() {
+export async function getAllJobsForReview(params?: {
+  limit?: number;
+  offset?: number;
+  sortBy?: string;
+}) {
   const supabaseAdmin = createAdminClient();
+  const limit = params?.limit;
+  const offset = params?.offset ?? 0;
+  const sortBy = params?.sortBy ?? "created_at_desc";
 
   // 求人の審査はjob_postings_draftテーブルから取得
-  const { data: drafts, error: draftsError } = await supabaseAdmin
+  let draftsQuery = supabaseAdmin
     .from("job_postings_draft")
     .select(
       `
       *,
       companies!company_id(id, name),
       production:job_postings!production_job_id(*)
-    `
+    `,
+      { count: "exact" }
     )
-    .eq("draft_status", "submitted")
-    .order("submitted_at", { ascending: false });
+    .eq("draft_status", "submitted");
+
+  switch (sortBy) {
+    case "title_asc":
+      draftsQuery = draftsQuery.order("title", { ascending: true });
+      break;
+    case "title_desc":
+      draftsQuery = draftsQuery.order("title", { ascending: false });
+      break;
+    case "created_at_asc":
+      draftsQuery = draftsQuery.order("submitted_at", { ascending: true });
+      break;
+    default:
+      draftsQuery = draftsQuery.order("submitted_at", { ascending: false });
+  }
+
+  if (limit !== undefined) {
+    draftsQuery = draftsQuery.range(offset, offset + limit - 1);
+  }
+
+  const { data: drafts, count: totalCount, error: draftsError } = await draftsQuery;
 
   if (draftsError) {
     console.error("Get all job drafts for review error:", draftsError);
-    return { data: null, error: draftsError.message };
+    return { data: null, count: null, error: draftsError.message };
   }
 
   // 企業IDのリストを取得
@@ -116,41 +143,66 @@ export async function getAllJobsForReview() {
       available_statuses: draft.available_statuses,
       // 企業のカバー画像を追加
       company_cover_image_url: companyPage?.cover_image_url || null,
-      // 審査用のID（draftのID） - 重要: このIDを使ってプレビューを開く
-      draft_id: draft.id,
       production_job_id: draft.production_job_id,
       // 差分表示用に本番データを追加
       production_data: draft.production,
-      // 本番テーブルのIDとしてproduction_job_idを使用（なければdraft.id）
-      id: draft.production_job_id || draft.id
+      // 承認・却下は常にドラフトIDで行う
+      id: draft.id
     };
     return merged;
   });
-  return { data: mergedData || [], error: null };
+  return { data: mergedData || [], count: totalCount ?? mergedData?.length ?? 0, error: null };
 }
 
 /**
  * 審査待ちの説明会一覧を取得（全企業）
  */
-export async function getAllSessionsForReview() {
+export async function getAllSessionsForReview(params?: {
+  limit?: number;
+  offset?: number;
+  sortBy?: string;
+}) {
   const supabaseAdmin = createAdminClient();
+  const limit = params?.limit;
+  const offset = params?.offset ?? 0;
+  const sortBy = params?.sortBy ?? "created_at_desc";
 
   // 説明会の審査はsessions_draftテーブルから取得
-  const { data: drafts, error: draftsError } = await supabaseAdmin
+  let draftsQuery = supabaseAdmin
     .from("sessions_draft")
     .select(
       `
       *,
       companies!company_id(id, name),
       production:sessions!production_session_id(*)
-    `
+    `,
+      { count: "exact" }
     )
-    .eq("draft_status", "submitted")
-    .order("submitted_at", { ascending: false });
+    .eq("draft_status", "submitted");
+
+  switch (sortBy) {
+    case "title_asc":
+      draftsQuery = draftsQuery.order("title", { ascending: true });
+      break;
+    case "title_desc":
+      draftsQuery = draftsQuery.order("title", { ascending: false });
+      break;
+    case "created_at_asc":
+      draftsQuery = draftsQuery.order("submitted_at", { ascending: true });
+      break;
+    default:
+      draftsQuery = draftsQuery.order("submitted_at", { ascending: false });
+  }
+
+  if (limit !== undefined) {
+    draftsQuery = draftsQuery.range(offset, offset + limit - 1);
+  }
+
+  const { data: drafts, count: totalCount, error: draftsError } = await draftsQuery;
 
   if (draftsError) {
     console.error("Get all session drafts for review error:", draftsError);
-    return { data: null, error: draftsError.message };
+    return { data: null, count: null, error: draftsError.message };
   }
 
   // 企業IDのリストを取得
@@ -203,17 +255,15 @@ export async function getAllSessionsForReview() {
       cover_image_url: draft.cover_image_url,
       // 企業のカバー画像を追加
       company_cover_image_url: companyPage?.cover_image_url || null,
-      // 審査用のID（draftのID） - 重要: このIDを使ってプレビューを開く
-      draft_id: draft.id,
       production_session_id: draft.production_session_id,
       // 差分表示用に本番データを追加
       production_data: draft.production,
-      // 本番テーブルのIDとしてproduction_session_idを使用（なければdraft.id）
-      id: draft.production_session_id || draft.id
+      // 承認・却下は常にドラフトIDで行う
+      id: draft.id
     };
     return merged;
   });
-  return { data: mergedData || [], error: null };
+  return { data: mergedData || [], count: totalCount ?? mergedData?.length ?? 0, error: null };
 }
 
 /**
@@ -264,25 +314,52 @@ export async function getAllCompanyInfoForReview() {
 /**
  * 審査待ちの企業ページ一覧を取得
  */
-export async function getAllCompaniesForReview() {
+export async function getAllCompaniesForReview(params?: {
+  limit?: number;
+  offset?: number;
+  sortBy?: string;
+}) {
   const supabaseAdmin = createAdminClient();
+  const limit = params?.limit;
+  const offset = params?.offset ?? 0;
+  const sortBy = params?.sortBy ?? "created_at_desc";
 
   // 企業ページの審査はcompany_pages_draftテーブルから取得
-  const { data: drafts, error: draftsError } = await supabaseAdmin
+  let draftsQuery = supabaseAdmin
     .from("company_pages_draft")
     .select(
       `
       *,
       companies!company_id(id, name, logo_url, website, industry, employees, prefecture, address_line1, address_line2, representative, established, company_info),
       production:company_pages!production_page_id(*)
-    `
+    `,
+      { count: "exact" }
     )
-    .eq("draft_status", "submitted")
-    .order("submitted_at", { ascending: false });
+    .eq("draft_status", "submitted");
+
+  switch (sortBy) {
+    case "name_asc":
+      draftsQuery = draftsQuery.order("submitted_at", { ascending: true });
+      break;
+    case "name_desc":
+      draftsQuery = draftsQuery.order("submitted_at", { ascending: false });
+      break;
+    case "created_at_asc":
+      draftsQuery = draftsQuery.order("submitted_at", { ascending: true });
+      break;
+    default:
+      draftsQuery = draftsQuery.order("submitted_at", { ascending: false });
+  }
+
+  if (limit !== undefined) {
+    draftsQuery = draftsQuery.range(offset, offset + limit - 1);
+  }
+
+  const { data: drafts, count: totalCount, error: draftsError } = await draftsQuery;
 
   if (draftsError) {
     console.error("Get all company pages for review error:", draftsError);
-    return { data: null, error: draftsError.message };
+    return { data: null, count: null, error: draftsError.message };
   }
 
   // ドラフトデータと企業データをマージ
@@ -311,7 +388,7 @@ export async function getAllCompaniesForReview() {
     return merged;
   });
 
-  return { data: mergedData || [], error: null };
+  return { data: mergedData || [], count: totalCount ?? mergedData?.length ?? 0, error: null };
 }
 
 /**
@@ -1043,9 +1120,9 @@ export async function getReviewSummary() {
   ]);
 
   return {
-    pendingJobs: jobsResult.data?.length || 0,
-    pendingSessions: sessionsResult.data?.length || 0,
-    pendingCompanyPages: companyPagesResult.data?.length || 0,
+    pendingJobs: jobsResult.count ?? 0,
+    pendingSessions: sessionsResult.count ?? 0,
+    pendingCompanyPages: companyPagesResult.count ?? 0,
     pendingCompanyInfo: companyInfoResult.data?.length || 0,
     error: jobsResult.error || sessionsResult.error || companyPagesResult.error || companyInfoResult.error
   };

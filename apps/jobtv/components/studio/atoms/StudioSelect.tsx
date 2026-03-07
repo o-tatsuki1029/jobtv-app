@@ -8,7 +8,7 @@ interface StudioSelectProps extends React.SelectHTMLAttributes<HTMLSelectElement
 
 export default function StudioSelect({ error = false, className = "", ...props }: StudioSelectProps) {
   const baseStyles =
-    "w-full px-4 py-2.5 bg-gray-50 border rounded-lg focus:outline-none focus:ring-2 focus:ring-black/5 text-sm transition-all appearance-none cursor-pointer";
+    "w-full pl-4 pr-10 py-2.5 bg-gray-50 border rounded-lg focus:outline-none focus:ring-2 focus:ring-black/5 text-sm transition-all appearance-none cursor-pointer";
   const borderStyles = error ? "border-red-500" : "border-gray-200 focus:border-black/10";
 
   return (

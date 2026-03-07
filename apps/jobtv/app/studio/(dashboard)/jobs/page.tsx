@@ -11,6 +11,7 @@ import LoadingSpinner from "@/components/studio/atoms/LoadingSpinner";
 import EmptyState from "@/components/studio/atoms/EmptyState";
 import PageHeader from "@/components/studio/molecules/PageHeader";
 import ListFilterSection from "@/components/studio/molecules/ListFilterSection";
+import PaginationBar from "@/components/studio/molecules/PaginationBar";
 import { getStudioJobsPageData, reorderJobs } from "@/lib/actions/job-actions";
 import { getCompanyCoverImageForStudio } from "@/lib/actions/company-profile-actions";
 import { useListPage } from "@/hooks/useListPage";
@@ -180,6 +181,8 @@ function SortableJobItem({
   );
 }
 
+const PAGE_SIZE = 20;
+
 export default function JobsPage() {
   const router = useRouter();
   const [sortedJobs, setSortedJobs] = useState<Job[]>([]);
@@ -187,6 +190,8 @@ export default function JobsPage() {
   const [companyCoverImage, setCompanyCoverImage] = useState<string | null>(null);
   const [companyCoverLoading, setCompanyCoverLoading] = useState(false);
   const coverRequestedRef = useRef(false);
+  const [page, setPage] = useState(0);
+  const [totalCount, setTotalCount] = useState<number | null>(null);
 
   // センサーの設定
   const sensors = useSensors(
@@ -200,11 +205,15 @@ export default function JobsPage() {
     })
   );
 
-  const loadJobs = useCallback(async (): Promise<{ data: Job[] | null; error: string | null }> => {
-    const { data, error } = await getStudioJobsPageData();
-    if (error) return { data: null, error };
-    return { data: (data ?? null) as Job[] | null, error: null };
-  }, []);
+  const loadJobs = useCallback(
+    async (): Promise<{ data: Job[] | null; error: string | null }> => {
+      const result = await getStudioJobsPageData({ limit: PAGE_SIZE, offset: page * PAGE_SIZE });
+      if (result.error) return { data: null, error: result.error };
+      setTotalCount(result.count ?? null);
+      return { data: (result.data ?? null) as Job[] | null, error: null };
+    },
+    [page]
+  );
 
   const {
     filteredItems: filteredJobs,
@@ -253,7 +262,7 @@ export default function JobsPage() {
   };
 
   const handleApplicants = (job: Job) => {
-    router.push(`/studio/jobs/${job.id}/applicants`);
+    router.push(`/studio/candidates?jobId=${job.production_job_id ?? job.id}`);
   };
 
   const handleCreate = () => {
@@ -325,6 +334,18 @@ export default function JobsPage() {
         </div>
       )}
 
+      {!loading && totalCount !== null && totalCount > PAGE_SIZE && (
+        <PaginationBar
+          page={page}
+          pageSize={PAGE_SIZE}
+          totalCount={totalCount}
+          itemCount={sortedJobs.length}
+          onPageChange={(p) => { setPage(p); }}
+          onPageSizeChange={() => {}}
+          pageSizeOptions={[PAGE_SIZE]}
+        />
+      )}
+
       {loading ? (
         <LoadingSpinner />
       ) : sortedJobs.length === 0 && statusFilter === "all" ? (
@@ -351,6 +372,18 @@ export default function JobsPage() {
             </div>
           </SortableContext>
         </DndContext>
+      )}
+
+      {!loading && totalCount !== null && totalCount > PAGE_SIZE && (
+        <PaginationBar
+          page={page}
+          pageSize={PAGE_SIZE}
+          totalCount={totalCount}
+          itemCount={sortedJobs.length}
+          onPageChange={(p) => { setPage(p); }}
+          onPageSizeChange={() => {}}
+          pageSizeOptions={[PAGE_SIZE]}
+        />
       )}
     </div>
   );

@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Building, Filter, ExternalLink } from "lucide-react";
+import { Building, ExternalLink } from "lucide-react";
 import StudioButton from "@/components/studio/atoms/StudioButton";
 import StudioBadge from "@/components/studio/atoms/StudioBadge";
 import ErrorMessage from "@/components/studio/atoms/ErrorMessage";
@@ -10,63 +10,50 @@ import LoadingSpinner from "@/components/studio/atoms/LoadingSpinner";
 import EmptyState from "@/components/studio/atoms/EmptyState";
 import PageHeader from "@/components/studio/molecules/PageHeader";
 import FilterSortSection from "@/components/studio/molecules/FilterSortSection";
+import PaginationBar from "@/components/studio/molecules/PaginationBar";
 import ApprovalActions from "@/components/admin/ApprovalActions";
 import { getAllCompaniesForReview, approveCompanyInfo, rejectCompanyInfo } from "@/lib/actions/admin-actions";
 import type { Tables } from "@jobtv-app/shared/types";
 
 type Company = Tables<"companies">;
 
+const PAGE_SIZE = 20;
+
 export default function AdminCompaniesPage() {
   const router = useRouter();
   const [companies, setCompanies] = useState<Company[]>([]);
-  const [filteredCompanies, setFilteredCompanies] = useState<Company[]>([]);
+  const [totalCount, setTotalCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<string>("created_at_desc");
+  const [page, setPage] = useState(0);
 
-  // 企業一覧を取得
-  useEffect(() => {
-    loadCompanies();
-  }, []);
-
-  const loadCompanies = async () => {
+  const loadCompanies = useCallback(async (p: number, sort: string) => {
     setLoading(true);
     setError(null);
-    const { data, error: fetchError } = await getAllCompaniesForReview();
+    const { data, count, error: fetchError } = await getAllCompaniesForReview({
+      limit: PAGE_SIZE,
+      offset: p * PAGE_SIZE,
+      sortBy: sort
+    });
     if (fetchError) {
       setError(fetchError);
       setLoading(false);
       return;
     }
-
-    if (data) {
-      setCompanies(data);
-      setFilteredCompanies(data);
-    }
+    if (data) setCompanies(data);
+    setTotalCount(count ?? null);
     setLoading(false);
-  };
+  }, []);
 
-  // ソートを適用
   useEffect(() => {
-    let filtered = [...companies];
+    loadCompanies(page, sortBy);
+  }, [page, sortBy, loadCompanies]);
 
-    // ソート
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case "name_asc":
-          return (a.name || "").localeCompare(b.name || "");
-        case "name_desc":
-          return (b.name || "").localeCompare(a.name || "");
-        case "created_at_asc":
-          return new Date(a.created_at || "").getTime() - new Date(b.created_at || "").getTime();
-        case "created_at_desc":
-        default:
-          return new Date(b.created_at || "").getTime() - new Date(a.created_at || "").getTime();
-      }
-    });
-
-    setFilteredCompanies(filtered);
-  }, [companies, sortBy]);
+  const handleSortChange = (newSort: string) => {
+    setSortBy(newSort);
+    setPage(0);
+  };
 
   const handleApprove = async (companyId: string) => {
     return approveCompanyInfo(companyId);
@@ -83,13 +70,13 @@ export default function AdminCompaniesPage() {
       <PageHeader title="企業審査" description="審査待ちの企業を承認・却下します。" />
 
       {/* ソート */}
-      {!loading && companies.length > 0 && (
+      {!loading && (
         <FilterSortSection
           filters={[
             {
               label: "並び順",
               value: sortBy,
-              onChange: setSortBy,
+              onChange: handleSortChange,
               options: [
                 { value: "created_at_desc", label: "作成日（新しい順）" },
                 { value: "created_at_asc", label: "作成日（古い順）" },
@@ -101,76 +88,95 @@ export default function AdminCompaniesPage() {
         />
       )}
 
+      {totalCount !== null && totalCount > 0 && (
+        <PaginationBar
+          page={page}
+          pageSize={PAGE_SIZE}
+          totalCount={totalCount}
+          itemCount={companies.length}
+          onPageChange={setPage}
+          onPageSizeChange={() => {}}
+          pageSizeOptions={[PAGE_SIZE]}
+        />
+      )}
+
       {loading ? (
         <LoadingSpinner />
       ) : companies.length === 0 ? (
         <EmptyState title="審査待ちの企業はありません" />
       ) : (
         <div className="space-y-4">
-          {filteredCompanies.length === 0 ? (
-            <EmptyState title="条件に一致する企業がありません" />
-          ) : (
-            filteredCompanies.map((company) => {
-              return (
-                <div
-                  key={company.id}
-                  className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col md:flex-row transition-all hover:border-black/10"
-                >
-                  {/* 左側：ロゴセクション */}
-                  <div className="md:w-64 p-6 flex items-center justify-center bg-gray-100 border-b md:border-b-0 md:border-r border-gray-100">
-                    {company.logo_url ? (
-                      <img src={company.logo_url} alt={company.name || ""} className="max-w-full max-h-32 object-contain" />
-                    ) : (
-                      <Building className="w-16 h-16 text-gray-400" />
+          {companies.map((company) => {
+            return (
+              <div
+                key={company.id}
+                className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col md:flex-row transition-all hover:border-black/10"
+              >
+                {/* 左側：ロゴセクション */}
+                <div className="md:w-64 p-6 flex items-center justify-center bg-gray-100 border-b md:border-b-0 md:border-r border-gray-100">
+                  {company.logo_url ? (
+                    <img src={company.logo_url} alt={company.name || ""} className="max-w-full max-h-32 object-contain" />
+                  ) : (
+                    <Building className="w-16 h-16 text-gray-400" />
+                  )}
+                </div>
+
+                {/* 中央：詳細情報 */}
+                <div className="flex-1 p-4 md:p-6 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <StudioBadge variant="neutral">審査中</StudioBadge>
+                    </div>
+                    <h3 className="text-xl font-black text-gray-900 mb-2">{company.name || "未設定"}</h3>
+                    {company.company_info && (
+                      <p className="text-sm text-gray-600 line-clamp-2 mt-2">{company.company_info}</p>
                     )}
                   </div>
 
-                  {/* 中央：詳細情報 */}
-                  <div className="flex-1 p-4 md:p-6 flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <StudioBadge variant="neutral">審査中</StudioBadge>
+                  <div className="flex flex-wrap items-center gap-x-8 gap-y-3 mt-4">
+                    {company.website && (
+                      <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
+                        <a href={company.website} target="_blank" rel="noopener noreferrer" className="hover:text-black">
+                          {company.website}
+                        </a>
                       </div>
-                      <h3 className="text-xl font-black text-gray-900 mb-2">{company.name || "未設定"}</h3>
-                      {company.company_info && (
-                        <p className="text-sm text-gray-600 line-clamp-2 mt-2">{company.company_info}</p>
-                      )}
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-x-8 gap-y-3 mt-4">
-                      {company.website && (
-                        <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
-                          <a href={company.website} target="_blank" rel="noopener noreferrer" className="hover:text-black">
-                            {company.website}
-                          </a>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* 右側：アクションボタン */}
-                  <div className="md:w-64 p-4 flex flex-col items-center justify-center gap-3 bg-gray-50/50 border-t md:border-t-0 md:border-l border-gray-100">
-                    <ApprovalActions
-                      onApprove={() => handleApprove(company.id)}
-                      onReject={() => handleReject(company.id)}
-                    />
-                    <StudioButton
-                      variant="outline"
-                      size="sm"
-                      fullWidth
-                      icon={<ExternalLink className="w-3 h-3" />}
-                      onClick={() => router.push(`/admin/companies/${company.id}`)}
-                    >
-                      詳細を見る
-                    </StudioButton>
+                    )}
                   </div>
                 </div>
-              );
-            })
-          )}
+
+                {/* 右側：アクションボタン */}
+                <div className="md:w-64 p-4 flex flex-col items-center justify-center gap-3 bg-gray-50/50 border-t md:border-t-0 md:border-l border-gray-100">
+                  <ApprovalActions
+                    onApprove={() => handleApprove(company.id)}
+                    onReject={() => handleReject(company.id)}
+                  />
+                  <StudioButton
+                    variant="outline"
+                    size="sm"
+                    fullWidth
+                    icon={<ExternalLink className="w-3 h-3" />}
+                    onClick={() => router.push(`/admin/companies/${company.id}`)}
+                  >
+                    詳細を見る
+                  </StudioButton>
+                </div>
+              </div>
+            );
+          })}
         </div>
+      )}
+
+      {totalCount !== null && totalCount > PAGE_SIZE && (
+        <PaginationBar
+          page={page}
+          pageSize={PAGE_SIZE}
+          totalCount={totalCount}
+          itemCount={companies.length}
+          onPageChange={setPage}
+          onPageSizeChange={() => {}}
+          pageSizeOptions={[PAGE_SIZE]}
+        />
       )}
     </div>
   );
 }
-

@@ -10,8 +10,10 @@ import StudioSelect from "@/components/studio/atoms/StudioSelect";
 import StudioFormField from "@/components/studio/molecules/StudioFormField";
 import StudioLabel from "@/components/studio/atoms/StudioLabel";
 import PrefectureSelect from "@/components/studio/molecules/PrefectureSelect";
-import { getAllCompanies, createCompanyWithRecruiter, uploadCompanyThumbnail, createCompanyPageWithDummyData } from "@/lib/actions/company-account-actions";
+import PaginationBar from "@/components/studio/molecules/PaginationBar";
+import { getCompanies, createCompanyWithRecruiter, uploadCompanyThumbnail, createCompanyPageWithDummyData } from "@/lib/actions/company-account-actions";
 import { createCompaniesFromCsv } from "@/lib/actions/company-csv-import";
+import { downloadCSV } from "@/lib/utils/csv";
 import { proxyLoginAsCompany } from "@/lib/actions/proxy-login-actions";
 import { validateRequired, validateMaxLength, validateUrlWithProtocol, validateEmail, validateKatakana } from "@jobtv-app/shared/utils/validation";
 import { REPRESENTATIVE_NAME_MAX_LENGTH, COMPANY_INFO_MAX_LENGTH } from "@/constants/validation";
@@ -25,10 +27,16 @@ import {
 
 type Company = Tables<"companies">;
 
+const PAGE_SIZE_OPTIONS = [10, 50, 100] as const;
+type PageSizeOption = (typeof PAGE_SIZE_OPTIONS)[number];
+
 export default function AdminCompanyAccountsPage() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState<PageSizeOption>(10);
+  const [totalCount, setTotalCount] = useState<number | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
@@ -37,8 +45,9 @@ export default function AdminCompanyAccountsPage() {
   const [csvResult, setCsvResult] = useState<{ created: number; errors: { row: number; message: string }[] } | null>(null);
   const [csvFatalError, setCsvFatalError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<string>("name_asc");
+  const [sortBy, setSortBy] = useState<"name_asc" | "name_desc">("name_asc");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [debouncedSearch, setDebouncedSearch] = useState<string>("");
   const [uploadingCompanyId, setUploadingCompanyId] = useState<string | null>(null);
   const [thumbnailError, setThumbnailError] = useState<string | null>(null);
   const [creatingPageCompanyId, setCreatingPageCompanyId] = useState<string | null>(null);
@@ -110,38 +119,40 @@ export default function AdminCompanyAccountsPage() {
     first_name_kana: "",
   });
 
-  const loadCompanies = async () => {
+  const loadCompanies = async (currentPage = page) => {
     setLoading(true);
     setError(null);
-    const { data, error: fetchError } = await getAllCompanies();
+    const { data, count, error: fetchError } = await getCompanies({
+      limit: pageSize,
+      offset: currentPage * pageSize,
+      search: debouncedSearch || undefined,
+      sortBy,
+    });
     if (fetchError) {
       setError(fetchError);
     } else {
       setCompanies(data || []);
+      setTotalCount(count);
     }
     setLoading(false);
   };
 
+  // 検索デバウンス
   useEffect(() => {
-    loadCompanies();
-  }, []);
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
-  // 検索とソートを適用
-  const filteredAndSortedCompanies = [...companies]
-    .filter((company) => {
-      if (!searchQuery.trim()) return true;
-      const query = searchQuery.toLowerCase().trim();
-      return (company.name || "").toLowerCase().includes(query);
-    })
-    .sort((a, b) => {
-      switch (sortBy) {
-        case "name_asc":
-          return (a.name || "").localeCompare(b.name || "");
-        case "name_desc":
-        default:
-          return (b.name || "").localeCompare(a.name || "");
-      }
-    });
+  // 検索・ソート・ページサイズ変更時はページ0にリセット
+  useEffect(() => {
+    setPage(0);
+  }, [debouncedSearch, sortBy, pageSize]);
+
+  // ページ・検索・ソート・ページサイズ変更時にデータ再取得
+  useEffect(() => {
+    loadCompanies(page);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, debouncedSearch, sortBy, pageSize]);
 
   const handleOpenCreateModal = () => {
     setCompanyForm({
@@ -181,17 +192,9 @@ export default function AdminCompanyAccountsPage() {
   };
 
   const handleDownloadCsvTemplate = () => {
-    const headers = "企業名,業界,都道府県,市区町村・番地,ビル名・部屋番号,公式サイト,代表者名,設立年月,従業員数,企業情報,ステータス,メールアドレス,姓,名,姓カナ,名カナ";
-    const sample =
-      "サンプル株式会社,IT・ソフトウエア,東京都,渋谷区1-2-3,サンプルビル5F,https://example.com,山田太郎,2020年4月,51-100人,企業情報の例。,active,recruiter@example.com,山田,太郎,ヤマダ,タロウ";
-    const csv = [headers, sample].join("\n");
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "company-accounts-template.csv";
-    a.click();
-    URL.revokeObjectURL(url);
+    const headers = ["企業名", "業界", "都道府県", "市区町村・番地", "ビル名・部屋番号", "公式サイト", "代表者名", "設立年月", "従業員数", "企業情報", "ステータス", "メールアドレス", "姓", "名", "姓カナ", "名カナ"];
+    const sample = ["サンプル株式会社", "IT・ソフトウエア", "東京都", "渋谷区1-2-3", "サンプルビル5F", "https://example.com", "山田太郎", "2020年4月", "51-100人", "企業情報の例。", "active", "recruiter@example.com", "山田", "太郎", "ヤマダ", "タロウ"];
+    downloadCSV(headers, [sample], "company-accounts-template");
   };
 
   const handleCsvImport = async () => {
@@ -210,7 +213,7 @@ export default function AdminCompanyAccountsPage() {
       if (data) {
         setCsvResult(data);
         if (data.created > 0) {
-          await loadCompanies();
+          setPage(0);
         }
       }
     } catch {
@@ -479,7 +482,7 @@ export default function AdminCompanyAccountsPage() {
     if (data) {
       setSuccessMessage("企業とリクルーターアカウントを作成しました。初期パスワード設定の案内メールを送信しました。");
       setIsCreateModalOpen(false);
-      await loadCompanies();
+      setPage(0);
     }
     setIsSubmitting(false);
   };
@@ -526,7 +529,9 @@ export default function AdminCompanyAccountsPage() {
     return <StudioBadge variant="neutral">未設定</StudioBadge>;
   };
 
-  if (loading) {
+  const isInitialLoading = loading && totalCount === null;
+
+  if (isInitialLoading) {
     return <LoadingSpinner />;
   }
 
@@ -573,16 +578,30 @@ export default function AdminCompanyAccountsPage() {
         </div>
 
         {/* ソート */}
-        {companies.length > 0 && (
+        {(companies.length > 0 || totalCount !== null) && (
           <div className="flex items-center gap-4">
             <label className="text-sm font-bold text-gray-700">並び順:</label>
-            <StudioSelect value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+            <StudioSelect value={sortBy} onChange={(e) => setSortBy(e.target.value as "name_asc" | "name_desc")}>
               <option value="name_asc">企業名（あいうえお順）</option>
               <option value="name_desc">企業名（逆順）</option>
             </StudioSelect>
           </div>
         )}
       </div>
+
+      {/* ページネーション（テーブル上） */}
+      {(companies.length > 0 || page > 0 || totalCount !== null) && (
+        <PaginationBar
+          page={page}
+          pageSize={pageSize}
+          totalCount={totalCount}
+          itemCount={companies.length}
+          pageSizeOptions={PAGE_SIZE_OPTIONS}
+          onPageChange={setPage}
+          onPageSizeChange={(n) => setPageSize(n as PageSizeOption)}
+          unit="社"
+        />
+      )}
 
       {thumbnailError && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center justify-between">
@@ -598,7 +617,7 @@ export default function AdminCompanyAccountsPage() {
       )}
 
       {/* 企業一覧テーブル */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className={`bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden relative transition-opacity duration-150 ${loading ? "opacity-50 pointer-events-none" : ""}`}>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -612,7 +631,7 @@ export default function AdminCompanyAccountsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50 text-sm">
-              {filteredAndSortedCompanies.length === 0 ? (
+              {companies.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
                     <Building className="w-12 h-12 text-gray-300 mx-auto mb-4" />
@@ -620,7 +639,7 @@ export default function AdminCompanyAccountsPage() {
                   </td>
                 </tr>
               ) : (
-                filteredAndSortedCompanies.map((company) => (
+                companies.map((company) => (
                   <tr key={company.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 align-middle">
                       <div className="flex items-center gap-2">
@@ -708,15 +727,18 @@ export default function AdminCompanyAccountsPage() {
         </div>
       </div>
 
-      {/* 件数表示 */}
-      {companies.length > 0 && (
-        <div className="flex items-center justify-center pt-4">
-          <p className="text-sm text-gray-500">
-            {searchQuery
-              ? `検索結果: ${filteredAndSortedCompanies.length}社 / 全${companies.length}社`
-              : `全${companies.length}社`}
-          </p>
-        </div>
+      {/* ページネーション（テーブル下） */}
+      {(companies.length > 0 || page > 0 || totalCount !== null) && (
+        <PaginationBar
+          page={page}
+          pageSize={pageSize}
+          totalCount={totalCount}
+          itemCount={companies.length}
+          pageSizeOptions={PAGE_SIZE_OPTIONS}
+          onPageChange={setPage}
+          onPageSizeChange={(n) => setPageSize(n as PageSizeOption)}
+          unit="社"
+        />
       )}
 
       {/* 新規作成モーダル */}
