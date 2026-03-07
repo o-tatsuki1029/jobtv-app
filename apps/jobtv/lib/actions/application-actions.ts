@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { getUserCompanyId } from "@jobtv-app/shared/actions/company-utils";
 import type { TablesInsert } from "@jobtv-app/shared/types";
+import { sendJobApplicationNotification } from "@/lib/email/send-entry-notification";
 
 /**
  * 候補者管理ページ用：自社の求人への応募一覧（候補者情報・メール含む）
@@ -14,10 +15,25 @@ export interface ApplicationWithCandidate {
   candidate_id: string;
   current_status: string;
   created_at: string;
-  job: { id: string; title: string } | null;
+  job: { id: string; title: string; graduation_year: number | null } | null;
   candidates: {
     last_name: string;
     first_name: string;
+    last_name_kana: string | null;
+    first_name_kana: string | null;
+    phone: string | null;
+    school_name: string | null;
+    school_type: string | null;
+    faculty_name: string | null;
+    department_name: string | null;
+    gender: string | null;
+    date_of_birth: string | null;
+    graduation_year: number | null;
+    major_field: string | null;
+    desired_work_location: string | null;
+    desired_industry: string[] | null;
+    desired_job_type: string[] | null;
+    assigned_to: string | null;
     profiles: { email: string | null } | null;
   } | null;
 }
@@ -25,59 +41,114 @@ export interface ApplicationWithCandidate {
 /**
  * 企業が自社の求人への応募一覧を取得（候補者管理で説明会予約と合わせて表示する用）
  */
-export async function getCompanyApplications(limit: number = 100) {
+export async function getCompanyApplications({
+  limit = 20,
+  offset = 0,
+  jobId
+}: {
+  limit?: number;
+  offset?: number;
+  jobId?: string | null;
+} = {}) {
   const supabase = await createClient();
 
   const { companyId, error: companyError } = await getUserCompanyId();
-  if (companyError) return { data: null, error: companyError };
-  if (!companyId) return { data: [], error: null };
+  if (companyError) return { data: null, count: null, error: companyError };
+  if (!companyId) return { data: [], count: 0, error: null };
 
   const { data: jobs, error: jobsError } = await supabase
     .from("job_postings")
-    .select("id, title")
+    .select("id, title, graduation_year")
     .eq("company_id", companyId);
 
   if (jobsError) {
     console.error("Get job postings error:", jobsError);
-    return { data: null, error: jobsError.message };
+    return { data: null, count: null, error: jobsError.message };
   }
-  if (!jobs || jobs.length === 0) return { data: [], error: null };
+  if (!jobs || jobs.length === 0) return { data: [], count: 0, error: null };
 
   const jobIds = jobs.map((j) => j.id);
 
-  const { data: applications, error: applicationsError } = await supabase
+  let applicationsQuery = supabase
     .from("applications")
-    .select("id, job_posting_id, candidate_id, current_status, created_at")
+    .select("id, job_posting_id, candidate_id, current_status, created_at", { count: "exact" })
     .in("job_posting_id", jobIds)
     .order("created_at", { ascending: false })
-    .limit(limit);
+    .range(offset, offset + limit - 1);
+
+  if (jobId) {
+    applicationsQuery = applicationsQuery.eq("job_posting_id", jobId);
+  }
+
+  const { data: applications, count: totalCount, error: applicationsError } = await applicationsQuery;
 
   if (applicationsError) {
     console.error("Get company applications error:", applicationsError);
-    return { data: null, error: applicationsError.message };
+    return { data: null, count: null, error: applicationsError.message };
   }
-  if (!applications || applications.length === 0) return { data: [], error: null };
+  if (!applications || applications.length === 0) return { data: [], count: totalCount ?? 0, error: null };
 
   const candidateIds = [...new Set(applications.map((a) => a.candidate_id))];
   const { data: candidatesRows, error: candidatesError } = await supabase
     .from("candidates")
-    .select("id, last_name, first_name, profiles!profiles_candidate_id_fkey (email)")
+    .select(`id, last_name, first_name, last_name_kana, first_name_kana,
+      gender, date_of_birth, phone,
+      school_name, school_type, faculty_name, department_name, major_field, graduation_year,
+      desired_work_location, desired_industry, desired_job_type,
+      assigned_to,
+      profiles!profiles_candidate_id_fkey (email)`)
     .in("id", candidateIds);
 
   if (candidatesError) {
     console.error("Get candidates for applications error:", candidatesError);
-    return { data: null, error: candidatesError.message };
+    return { data: null, count: null, error: candidatesError.message };
   }
 
   const candidateMap = new Map<
     string,
-    { last_name: string; first_name: string; profiles: { email: string | null } | null }
+    {
+      last_name: string;
+      first_name: string;
+      last_name_kana: string | null;
+      first_name_kana: string | null;
+      phone: string | null;
+      school_name: string | null;
+      school_type: string | null;
+      faculty_name: string | null;
+      department_name: string | null;
+      gender: string | null;
+      date_of_birth: string | null;
+      graduation_year: number | null;
+      major_field: string | null;
+      desired_work_location: string | null;
+      desired_industry: string[] | null;
+      desired_job_type: string[] | null;
+      assigned_to: string | null;
+      profiles: { email: string | null } | null;
+    }
   >();
   (candidatesRows ?? []).forEach((c: Record<string, unknown>) => {
     candidateMap.set(c.id as string, {
       last_name: (c.last_name as string) ?? "",
       first_name: (c.first_name as string) ?? "",
-      profiles: c.profiles ? { email: (c.profiles as { email: string | null }).email } : null
+      last_name_kana: (c.last_name_kana as string | null) ?? null,
+      first_name_kana: (c.first_name_kana as string | null) ?? null,
+      phone: (c.phone as string | null) ?? null,
+      school_name: (c.school_name as string | null) ?? null,
+      school_type: (c.school_type as string | null) ?? null,
+      faculty_name: (c.faculty_name as string | null) ?? null,
+      department_name: (c.department_name as string | null) ?? null,
+      gender: (c.gender as string | null) ?? null,
+      date_of_birth: (c.date_of_birth as string | null) ?? null,
+      graduation_year: (c.graduation_year as number | null) ?? null,
+      major_field: (c.major_field as string | null) ?? null,
+      desired_work_location: (c.desired_work_location as string | null) ?? null,
+      desired_industry: (c.desired_industry as string[] | null) ?? null,
+      desired_job_type: (c.desired_job_type as string[] | null) ?? null,
+      assigned_to: (c.assigned_to as string | null) ?? null,
+      profiles: Array.isArray(c.profiles) && c.profiles.length > 0
+        ? { email: (c.profiles[0] as { email: string | null }).email }
+        : null
     });
   });
 
@@ -93,7 +164,7 @@ export async function getCompanyApplications(limit: number = 100) {
     candidates: candidateMap.get(app.candidate_id) ?? null
   }));
 
-  return { data: list, error: null };
+  return { data: list, count: totalCount ?? 0, error: null };
 }
 
 /**
@@ -174,6 +245,11 @@ export async function createApplicationsForCandidate(jobPostingIds: string[]) {
   }
 
   revalidatePath("/", "layout");
+
+  if (created.length > 0) {
+    sendJobApplicationNotification(created, candidateId).catch(console.error);
+  }
+
   return {
     data: { created, alreadyApplied },
     error: null

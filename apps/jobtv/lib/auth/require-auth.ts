@@ -16,7 +16,7 @@ async function getUserInfoInternal(): Promise<UserInfo | null> {
 
   const { data: userProfile, error: profileError } = await supabase
     .from("profiles")
-    .select("role, company_id")
+    .select("role, company_id, candidate_id")
     .eq("id", user.id)
     .single();
 
@@ -27,10 +27,15 @@ async function getUserInfoInternal(): Promise<UserInfo | null> {
   const role = userProfile.role as UserRole;
   let recruiterId: string | undefined;
   let companyId: string | undefined;
+  let candidateId: string | undefined;
 
   if (role === "recruiter") {
     recruiterId = user.id;
     companyId = userProfile.company_id || undefined;
+  }
+
+  if (role === "candidate") {
+    candidateId = (userProfile as { candidate_id?: string | null }).candidate_id || undefined;
   }
 
   return {
@@ -39,6 +44,7 @@ async function getUserInfoInternal(): Promise<UserInfo | null> {
     email: user.email,
     recruiterId,
     companyId,
+    candidateId,
     isAdmin: role === "admin",
   };
 }
@@ -143,6 +149,25 @@ export async function requireStudioAuth(): Promise<UserInfo> {
   }
 
   if (userInfo.role !== "recruiter" && userInfo.role !== "admin") {
+    redirect(getRedirectPathByRole(userInfo.role));
+  }
+
+  return userInfo;
+}
+
+/**
+ * 候補者（求職者）向け: candidate権限をチェック
+ * 未認証の場合は /auth/login にリダイレクト
+ * candidate以外のロールは適切なパスへリダイレクト
+ */
+export async function requireCandidate(): Promise<UserInfo> {
+  const userInfo = await getUserInfoInternal();
+
+  if (!userInfo) {
+    redirect("/auth/login");
+  }
+
+  if (userInfo.role !== "candidate") {
     redirect(getRedirectPathByRole(userInfo.role));
   }
 

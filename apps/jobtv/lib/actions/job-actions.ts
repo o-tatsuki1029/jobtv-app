@@ -459,17 +459,22 @@ export async function getJobDrafts() {
 
 /**
  * スタジオ求人一覧用：認証1回でドラフト一覧＋応募数を返す（カバー画像は別途遅延取得）
+ * display_order ソートはサーバーで行い、paginate はスライスで実現する。
  */
-export async function getStudioJobsPageData(): Promise<{
+export async function getStudioJobsPageData(params?: { limit?: number; offset?: number }): Promise<{
   data: Awaited<ReturnType<typeof getJobDrafts>>["data"] extends infer T ? T : never;
+  count: number;
   error: string | null;
 }> {
+  const limit = params?.limit ?? 20;
+  const offset = params?.offset ?? 0;
+
   const { companyId, error: companyError } = await getUserCompanyId();
-  if (companyError) return { data: null, error: companyError };
+  if (companyError) return { data: null, count: 0, error: companyError };
 
   const { data, error } = await getJobDraftsByCompanyId(companyId);
-  if (error) return { data: null, error };
-  if (!data || data.length === 0) return { data: [], error: null };
+  if (error) return { data: null, count: 0, error };
+  if (!data || data.length === 0) return { data: [], count: 0, error: null };
 
   const productionJobIds = data.filter((d) => d.production_job_id).map((d) => d.production_job_id!);
   const { data: countsData } =
@@ -485,7 +490,9 @@ export async function getStudioJobsPageData(): Promise<{
     entryCount: draft.production_job_id ? (counts[draft.production_job_id] ?? 0) : 0
   }));
 
-  return { data: jobsWithCounts, error: null };
+  const totalCount = jobsWithCounts.length;
+  const paginated = jobsWithCounts.slice(offset, offset + limit);
+  return { data: paginated, count: totalCount, error: null };
 }
 
 /**

@@ -26,3 +26,5 @@
 | アプリ構成・技術スタック | `docs/apps.md` |
 | MCP サーバー設定・用途・セットアップ | `docs/mcp.md` |
 | E2E テスト（Playwright） | `docs/testing.md` |
+| SEO・AIO 対策・構造化データ・llms.txt | `docs/seo-aio.md` |
+| LINE 連携・配信・CTA 動線 | `docs/line-integration.md` |

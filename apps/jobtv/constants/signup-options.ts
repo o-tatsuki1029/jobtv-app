@@ -71,6 +71,14 @@ export function getGraduationYearDefault(): number {
   return getAcademicYear() + 2;
 }
 
+/** 卒業年のプルダウン表示ラベル（例: 「2027年卒（大学3年生）」） */
+export function getGraduationYearLabel(year: number): string {
+  const grade = 5 - (year - getAcademicYear());
+  return grade >= 1 && grade <= 4
+    ? `${year}年卒（大学${grade}年生）`
+    : `${year}年卒`;
+}
+
 export const BIRTH_MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
 
 /** 指定した年・月の日数（うるう年対応）。month は 1〜12 */

@@ -10,7 +10,10 @@ import {
   createApplicationsForCandidate,
   getAppliedJobIdsForCurrentCandidate
 } from "@/lib/actions/application-actions";
-import { createSessionReservationForLoggedInCandidate } from "@/lib/actions/session-reservation-actions";
+import {
+  createSessionReservationForLoggedInCandidate,
+  getReservedSessionDateIdsForCurrentCandidate
+} from "@/lib/actions/session-reservation-actions";
 import { cn } from "@jobtv-app/shared/utils/cn";
 
 /** オーバーレイ上でのスクロールを止め、背景が動かないようにする。body は触らないのでスクロールバーは残る。 */
@@ -60,6 +63,8 @@ interface CompanyEntryModalPropsBase {
   onClose: () => void;
   /** ログイン・会員登録後に戻るURL */
   returnTo?: string;
+  /** LINE連携済みかどうか。false の場合、完了後に LINE CTAを表示する */
+  lineLinked?: boolean;
 }
 
 interface CompanyEntryModalPropsJob extends CompanyEntryModalPropsBase {
@@ -74,39 +79,33 @@ interface CompanyEntryModalPropsSession extends CompanyEntryModalPropsBase {
   variant: "session";
   sessionDates: EntryModalSessionDate[];
   jobs?: never;
+  /** 予約済み日程ID一覧。指定時はモーダル内で再取得せずこれを使用する（親でページロード時に取得してから渡す想定） */
+  initialReservedSessionDateIds?: string[];
+  /** モーダルを開いた際に最初から選択済みにする日程ID */
+  initialSelectedSessionDateId?: string;
 }
 
 export type CompanyEntryModalProps = CompanyEntryModalPropsJob | CompanyEntryModalPropsSession;
 
 export default function CompanyEntryModal(props: CompanyEntryModalProps) {
-  const { isOpen, onClose, returnTo = "/" } = props;
-  // #region agent log
-  if (typeof window !== "undefined" && isOpen && returnTo) {
-    fetch("http://127.0.0.1:7557/ingest/64046041-1a00-4e5c-9b0e-704b7b8897ef", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "561a53" },
-      body: JSON.stringify({
-        sessionId: "561a53",
-        location: "CompanyEntryModal.tsx:returnTo",
-        message: "Entry modal returnTo",
-        data: { returnTo, variant: props.variant },
-        timestamp: Date.now(),
-        hypothesisId: "A"
-      })
-    }).catch(() => {});
-  }
-  // #endregion
+  const { isOpen, onClose, returnTo = "/", lineLinked } = props;
   const isJob = props.variant !== "session";
   const jobs = isJob ? (props as CompanyEntryModalPropsJob).jobs : [];
   const initialAppliedJobIds = isJob ? (props as CompanyEntryModalPropsJob).initialAppliedJobIds : undefined;
   const sessionDates = !isJob ? (props as CompanyEntryModalPropsSession).sessionDates : [];
+  const initialReservedSessionDateIds = !isJob
+    ? (props as CompanyEntryModalPropsSession).initialReservedSessionDateIds
+    : undefined;
+  const initialSelectedSessionDateId = !isJob
+    ? (props as CompanyEntryModalPropsSession).initialSelectedSessionDateId
+    : undefined;
 
   const { classes, theme } = useMainTheme();
   const auth = useHeaderAuth();
   const user = auth?.user ?? null;
   const role = auth?.role ?? null;
   const isGuest = !user;
-  const isNonCandidate = user && role !== null;
+  const isNonCandidate = user && role !== null && role !== "candidate";
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectedSessionDateId, setSelectedSessionDateId] = useState<string | null>(null);
@@ -114,6 +113,7 @@ export default function CompanyEntryModal(props: CompanyEntryModalProps) {
   const [entryError, setEntryError] = useState<string | null>(null);
   const [entrySuccess, setEntrySuccess] = useState(false);
   const [appliedJobIds, setAppliedJobIds] = useState<string[]>([]);
+  const [reservedSessionDateIds, setReservedSessionDateIds] = useState<string[]>([]);
   const overlayRef = useRef<HTMLDivElement>(null);
 
   usePreventScrollOnOverlay(overlayRef, isOpen);
@@ -121,11 +121,14 @@ export default function CompanyEntryModal(props: CompanyEntryModalProps) {
   useEffect(() => {
     if (isOpen) {
       setSelectedIds(new Set());
-      setSelectedSessionDateId(null);
+      setSelectedSessionDateId(initialSelectedSessionDateId ?? null);
       setEntryError(null);
       setEntrySuccess(false);
       if (isJob && initialAppliedJobIds !== undefined) {
         setAppliedJobIds(initialAppliedJobIds);
+      }
+      if (!isJob) {
+        setReservedSessionDateIds(initialReservedSessionDateIds ?? []);
       }
     }
   }, [isOpen, isJob, initialAppliedJobIds]);
@@ -136,6 +139,13 @@ export default function CompanyEntryModal(props: CompanyEntryModalProps) {
       setAppliedJobIds(data ?? []);
     });
   }, [isOpen, isJob, jobs, initialAppliedJobIds]);
+
+  useEffect(() => {
+    if (!isOpen || isJob || sessionDates.length === 0 || initialReservedSessionDateIds !== undefined) return;
+    getReservedSessionDateIdsForCurrentCandidate(sessionDates.map((d) => d.id)).then(({ data }) => {
+      setReservedSessionDateIds(data ?? []);
+    });
+  }, [isOpen, isJob, sessionDates, initialReservedSessionDateIds]);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -171,7 +181,7 @@ export default function CompanyEntryModal(props: CompanyEntryModalProps) {
       }
       setAppliedJobIds((prev) => [...new Set([...prev, ...data.created])]);
       setEntrySuccess(true);
-      setTimeout(() => onClose(), 1500);
+      if (lineLinked !== false) setTimeout(() => onClose(), 1500);
     }
   };
 
@@ -186,7 +196,9 @@ export default function CompanyEntryModal(props: CompanyEntryModalProps) {
       return;
     }
     if (data) {
-      onClose();
+      setReservedSessionDateIds((prev) => [...new Set([...prev, selectedSessionDateId])]);
+      setEntrySuccess(true);
+      if (lineLinked !== false) setTimeout(() => onClose(), 1500);
     }
   };
 
@@ -303,7 +315,7 @@ export default function CompanyEntryModal(props: CompanyEntryModalProps) {
                     >
                       <div className="relative w-16 h-16 flex-shrink-0 rounded-md overflow-hidden bg-gray-200">
                         {job.coverImage ? (
-                          <Image src={job.coverImage} alt="" fill className="object-cover" sizes="64px" />
+                          <Image src={job.coverImage} alt={job.title} fill className="object-cover" sizes="64px" />
                         ) : (
                           <div className="w-full h-full bg-gray-300" />
                         )}
@@ -385,7 +397,33 @@ export default function CompanyEntryModal(props: CompanyEntryModalProps) {
         {/* 学生（candidate）: 求人選択・エントリー または 日程選択・予約 */}
         {!isGuest && !isNonCandidate && (
           <>
-            {entrySuccess && isJob ? (
+            {entrySuccess && lineLinked === false ? (
+              <>
+                <div className="flex-1 flex flex-col items-center justify-center px-4 py-8 text-center gap-3">
+                  <div className={cn("text-base font-bold", "text-green-700 dark:text-green-400")}>
+                    {isJob ? "エントリー完了！" : "予約完了！"}
+                  </div>
+                  <p className={cn("text-sm", classes.textMuted)}>
+                    LINEと連携すると選考に関する情報をLINEでお知らせします。
+                  </p>
+                </div>
+                <div className={cn("flex-shrink-0 flex gap-3 px-4 py-3 border-t", classes.sectionBorder)}>
+                  <Link
+                    href="/api/line/authorize"
+                    className="flex-1 py-3 rounded-md font-bold text-sm text-center bg-[#06C755] hover:bg-[#05b34d] text-white transition-colors"
+                  >
+                    LINEと連携する
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className={cn("flex-1 py-3 rounded-md font-bold text-sm border", classes.cardBorder, classes.textPrimary)}
+                  >
+                    閉じる
+                  </button>
+                </div>
+              </>
+            ) : entrySuccess ? (
               <div
                 className={cn(
                   "flex-1 flex items-center justify-center px-4 py-8 text-center text-base font-bold",
@@ -394,7 +432,7 @@ export default function CompanyEntryModal(props: CompanyEntryModalProps) {
                 )}
                 role="status"
               >
-                エントリー完了
+                {isJob ? "エントリー完了" : "予約完了"}
               </div>
             ) : (
             <div className="flex-1 overflow-y-auto px-4 pb-4">
@@ -425,7 +463,7 @@ export default function CompanyEntryModal(props: CompanyEntryModalProps) {
                               <div className="flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center bg-gray-400 border-gray-400" />
                               <div className="relative w-16 h-16 flex-shrink-0 rounded-md overflow-hidden bg-gray-200">
                                 {job.coverImage ? (
-                                  <Image src={job.coverImage} alt="" fill className="object-cover" sizes="64px" />
+                                  <Image src={job.coverImage} alt={job.title} fill className="object-cover" sizes="64px" />
                                 ) : (
                                   <div className="w-full h-full bg-gray-300" />
                                 )}
@@ -492,7 +530,7 @@ export default function CompanyEntryModal(props: CompanyEntryModalProps) {
                                 </div>
                                 <div className="relative w-16 h-16 flex-shrink-0 rounded-md overflow-hidden bg-gray-200">
                                   {job.coverImage ? (
-                                    <Image src={job.coverImage} alt="" fill className="object-cover" sizes="64px" />
+                                    <Image src={job.coverImage} alt={job.title} fill className="object-cover" sizes="64px" />
                                   ) : (
                                     <div className="w-full h-full bg-gray-300" />
                                   )}
@@ -533,45 +571,74 @@ export default function CompanyEntryModal(props: CompanyEntryModalProps) {
                 </ul>
               ) : (
                 <ul className="space-y-3">
-                  {sessionDates.map((d) => {
-                    const canSelect = d.status === "受付中" && !!d.id;
+                  {[
+                    ...sessionDates.filter((d) => !reservedSessionDateIds.includes(d.id)),
+                    ...sessionDates.filter((d) => reservedSessionDateIds.includes(d.id))
+                  ].map((d) => {
+                    const isReserved = reservedSessionDateIds.includes(d.id);
+                    const canSelect = !isReserved && d.status === "受付中" && !!d.id;
                     const isSelected = selectedSessionDateId === d.id;
                     return (
                       <li key={d.id}>
-                        <button
-                          type="button"
-                          disabled={!canSelect}
-                          onClick={() => canSelect && setSelectedSessionDateId(d.id)}
-                          className={cn(
-                            "w-full text-left rounded-lg overflow-hidden transition-all border-2 p-3 flex gap-3",
-                            classes.cardBg,
-                            canSelect ? "cursor-pointer" : "cursor-not-allowed opacity-60",
-                            isSelected ? "border-red-500 ring-2 ring-red-500/30" : "border-transparent",
-                            canSelect && !isSelected && "hover:border-gray-400"
-                          )}
-                        >
+                        {isReserved ? (
                           <div
                             className={cn(
-                              "flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5",
-                              isSelected ? "bg-red-600 border-red-600" : classes.cardBorder
+                              "w-full rounded-lg border-2 border-transparent p-3 flex items-center gap-3 opacity-70",
+                              theme === "dark" ? "bg-gray-800/50" : "bg-gray-100",
+                              classes.cardBorder
                             )}
                           >
-                            {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
+                            <div className="flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center bg-gray-400 border-gray-400" />
+                            <Calendar className="w-5 h-5 flex-shrink-0 text-gray-400" aria-hidden />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap gap-1.5 mb-1 items-center">
+                                <span className="px-2 py-0.5 bg-gray-500 text-white text-[10px] font-bold rounded">
+                                  予約済み
+                                </span>
+                              </div>
+                              <p className={cn("text-sm font-bold", classes.textPrimary)}>{d.date}</p>
+                              <p className={cn("text-xs mt-0.5", classes.textMuted)}>{d.time}</p>
+                              {d.capacity != null && (
+                                <p className={cn("text-xs mt-1", classes.textMuted)}>定員: {d.capacity}名</p>
+                              )}
+                            </div>
                           </div>
-                          <Calendar className="w-5 h-5 flex-shrink-0 text-gray-400 mt-0.5" aria-hidden />
-                          <div className="min-w-0 flex-1">
-                            <p className={cn("text-sm font-bold", classes.textPrimary)}>{d.date}</p>
-                            <p className={cn("text-xs mt-0.5", classes.textMuted)}>{d.time}</p>
-                            {d.capacity != null && (
-                              <p className={cn("text-xs mt-1", classes.textMuted)}>定員: {d.capacity}名</p>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={!canSelect}
+                            onClick={() => canSelect && setSelectedSessionDateId(d.id)}
+                            className={cn(
+                              "w-full text-left rounded-lg overflow-hidden transition-all border-2 p-3 flex items-center gap-3",
+                              classes.cardBg,
+                              canSelect ? "cursor-pointer" : "cursor-not-allowed opacity-60",
+                              isSelected ? "border-red-500 ring-2 ring-red-500/30" : "border-transparent",
+                              canSelect && !isSelected && "hover:border-gray-400"
                             )}
-                            {d.status === "満員" && (
-                              <span className="inline-block mt-2 px-2 py-0.5 bg-gray-500 text-white text-xs font-bold rounded">
-                                満員
-                              </span>
-                            )}
-                          </div>
-                        </button>
+                          >
+                            <div
+                              className={cn(
+                                "flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center",
+                                isSelected ? "bg-red-600 border-red-600" : classes.cardBorder
+                              )}
+                            >
+                              {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
+                            </div>
+                            <Calendar className="w-5 h-5 flex-shrink-0 text-gray-400" aria-hidden />
+                            <div className="min-w-0 flex-1">
+                              <p className={cn("text-sm font-bold", classes.textPrimary)}>{d.date}</p>
+                              <p className={cn("text-xs mt-0.5", classes.textMuted)}>{d.time}</p>
+                              {d.capacity != null && (
+                                <p className={cn("text-xs mt-1", classes.textMuted)}>定員: {d.capacity}名</p>
+                              )}
+                              {d.status === "満員" && (
+                                <span className="inline-block mt-2 px-2 py-0.5 bg-gray-500 text-white text-xs font-bold rounded">
+                                  満員
+                                </span>
+                              )}
+                            </div>
+                          </button>
+                        )}
                       </li>
                     );
                   })}

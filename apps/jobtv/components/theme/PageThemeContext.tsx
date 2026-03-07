@@ -25,7 +25,7 @@ interface MainThemeContextValue {
   isTransitioning: boolean;
 }
 
-const MainThemeContext = createContext<MainThemeContextValue | null>(null);
+export const MainThemeContext = createContext<MainThemeContextValue | null>(null);
 
 interface MainThemeProviderProps {
   children: React.ReactNode;

@@ -224,14 +224,43 @@ export async function getCompanyProfileById(id: string): Promise<{
       // ページ情報の取得エラーは無視
     }
 
+    // ログイン中の求職者の卒年度を取得（フィルタリング用）
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+    let candidateGraduationYear: number | null = null;
+
+    if (user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("candidate_id")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (profile?.candidate_id) {
+        const { data: candidate } = await supabase
+          .from("candidates")
+          .select("graduation_year")
+          .eq("id", profile.candidate_id)
+          .maybeSingle();
+        candidateGraduationYear = candidate?.graduation_year ?? null;
+      }
+    }
+
     // 求人情報を取得（status='active'のもののみ、display_order順）
-    const { data: jobsData, error: jobsError } = await supabase
+    let jobsQuery = supabase
       .from("job_postings")
       .select("*")
       .eq("company_id", id)
       .eq("status", "active")
       .order("display_order", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: false });
+
+    if (candidateGraduationYear !== null) {
+      jobsQuery = jobsQuery.eq("graduation_year", candidateGraduationYear);
+    }
+
+    const { data: jobsData, error: jobsError } = await jobsQuery;
 
     if (jobsError) {
       console.error("Get company jobs error:", jobsError);
@@ -252,7 +281,7 @@ export async function getCompanyProfileById(id: string): Promise<{
     }
 
     // 説明会情報を取得（status='active'のもののみ）
-    const { data: sessionsData, error: sessionsError } = await supabase
+    let sessionsQuery = supabase
       .from("sessions")
       .select(
         `
@@ -269,6 +298,14 @@ export async function getCompanyProfileById(id: string): Promise<{
       .eq("company_id", id)
       .eq("status", "active")
       .order("display_order", { ascending: true, nullsFirst: false });
+
+    if (candidateGraduationYear !== null) {
+      sessionsQuery = sessionsQuery.or(
+        `graduation_year.is.null,graduation_year.eq.${candidateGraduationYear}`
+      );
+    }
+
+    const { data: sessionsData, error: sessionsError } = await sessionsQuery;
 
     if (sessionsError) {
       console.error("Get company sessions error:", sessionsError);

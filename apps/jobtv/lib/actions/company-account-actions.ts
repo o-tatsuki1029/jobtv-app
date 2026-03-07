@@ -10,30 +10,50 @@ type Company = Tables<"companies">;
 type CompanyInsert = TablesInsert<"companies">;
 
 /**
- * 企業一覧を取得
+ * 企業一覧をページネーション付きで取得
  */
-export async function getAllCompanies(): Promise<{
+export async function getCompanies(params: {
+  limit: number;
+  offset: number;
+  search?: string;
+  sortBy?: "name_asc" | "name_desc";
+}): Promise<{
   data: Company[] | null;
+  count: number | null;
   error: string | null;
 }> {
   try {
     const supabaseAdmin = createAdminClient();
 
-    const { data, error } = await supabaseAdmin
-      .from("companies")
-      .select("*")
-      .order("created_at", { ascending: false });
+    let query = supabaseAdmin.from("companies").select("*", { count: "exact" });
 
-    if (error) {
-      console.error("Get all companies error:", error);
-      return { data: null, error: error.message };
+    if (params.search) {
+      query = query.ilike("name", `%${params.search}%`);
     }
 
-    return { data: data || [], error: null };
+    if (params.sortBy === "name_asc") {
+      query = query.order("name", { ascending: true });
+    } else if (params.sortBy === "name_desc") {
+      query = query.order("name", { ascending: false });
+    } else {
+      query = query.order("created_at", { ascending: false });
+    }
+
+    query = query.range(params.offset, params.offset + params.limit - 1);
+
+    const { data, count, error } = await query;
+
+    if (error) {
+      console.error("Get companies error:", error);
+      return { data: null, count: null, error: error.message };
+    }
+
+    return { data: data || [], count: count ?? 0, error: null };
   } catch (error) {
-    console.error("Get all companies error:", error);
+    console.error("Get companies error:", error);
     return {
       data: null,
+      count: null,
       error: error instanceof Error ? error.message : "企業一覧の取得に失敗しました",
     };
   }

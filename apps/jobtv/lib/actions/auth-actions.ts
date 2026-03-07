@@ -27,6 +27,7 @@ export interface SignUpCandidatePayload {
   phone: string;
   school_type: string;
   school_name: string;
+  school_kcode?: string | null;
   faculty_name: string;
   department_name: string;
   major_field: string;
@@ -173,6 +174,7 @@ function buildCandidatePayloadFromFormData(
     phone: get("phone"),
     school_type: get("school_type"),
     school_name: get("school_name"),
+    school_kcode: formData.get("school_kcode") ? String(formData.get("school_kcode")) : null,
     faculty_name: get("faculty_name"),
     department_name: get("department_name"),
     major_field: get("major_field"),

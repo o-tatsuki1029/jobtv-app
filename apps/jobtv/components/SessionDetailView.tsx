@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Calendar, MapPin, Users, ChevronRight, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
@@ -14,6 +14,7 @@ import CompanyDetailsBlock from "@/components/company/CompanyDetailsBlock";
 import CompanyEntryCtaButton from "@/components/company/CompanyEntryCtaButton";
 import CompanyEntryModal from "@/components/company/CompanyEntryModal";
 import type { EntryModalSessionDate } from "@/components/company/CompanyEntryModal";
+import { getReservedSessionDateIdsForCurrentCandidate } from "@/lib/actions/session-reservation-actions";
 import { cn } from "@jobtv-app/shared/utils/cn";
 
 export interface SessionDate {
@@ -56,11 +57,13 @@ export interface SessionData {
   companyBenefits?: string[];
 }
 
-export default function SessionDetailView({ session }: { session: SessionData }) {
+export default function SessionDetailView({ session, lineLinked }: { session: SessionData; lineLinked?: boolean }) {
   const [pastDates, setPastDates] = useState<SessionDate[]>([]);
   const [loadingPast, setLoadingPast] = useState(false);
   const [showPast, setShowPast] = useState(false);
   const [isReservationModalOpen, setIsReservationModalOpen] = useState(false);
+  const [reservedSessionDateIds, setReservedSessionDateIds] = useState<string[]>([]);
+  const [initialSelectedDateId, setInitialSelectedDateId] = useState<string | undefined>(undefined);
   const { classes, hasHeader, theme } = useMainTheme();
 
   const returnToSession = `/session/${session.id}`;
@@ -73,6 +76,15 @@ export default function SessionDetailView({ session }: { session: SessionData })
       capacity: d.capacity ?? null,
       status: d.status
     }));
+
+  useEffect(() => {
+    const ids = sessionDatesForModal.map((d) => d.id);
+    if (ids.length === 0) return;
+    getReservedSessionDateIdsForCurrentCandidate(ids).then(({ data }) => {
+      setReservedSessionDateIds(data ?? []);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.id]);
 
   const handleTogglePastDates = async () => {
     if (showPast) {
@@ -175,6 +187,8 @@ export default function SessionDetailView({ session }: { session: SessionData })
                   <div className="space-y-4">
                     {session.dates.map((date, index) => {
                       const isGrayedOut = date.status === "実施済み" || date.status === "満員";
+                      const isReserved = !!date.id && reservedSessionDateIds.includes(date.id);
+                      const canReserve = date.status === "受付中" && !!date.id && !isReserved && session.status === "受付中";
                       return (
                         <div
                           key={index}
@@ -226,23 +240,42 @@ export default function SessionDetailView({ session }: { session: SessionData })
                                       満員
                                     </span>
                                   )}
-                                  {date.status === "受付中" && (
+                                  {isReserved && (
+                                    <span className="px-2 py-0.5 bg-gray-500 text-white text-xs font-bold rounded">
+                                      予約済み
+                                    </span>
+                                  )}
+                                  {date.status === "受付中" && !isReserved && (
                                     <span className="px-2 py-0.5 bg-green-600/80 text-white text-xs font-bold rounded">
                                       受付中
                                     </span>
                                   )}
                                 </div>
-                                <p className={cn("text-sm mt-1", isGrayedOut ? classes.textMuted : classes.textMuted)}>
+                                <p className={cn("text-sm mt-1", classes.textMuted)}>
                                   {date.time}
                                 </p>
                               </div>
                             </div>
-                            {date.capacity != null && (
-                              <div className={cn("flex items-center gap-2 text-sm", classes.textMuted)}>
-                                <Users className="w-4 h-4" />
-                                <span>定員: {date.capacity}名</span>
-                              </div>
-                            )}
+                            <div className="flex items-center gap-4 flex-shrink-0">
+                              {date.capacity != null && (
+                                <div className={cn("flex items-center gap-2 text-sm", classes.textMuted)}>
+                                  <Users className="w-4 h-4" />
+                                  <span>定員: {date.capacity}名</span>
+                                </div>
+                              )}
+                              {canReserve && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setInitialSelectedDateId(date.id);
+                                    setIsReservationModalOpen(true);
+                                  }}
+                                  className="px-4 py-2 rounded-md font-bold text-sm bg-gradient-to-br from-red-600 to-pink-600 hover:from-red-500 hover:to-pink-500 text-white transition-colors whitespace-nowrap"
+                                >
+                                  この日程に予約する
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       );
@@ -402,10 +435,16 @@ export default function SessionDetailView({ session }: { session: SessionData })
 
       <CompanyEntryModal
         isOpen={isReservationModalOpen}
-        onClose={() => setIsReservationModalOpen(false)}
+        onClose={() => {
+          setIsReservationModalOpen(false);
+          setInitialSelectedDateId(undefined);
+        }}
         variant="session"
         sessionDates={sessionDatesForModal}
         returnTo={returnToSession}
+        initialReservedSessionDateIds={reservedSessionDateIds}
+        initialSelectedSessionDateId={initialSelectedDateId}
+        lineLinked={lineLinked}
       />
     </div>
   );

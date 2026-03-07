@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { getUserCompanyId } from "@jobtv-app/shared/actions/company-utils";
 import type { Tables, TablesInsert } from "@jobtv-app/shared/types";
+import { sendSessionReservationNotification } from "@/lib/email/send-entry-notification";
 
 type SessionReservation = Tables<"session_reservations">;
 type SessionReservationInsert = TablesInsert<"session_reservations">;
@@ -32,10 +33,19 @@ export interface ReservationWithCandidate extends SessionReservation {
     first_name: string;
     last_name_kana: string;
     first_name_kana: string;
-    phone: string;
+    phone: string | null;
     school_name: string | null;
+    school_type: string | null;
+    faculty_name: string | null;
+    department_name: string | null;
     gender: string | null;
+    date_of_birth: string | null;
     graduation_year: number | null;
+    major_field: string | null;
+    desired_work_location: string | null;
+    desired_industry: string[] | null;
+    desired_job_type: string[] | null;
+    assigned_to: string | null;
     profiles: { email: string | null } | null;
   } | null;
 }
@@ -230,23 +240,31 @@ export async function getSessionReservations(sessionId: string) {
 }
 
 /**
- * 全ての予約を取得（最大100件、企業の説明会のみ）
+ * 全ての予約を取得（企業の説明会のみ）
  * 求人管理のエントリー数取得と同様に、getUserCompanyId で企業を特定し、
  * 予約・候補者・メールを別クエリで取得してマージする（RPC 不要）。
  */
-export async function getAllReservations(limit: number = 100, sessionId?: string | null) {
+export async function getAllReservations({
+  limit = 20,
+  offset = 0,
+  sessionId
+}: {
+  limit?: number;
+  offset?: number;
+  sessionId?: string | null;
+} = {}) {
   const supabase = await createClient();
 
   const { companyId, error: companyError } = await getUserCompanyId();
   if (companyError) {
-    return { data: null, error: companyError };
+    return { data: null, count: null, error: companyError };
   }
   if (!companyId) {
-    return { data: [], error: null };
+    return { data: [], count: 0, error: null };
   }
 
   // 1. 自社の説明会（本番）を取得（求人一覧で job を取るのと同じ考え方）
-  let sessionsQuery = supabase.from("sessions").select("id, title").eq("company_id", companyId);
+  let sessionsQuery = supabase.from("sessions").select("id, title, graduation_year").eq("company_id", companyId);
   if (sessionId) {
     sessionsQuery = sessionsQuery.eq("id", sessionId);
   }
@@ -254,10 +272,10 @@ export async function getAllReservations(limit: number = 100, sessionId?: string
 
   if (sessionsError) {
     console.error("Get sessions error:", sessionsError);
-    return { data: null, error: sessionsError.message };
+    return { data: null, count: null, error: sessionsError.message };
   }
   if (!sessions || sessions.length === 0) {
-    return { data: [], error: null };
+    return { data: [], count: 0, error: null };
   }
 
   // 2. 予約を「session_dates → sessions の company_id」で取得（dateIds で絞らない）
@@ -281,24 +299,25 @@ export async function getAllReservations(limit: number = 100, sessionId?: string
         session_id,
         sessions!inner (id, title, company_id)
       )
-    `
+    `,
+      { count: "exact" }
     )
     .eq("session_dates.sessions.company_id", companyId)
     .order("created_at", { ascending: false })
-    .limit(limit);
+    .range(offset, offset + limit - 1);
 
   if (sessionId) {
     reservationsQuery = reservationsQuery.eq("session_dates.sessions.id", sessionId);
   }
 
-  const { data: reservationsRaw, error: reservationsError } = await reservationsQuery;
+  const { data: reservationsRaw, count: totalCount, error: reservationsError } = await reservationsQuery;
 
   if (reservationsError) {
     console.error("Get all reservations error:", reservationsError);
-    return { data: null, error: reservationsError.message };
+    return { data: null, count: null, error: reservationsError.message };
   }
   if (!reservationsRaw || reservationsRaw.length === 0) {
-    return { data: [], error: null };
+    return { data: [], count: totalCount ?? 0, error: null };
   }
 
   type ReservationRow = Record<string, unknown> & {
@@ -322,7 +341,7 @@ export async function getAllReservations(limit: number = 100, sessionId?: string
     updated_at: r.updated_at as string
   }));
 
-  const sessionMap = new Map<string, { id: string; title: string }>();
+  const sessionMap = new Map<string, { id: string; title: string; graduation_year: number | null }>();
   const datesByReservation = new Map<
     string,
     { id: string; event_date: string; start_time: string; end_time: string; session_id: string } | null
@@ -332,7 +351,7 @@ export async function getAllReservations(limit: number = 100, sessionId?: string
     const sd = r.session_dates;
     const s = Array.isArray(sd?.sessions) ? sd?.sessions?.[0] : sd?.sessions;
     if (s?.id) {
-      sessionMap.set(String(s.id), { id: String(s.id), title: String(s.title ?? "") });
+      sessionMap.set(String(s.id), { id: String(s.id), title: String(s.title ?? ""), graduation_year: (s as { graduation_year?: number | null }).graduation_year ?? null });
     }
     if (r.session_date_id && sd) {
       datesByReservation.set(String(r.session_date_id), {
@@ -352,14 +371,11 @@ export async function getAllReservations(limit: number = 100, sessionId?: string
     .select(
       `
       id,
-      last_name,
-      first_name,
-      last_name_kana,
-      first_name_kana,
-      phone,
-      school_name,
-      gender,
-      graduation_year,
+      last_name, first_name, last_name_kana, first_name_kana,
+      gender, date_of_birth, phone,
+      school_name, school_type, faculty_name, department_name, major_field, graduation_year,
+      desired_work_location, desired_industry, desired_job_type,
+      assigned_to,
       profiles!profiles_candidate_id_fkey (email)
     `
     )
@@ -367,7 +383,7 @@ export async function getAllReservations(limit: number = 100, sessionId?: string
 
   if (candidatesError) {
     console.error("Get candidates for reservations error:", candidatesError);
-    return { data: null, error: candidatesError.message };
+    return { data: null, count: null, error: candidatesError.message };
   }
 
   const candidateMap = new Map<
@@ -379,8 +395,17 @@ export async function getAllReservations(limit: number = 100, sessionId?: string
       first_name_kana: string;
       phone: string | null;
       school_name: string | null;
+      school_type: string | null;
+      faculty_name: string | null;
+      department_name: string | null;
       gender: string | null;
+      date_of_birth: string | null;
       graduation_year: number | null;
+      major_field: string | null;
+      desired_work_location: string | null;
+      desired_industry: string[] | null;
+      desired_job_type: string[] | null;
+      assigned_to: string | null;
       profiles: { email: string | null } | null;
     }
   >();
@@ -392,9 +417,20 @@ export async function getAllReservations(limit: number = 100, sessionId?: string
       first_name_kana: (c.first_name_kana as string) ?? "",
       phone: (c.phone as string | null) ?? null,
       school_name: (c.school_name as string | null) ?? null,
+      school_type: (c.school_type as string | null) ?? null,
+      faculty_name: (c.faculty_name as string | null) ?? null,
+      department_name: (c.department_name as string | null) ?? null,
       gender: (c.gender as string | null) ?? null,
+      date_of_birth: (c.date_of_birth as string | null) ?? null,
       graduation_year: (c.graduation_year as number | null) ?? null,
-      profiles: c.profiles ? { email: (c.profiles as { email: string | null }).email } : null
+      major_field: (c.major_field as string | null) ?? null,
+      desired_work_location: (c.desired_work_location as string | null) ?? null,
+      desired_industry: (c.desired_industry as string[] | null) ?? null,
+      desired_job_type: (c.desired_job_type as string[] | null) ?? null,
+      assigned_to: (c.assigned_to as string | null) ?? null,
+      profiles: Array.isArray(c.profiles) && c.profiles.length > 0
+        ? { email: (c.profiles[0] as { email: string | null }).email }
+        : null
     });
   });
 
@@ -408,12 +444,12 @@ export async function getAllReservations(limit: number = 100, sessionId?: string
       session_date: date
         ? { id: date.id, event_date: date.event_date, start_time: date.start_time, end_time: date.end_time }
         : null,
-      session: session ? { id: session.id, title: session.title } : null,
+      session: session ? { id: session.id, title: session.title, graduation_year: session.graduation_year } : null,
       candidates: candidate
     };
   });
 
-  return { data: reservationsWithInfo, error: null };
+  return { data: reservationsWithInfo, count: totalCount ?? 0, error: null };
 }
 
 /**
@@ -624,7 +660,50 @@ export async function createSessionReservationForLoggedInCandidate(sessionDateId
 
   revalidatePath("/", "layout");
   revalidatePath(`/session/${sessionDate.session_id}`);
+
+  sendSessionReservationNotification(sessionDateId, candidateId).catch(console.error);
+
   return { data: reservation, error: null };
+}
+
+/**
+ * ログイン中の学生が指定した日程IDのうち、既に予約済みのID一覧を返す。
+ * 未ログイン・非 candidate の場合は空配列を返す。
+ */
+export async function getReservedSessionDateIdsForCurrentCandidate(sessionDateIds: string[]) {
+  const supabase = await createClient();
+
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+  if (!user) return { data: [], error: null };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("candidate_id, role")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile?.candidate_id || profile.role !== "candidate") {
+    return { data: [], error: null };
+  }
+
+  if (sessionDateIds.length === 0) return { data: [], error: null };
+
+  const { data: rows, error } = await supabase
+    .from("session_reservations")
+    .select("session_date_id")
+    .eq("candidate_id", profile.candidate_id)
+    .eq("status", "reserved")
+    .in("session_date_id", sessionDateIds);
+
+  if (error) {
+    console.error("getReservedSessionDateIdsForCurrentCandidate error:", error);
+    return { data: [], error: null };
+  }
+
+  const reserved = (rows ?? []).map((r) => r.session_date_id).filter(Boolean);
+  return { data: reserved, error: null };
 }
 
 /**

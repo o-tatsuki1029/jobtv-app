@@ -11,10 +11,11 @@ interface CandidateMenuProps {
 }
 
 const menuItems = [
-  { label: "マイページ", href: "#" },
-  { label: "イベント予約一覧", href: "#" },
-  { label: "エントリー中の企業", href: "#" },
-  { label: "よくある質問", href: "#" }
+  { label: "マイページ", href: "/mypage" },
+  { label: "イベント予約一覧", href: "/mypage/reservations" },
+  { label: "エントリー中の企業", href: "/mypage/entries" },
+  { label: "LINE連携", href: "/settings/line" },
+  { label: "よくある質問", href: "/mypage/faq" }
 ];
 
 export default function CandidateMenu({ isOpen, onClose, userName }: CandidateMenuProps) {
@@ -44,9 +45,6 @@ export default function CandidateMenu({ isOpen, onClose, userName }: CandidateMe
         return;
       }
       const loginPath = getLoginPathByRole("candidate");
-      // #region agent log
-      fetch('http://127.0.0.1:7557/ingest/64046041-1a00-4e5c-9b0e-704b7b8897ef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'807a72'},body:JSON.stringify({sessionId:'807a72',location:'CandidateMenu.tsx:logout',message:'redirect after logout',data:{loginPath,method:'window.location'},hypothesisId:'A',timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       window.location.href = loginPath;
     } catch (error) {
       console.error("Logout error:", error);

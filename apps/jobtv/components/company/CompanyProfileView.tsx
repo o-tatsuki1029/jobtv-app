@@ -23,7 +23,7 @@ import { cn } from "@jobtv-app/shared/utils/cn";
 
 export type { CompanyData };
 
-export default function CompanyProfileView({ company }: { company: CompanyData }) {
+export default function CompanyProfileView({ company, lineLinked }: { company: CompanyData; lineLinked?: boolean }) {
   const [currentUrl, setCurrentUrl] = useState("");
   const [isEntryModalOpen, setIsEntryModalOpen] = useState(false);
   const [appliedJobIdsForModal, setAppliedJobIdsForModal] = useState<string[]>([]);
@@ -92,6 +92,7 @@ export default function CompanyProfileView({ company }: { company: CompanyData }
         jobs={jobsForModal}
         initialAppliedJobIds={appliedJobIdsForModal}
         returnTo={`/company/${company.id}`}
+        lineLinked={lineLinked}
       />
     </div>
   );

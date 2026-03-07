@@ -36,7 +36,7 @@ export default function CompanyMainHeader({ company, onEntryClick }: CompanyMain
         <div className="flex items-center gap-4 md:gap-5">
           <div className={cn("relative w-12 h-12 md:w-16 md:h-16 flex-shrink-0 bg-white rounded-md overflow-hidden shadow-sm", classes.headerLogoBorder)}>
             {company.logo ? (
-              <Image src={company.logo} alt={company.name} fill className="object-contain" />
+              <Image src={company.logo} alt={company.name} fill priority className="object-contain" />
             ) : (
               <div className={cn("w-full h-full flex items-center justify-center", classes.logoPlaceholderBg)}>
                 <span className={cn("font-bold text-lg", classes.logoPlaceholderText)}>{company.name.charAt(0)}</span>

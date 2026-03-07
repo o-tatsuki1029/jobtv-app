@@ -3,6 +3,8 @@
 import { Suspense, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { signUp, checkEmailForSignup } from "@/lib/actions/auth-actions";
+import { searchSchoolNames, searchFacultyNames, searchDepartmentNames } from "@/lib/actions/school-actions";
+import SuggestInput from "@/components/common/SuggestInput";
 import { primaryButtonClass } from "@/constants/navigation";
 import { Loader2 } from "lucide-react";
 import { PREFECTURES } from "@/constants/prefectures";
@@ -13,6 +15,7 @@ import {
   MAJOR_CATEGORIES,
   getGraduationYears,
   getGraduationYearDefault,
+  getGraduationYearLabel,
   getBirthYears,
   getBirthYearDefault,
   BIRTH_MONTHS,
@@ -80,8 +83,8 @@ function SignUpPageContent() {
     term: ""
   });
   const [birthYear, setBirthYear] = useState(getBirthYearDefault());
-  const [birthMonth, setBirthMonth] = useState(1);
-  const [birthDay, setBirthDay] = useState(1);
+  const [birthMonth, setBirthMonth] = useState<number | "">("");
+  const [birthDay, setBirthDay] = useState<number | "">("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [selectedIndustries, setSelectedIndustries] = useState<string[]>([]);
   const [selectedJobTypes, setSelectedJobTypes] = useState<string[]>([]);
@@ -90,13 +93,18 @@ function SignUpPageContent() {
   const [emailInput, setEmailInput] = useState("");
   const [checkError, setCheckError] = useState<string | null>(null);
   const [loadingCheck, setLoadingCheck] = useState(false);
+  const [schoolType, setSchoolType] = useState(SCHOOL_TYPE_DEFAULT);
+  const [schoolName, setSchoolName] = useState("");
+  const [schoolKcode, setSchoolKcode] = useState<string | null>(null);
+  const [facultyName, setFacultyName] = useState("");
+  const [departmentName, setDepartmentName] = useState("");
 
-  const birthDays = getBirthDays(birthYear, birthMonth);
-  const maxDay = getDaysInMonth(birthYear, birthMonth);
-  const clampedBirthDay = birthDay > maxDay ? maxDay : birthDay;
+  const birthDays = getBirthDays(birthYear, birthMonth || 1);
+  const maxDay = getDaysInMonth(birthYear, birthMonth || 1);
+  const clampedBirthDay = birthDay && birthDay > maxDay ? maxDay : birthDay;
 
   useEffect(() => {
-    if (birthDay > maxDay) setBirthDay(maxDay);
+    if (birthMonth && birthDay && birthDay > maxDay) setBirthDay(maxDay);
   }, [birthYear, birthMonth, maxDay, birthDay]);
 
   useEffect(() => {
@@ -169,6 +177,18 @@ function SignUpPageContent() {
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-4">登録が完了しました</h1>
           <p className="text-gray-600 mb-8">登録が完了しました。ログインしてご利用ください。</p>
+
+          <div className="mb-8 rounded-lg border border-[#06C755] bg-[#f0fff4] p-5 text-left">
+            <p className="mb-1 font-bold text-gray-900">LINEと連携して就活情報をいち早くゲット！</p>
+            <p className="mb-4 text-sm text-gray-600">企業からの新着求人・説明会情報をLINEでお知らせします。</p>
+            <Link
+              href="/auth/login?next=%2Fapi%2Fline%2Fauthorize"
+              className="inline-block rounded-md bg-[#06C755] px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#05b34d]"
+            >
+              LINEと連携する（ログイン後）
+            </Link>
+          </div>
+
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link
               href={next ? `/auth/login?next=${encodeURIComponent(next)}` : "/auth/login"}
@@ -443,8 +463,9 @@ function SignUpPageContent() {
                         required
                         className={cn(inputClass, "flex-1")}
                         value={birthMonth}
-                        onChange={(e) => setBirthMonth(Number(e.target.value))}
+                        onChange={(e) => { setBirthMonth(e.target.value ? Number(e.target.value) : ""); setBirthDay(""); }}
                       >
+                        <option value="">月</option>
                         {BIRTH_MONTHS.map((m) => (
                           <option key={m} value={m}>
                             {m}月
@@ -457,8 +478,9 @@ function SignUpPageContent() {
                         required
                         className={cn(inputClass, "flex-1")}
                         value={clampedBirthDay}
-                        onChange={(e) => setBirthDay(Number(e.target.value))}
+                        onChange={(e) => setBirthDay(e.target.value ? Number(e.target.value) : "")}
                       >
+                        <option value="">日</option>
                         {birthDays.map((d) => (
                           <option key={d} value={d}>
                             {d}日
@@ -498,7 +520,14 @@ function SignUpPageContent() {
                       name="school_type"
                       required
                       className={inputClass}
-                      defaultValue={SCHOOL_TYPE_DEFAULT}
+                      value={schoolType}
+                      onChange={(e) => {
+                        setSchoolType(e.target.value);
+                        setSchoolName("");
+                        setSchoolKcode(null);
+                        setFacultyName("");
+                        setDepartmentName("");
+                      }}
                     >
                       {SCHOOL_TYPES.map((s) => (
                         <option key={s.value} value={s.value}>
@@ -512,14 +541,28 @@ function SignUpPageContent() {
                     <label htmlFor="school_name" className={labelClass}>
                       学校名
                     </label>
-                    <input
-                      type="text"
-                      id="school_name"
+                    <SuggestInput
                       name="school_name"
-                      required
-                      className={inputClass}
+                      value={schoolName}
+                      onChange={(v) => { setSchoolName(v); setSchoolKcode(null); setFacultyName(""); setDepartmentName(""); }}
+                      onSelect={(item) => {
+                        setSchoolName(item.value);
+                        setSchoolKcode(item.meta?.school_kcode ?? null);
+                        setFacultyName("");
+                        setDepartmentName("");
+                      }}
+                      fetchSuggestions={async (q) => {
+                        const r = await searchSchoolNames(q, schoolType);
+                        return (r.data ?? []).map((d) => ({
+                          label: d.school_name,
+                          value: d.school_name,
+                          meta: { school_kcode: d.school_kcode },
+                        }));
+                      }}
+                      cacheScope={schoolType}
                       placeholder="例：〇〇大学"
                     />
+                    <input type="hidden" name="school_kcode" value={schoolKcode ?? ""} />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
@@ -527,13 +570,37 @@ function SignUpPageContent() {
                       <label htmlFor="faculty_name" className={labelClass}>
                         学部
                       </label>
-                      <input type="text" id="faculty_name" name="faculty_name" required className={inputClass} />
+                      <SuggestInput
+                        name="faculty_name"
+                        value={facultyName}
+                        onChange={(v) => { setFacultyName(v); setDepartmentName(""); }}
+                        onSelect={(item) => { setFacultyName(item.value); setDepartmentName(""); }}
+                        fetchSuggestions={async (q) => {
+                          const r = await searchFacultyNames(schoolKcode ?? "", q);
+                          return (r.data ?? []).map((d) => ({ label: d.faculty_name, value: d.faculty_name }));
+                        }}
+                        cacheScope={schoolKcode ?? ""}
+                        showOnFocus
+                        placeholder="例：〇〇学部"
+                      />
                     </div>
                     <div>
                       <label htmlFor="department_name" className={labelClass}>
                         学科
                       </label>
-                      <input type="text" id="department_name" name="department_name" required className={inputClass} />
+                      <SuggestInput
+                        name="department_name"
+                        value={departmentName}
+                        onChange={setDepartmentName}
+                        onSelect={(item) => setDepartmentName(item.value)}
+                        fetchSuggestions={async (q) => {
+                          const r = await searchDepartmentNames(schoolKcode ?? "", facultyName, q);
+                          return (r.data ?? []).map((d) => ({ label: d.department_name, value: d.department_name }));
+                        }}
+                        cacheScope={`${schoolKcode ?? ""}:${facultyName}`}
+                        showOnFocus
+                        placeholder="例：〇〇学科"
+                      />
                     </div>
                   </div>
 
@@ -570,7 +637,7 @@ function SignUpPageContent() {
                     >
                       {getGraduationYears().map((y) => (
                         <option key={y} value={y}>
-                          {y}年卒
+                          {getGraduationYearLabel(y)}
                         </option>
                       ))}
                     </select>
