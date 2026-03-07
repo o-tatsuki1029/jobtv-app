@@ -8,6 +8,7 @@
 
 - **学生側**: LINE Login で「アカウント連携」し、`candidates.line_user_id` に LINE の userId を保存する。設定画面で連携・解除が可能。
 - **Admin 側**: 卒年度・業界・職種などでセグメントを切り、LINE 連携済み（`line_user_id IS NOT NULL`）の候補者に Messaging API の Push Message で配信する。
+- **LINE CTA 動線**: 高モチベーションなタイミング（会員登録完了・サンクスメール・エントリー/予約完了・メニュー）で LINE 連携 CTA を表示し、連携率を向上させる。
 
 ---
 
@@ -65,6 +66,65 @@
 2. **LINE Login** 用チャネル: 連携開始・コールバックで使用。Callback URL に `https://your-domain.com/api/line/callback` を登録。
 3. **Messaging API** 用チャネル（公式アカウント）: 配信用。Channel Access Token（長期）を発行し、`LINE_CHANNEL_ACCESS_TOKEN` に設定する。
 4. 同一 LINE 公式アカウントで「ログイン連携」と「友だちに配信」の両方を使う場合は、プロバイダーで LINE Login チャネルと Messaging API チャネルをリンクする（LINE の公式ドキュメント「アカウント連携」を参照）。
+
+---
+
+## LINE CTA 動線
+
+LINE 連携を促すタッチポイントの一覧。すべて**候補者（candidate）のみ**を対象とする。
+
+### 1. 会員登録完了画面
+
+- **ファイル**: `app/auth/signup/page.tsx`（success ブロック）
+- **表示条件**: 会員登録成功後に常に表示（連携済み/未連携の出し分けなし）
+- **動作**: ボタンをクリックするとログインページ（`/auth/login?next=%2Fapi%2Fline%2Fauthorize`）に遷移し、ログイン後そのまま LINE OAuth が開始される
+
+### 2. サンクスメール（candidate_welcome）
+
+- **ファイル**: `supabase/migrations/20260307000002_update_candidate_welcome_email_line_cta.sql`
+- **動作**: 既存の「JobTV を見てみる」ボタンの直下に LINE CTA ブロックを挿入。リンク先は `{site_url}/settings/line`
+- 適用: `ON CONFLICT (name) DO UPDATE` でテンプレートを上書き更新
+
+### 3. メール共通フッター
+
+- **ファイル**: `lib/email/send-templated-email.ts`
+- **動作**: `sendTemplatedEmail` に `recipientRole?: string` を追加。`recipientRole === "candidate"` の場合、HTML メール内の最初の `<hr>` タグ直前に LINE CTA ブロックを注入し、テキストメール末尾にも付加する
+- 出し分けなし（LINE 連携済み/未連携を問わず挿入）
+
+```ts
+// 呼び出し例（候補者向けメールの場合）
+await sendTemplatedEmail({
+  templateName: "some_candidate_template",
+  recipientEmail: candidateEmail,
+  variables: { ... },
+  recipientRole: "candidate",   // ← これを追加すると LINE CTA が挿入される
+});
+```
+
+### 4. CandidateMenu（ハンバーガーメニュー）
+
+- **ファイル**: `components/header/CandidateMenu.tsx`
+- **動作**: メニュー項目に「LINE連携」→ `/settings/line` を追加（常時表示）
+
+### 5. エントリー/予約完了モーダル
+
+- **ファイル**: `components/company/CompanyEntryModal.tsx`
+- **Props**: `lineLinked?: boolean`（`CompanyEntryModalPropsBase` に追加）
+- **動作**:
+  - `lineLinked === false`: 完了後に自動クローズせず「LINEと連携する（→ `/api/line/authorize`）」と「閉じる」ボタンを表示
+  - `lineLinked !== false`（`true` または `undefined`）: 従来通り 1.5 秒後に自動クローズ
+- **lineLinked の取得・伝搬**:
+  - `app/(main)/session/[id]/page.tsx` と `app/(main)/company/[id]/page.tsx`（Server Component）で `getLineLinkStatus()` を呼ぶ
+  - 結果を `SessionDetailView` / `CompanyProfileView`（Client Component）の props に渡し、それぞれが `CompanyEntryModal` に転送する
+  - ゲスト・非候補者は `getLineLinkStatus()` が `{ data: null }` を返すため `lineLinked = undefined` → 自動クローズ（CTA 非表示）
+
+| ファイル | 役割 |
+|---------|------|
+| `app/(main)/session/[id]/page.tsx` | `getLineLinkStatus()` を呼び `lineLinked` を `SessionDetailView` に渡す |
+| `app/(main)/company/[id]/page.tsx` | `getLineLinkStatus()` を呼び `lineLinked` を `CompanyProfileView` に渡す |
+| `components/SessionDetailView.tsx` | `lineLinked?: boolean` を受け取り `CompanyEntryModal` に転送 |
+| `components/company/CompanyProfileView.tsx` | `lineLinked?: boolean` を受け取り `CompanyEntryModal` に転送 |
+| `components/company/CompanyEntryModal.tsx` | `lineLinked` に基づき完了後動作を切り替え |
 
 ---
 

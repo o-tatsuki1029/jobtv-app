@@ -210,6 +210,7 @@ export type Database = {
           notes: string | null
           phone: string | null
           referrer: string | null
+          school_kcode: string | null
           school_name: string | null
           school_type: string | null
           updated_at: string
@@ -242,6 +243,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           referrer?: string | null
+          school_kcode?: string | null
           school_name?: string | null
           school_type?: string | null
           updated_at?: string
@@ -274,6 +276,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           referrer?: string | null
+          school_kcode?: string | null
           school_name?: string | null
           school_type?: string | null
           updated_at?: string
@@ -1720,6 +1723,48 @@ export type Database = {
           },
         ]
       }
+      school_master: {
+        Row: {
+          department_name: string | null
+          department_name_hira: string | null
+          faculty_name: string | null
+          faculty_name_hira: string | null
+          group_name: string | null
+          id: number
+          prefecture: string | null
+          school_kcode: string
+          school_name: string
+          school_name_hira: string | null
+          school_type: string
+        }
+        Insert: {
+          department_name?: string | null
+          department_name_hira?: string | null
+          faculty_name?: string | null
+          faculty_name_hira?: string | null
+          group_name?: string | null
+          id?: never
+          prefecture?: string | null
+          school_kcode: string
+          school_name: string
+          school_name_hira?: string | null
+          school_type: string
+        }
+        Update: {
+          department_name?: string | null
+          department_name_hira?: string | null
+          faculty_name?: string | null
+          faculty_name_hira?: string | null
+          group_name?: string | null
+          id?: never
+          prefecture?: string | null
+          school_kcode?: string
+          school_name?: string
+          school_name_hira?: string | null
+          school_type?: string
+        }
+        Relationships: []
+      }
       session_dates: {
         Row: {
           capacity: number | null
@@ -2004,6 +2049,36 @@ export type Database = {
           },
         ]
       }
+      top_page_banners: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          image_url: string
+          link_url: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          image_url: string
+          link_url?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          image_url?: string
+          link_url?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       top_page_featured_videos: {
         Row: {
           created_at: string
@@ -2245,6 +2320,8 @@ export type Database = {
         Args: { p_session_date_id: string }
         Returns: boolean
       }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
     }
     Enums: {
       application_status:

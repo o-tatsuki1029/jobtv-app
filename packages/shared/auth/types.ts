@@ -16,5 +16,6 @@ export interface UserInfo {
   email: string | undefined;
   recruiterId?: string;
   companyId?: string;
+  candidateId?: string;
   isAdmin: boolean;
 }
