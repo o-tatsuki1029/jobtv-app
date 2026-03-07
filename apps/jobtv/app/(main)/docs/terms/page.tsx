@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
+import TermsWebPageJsonLd from "@/components/seo/TermsWebPageJsonLd";
 
 export const metadata: Metadata = {
-  title: "利用規約 | JOBTV",
-  description: "JOBTVの利用規約です。"
+  title: "利用規約",
+  description:
+    "JOBTVの利用規約です。求人企業・求職者向けサービス（JOBTVfor新卒・JOBTVfor転職）の利用条件、登録情報の取扱い、禁止事項などを定めています。"
 };
 
 export default function TermsPage() {
   return (
+    <>
+    <TermsWebPageJsonLd />
     <div className="bg-white text-gray-900">
       <div className="container mx-auto px-4 py-8 md:py-12 max-w-3xl">
         <h1 className="text-xl md:text-2xl font-bold mb-8 text-gray-900">
@@ -511,5 +515,6 @@ export default function TermsPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }

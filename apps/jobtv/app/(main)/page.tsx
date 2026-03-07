@@ -1,6 +1,8 @@
 import MainPageContent from "@/components/main/MainPageContent";
+import VideoObjectListJsonLd from "@/components/seo/VideoObjectListJsonLd";
 import { getCompaniesByIndustry, type CompanyWithPage } from "@/lib/actions/company-list-actions";
 import { getPublicVideosForTopPage } from "@/lib/actions/video-actions";
+import { getTopPageBanners } from "@/lib/actions/top-page-banner-actions";
 import { INDUSTRIES } from "@/constants/company-options";
 import { SITE_TITLE, SITE_DESCRIPTION } from "@/constants/site";
 import type { Metadata } from "next";
@@ -11,44 +13,6 @@ export const metadata: Metadata = {
   description: SITE_DESCRIPTION
 };
 
-// サンプルデータ
-const banners = [
-  {
-    id: "e1",
-    title: "2027年向け 採用イベント",
-    image: "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=800&h=450&fit=crop"
-  },
-  {
-    id: "e2",
-    title: "企業密1日着動画特集",
-    image: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&h=450&fit=crop"
-  },
-  {
-    id: "b1",
-    title: "2025年新卒採用エントリー受付中！",
-    image: "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=800&h=450&fit=crop"
-  },
-  {
-    id: "b2",
-    title: "中途採用・キャリア採用 積極募集中",
-    image: "https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&h=450&fit=crop"
-  },
-  {
-    id: "b3",
-    title: "オンライン企業説明会 毎週開催中",
-    image: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800&h=450&fit=crop"
-  },
-  {
-    id: "b4",
-    title: "インターンシッププログラム 参加者募集",
-    image: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=800&h=450&fit=crop"
-  },
-  {
-    id: "b5",
-    title: "エンジニア職 大募集！未経験者も歓迎",
-    image: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&h=450&fit=crop"
-  }
-];
 
 const heroProgram = {
   title: "動画就活で理想の企業と出会う",
@@ -165,11 +129,14 @@ export default async function Home() {
     streamingUrl?: string | null;
   }> = [];
 
+  let banners: Array<{ id: string; title: string; image: string; link?: string }> = [];
+
   try {
-    const [companiesResult, shortResult, documentaryResult] = await Promise.all([
+    const [companiesResult, shortResult, documentaryResult, bannersResult] = await Promise.all([
       getCompaniesByIndustry(),
       getPublicVideosForTopPage("short"),
-      getPublicVideosForTopPage("documentary")
+      getPublicVideosForTopPage("documentary"),
+      getTopPageBanners()
     ]);
 
     const companiesByIndustry = companiesResult.data ?? new Map<string, CompanyWithPage[]>();
@@ -209,19 +176,29 @@ export default async function Home() {
       streamingUrl: v.streaming_url ?? null,
       videoUrl: v.video_url ?? undefined
     }));
+
+    banners = (bannersResult.data ?? []).map((b) => ({
+      id: b.id,
+      title: b.title,
+      image: b.image_url,
+      link: b.link_url ?? undefined
+    }));
   } catch (e) {
     console.error("Home: data fetch error", e);
   }
 
   return (
-    <MainPageContent
-      heroProgram={heroProgram}
-      banners={banners}
-      shortVideos={shortVideos}
-      accounts={accounts}
-      documentaryPrograms={documentaryPrograms}
-      shundiaryVideos={shundiaryVideos}
-      industrySections={industrySections}
-    />
+    <>
+      <VideoObjectListJsonLd videos={[...shortVideos, ...documentaryPrograms]} />
+      <MainPageContent
+        heroProgram={heroProgram}
+        banners={banners}
+        shortVideos={shortVideos}
+        accounts={accounts}
+        documentaryPrograms={documentaryPrograms}
+        shundiaryVideos={shundiaryVideos}
+        industrySections={industrySections}
+      />
+    </>
   );
 }

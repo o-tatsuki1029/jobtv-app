@@ -1,10 +1,14 @@
 import SessionDetailView from "@/components/SessionDetailView";
 import SessionEventJsonLd from "@/components/seo/SessionEventJsonLd";
+import BreadcrumbJsonLd from "@/components/seo/BreadcrumbJsonLd";
 import { getSession, getSessionDates } from "@/lib/actions/session-actions";
 import { getSessionDateReservationCounts } from "@/lib/actions/session-reservation-actions";
 import { getCompanyProfileById } from "@/lib/actions/company-profile-actions";
+import { getLineLinkStatus } from "@/lib/actions/line-actions";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import { SITE_NAME, OGP_IMAGE, SITE_URL } from "@/constants/site";
+
 
 interface SessionDetailPageProps {
   params: Promise<{
@@ -32,15 +36,15 @@ export async function generateMetadata({ params }: SessionDetailPageProps): Prom
   const { data: company } = await getCompanyProfileById(session.company_id || "");
 
   // タイトルを生成
-  const title = `${session.title} | ${company?.name || "企業"} | JOBTV`;
+  const title = `${session.title} | ${company?.name || "企業"}`;
 
   // 説明文を生成
   const description = session.description
     ? session.description.replace(/\n/g, " ").substring(0, 120) + (session.description.length > 120 ? "..." : "")
     : `${company?.name || "企業"}の${session.title}の説明会情報。`;
 
-  // OGP画像を決定（カバー画像 > 企業ロゴ > デフォルト）
-  const ogImage = session.cover_image_url || company?.logo_url || undefined;
+  // OGP画像を決定（カバー画像 > 企業ロゴ > デフォルトOGP）
+  const ogImage = session.cover_image_url || company?.logo_url || OGP_IMAGE;
 
   // キーワードを生成
   const keywords = [session.title, company?.name, session.type, session.location_type, "説明会", "就活", "JOBTV"].filter(
@@ -55,26 +59,17 @@ export async function generateMetadata({ params }: SessionDetailPageProps): Prom
       title,
       description,
       type: "website",
-      images: ogImage
-        ? [
-            {
-              url: ogImage,
-              width: 1200,
-              height: 630,
-              alt: session.title
-            }
-          ]
-        : undefined,
-      siteName: "JOBTV"
+      images: [{ url: ogImage, width: 1200, height: 630, alt: session.title }],
+      siteName: SITE_NAME
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: ogImage ? [ogImage] : undefined
+      images: [ogImage]
     },
     alternates: {
-      canonical: `/session/${id}`
+      canonical: `${SITE_URL}/session/${id}`
     }
   };
 }
@@ -149,6 +144,10 @@ export default async function SessionDetailPage({ params }: SessionDetailPagePro
     notFound();
   }
 
+  // LINE 連携状態を取得（エラーは無視して未連携扱い）
+  const lineLinkResult = await getLineLinkStatus();
+  const lineLinked = lineLinkResult.data?.linked;
+
   // 企業ページ情報からカバー画像を取得
   const companyCoverImage = (company as any).cover_image_url || null;
   // companiesテーブルのIDを確実に使用（company_pagesのidで上書きされないように）
@@ -189,11 +188,14 @@ export default async function SessionDetailPage({ params }: SessionDetailPagePro
   return (
     <>
       <SessionEventJsonLd
-        session={session}
+        session={{ ...session, status: session.status }}
         company={company}
         firstDate={firstUpcomingDate}
       />
-      <SessionDetailView session={sessionData} />
+      <BreadcrumbJsonLd
+        items={[{ name: session.title || "説明会", path: `/session/${id}` }]}
+      />
+<SessionDetailView session={sessionData} lineLinked={lineLinked} />
     </>
   );
 }

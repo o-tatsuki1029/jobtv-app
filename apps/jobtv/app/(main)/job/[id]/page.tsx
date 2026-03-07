@@ -1,10 +1,13 @@
 import JobDetailView from "@/components/JobDetailView";
 import JobPostingJsonLd from "@/components/seo/JobPostingJsonLd";
+import BreadcrumbJsonLd from "@/components/seo/BreadcrumbJsonLd";
 import { getJob } from "@/lib/actions/job-actions";
 import { getHasAppliedToJob } from "@/lib/actions/application-actions";
 import { getCompanyProfileById } from "@/lib/actions/company-profile-actions";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import { SITE_NAME, OGP_IMAGE, SITE_URL } from "@/constants/site";
+
 
 interface JobDetailPageProps {
   params: Promise<{
@@ -46,8 +49,8 @@ export async function generateMetadata({ params }: JobDetailPageProps): Promise<
         locationText ? `勤務地: ${locationText}` : ""
       }`;
 
-  // OGP画像を決定（カバー画像 > 企業ロゴ > デフォルト）
-  const ogImage = job.cover_image_url || company?.logo_url || undefined;
+  // OGP画像を決定（カバー画像 > 企業ロゴ > デフォルトOGP）
+  const ogImage = job.cover_image_url || company?.logo_url || OGP_IMAGE;
 
   // キーワードを生成
   const keywords = [
@@ -69,26 +72,17 @@ export async function generateMetadata({ params }: JobDetailPageProps): Promise<
       title,
       description,
       type: "website",
-      images: ogImage
-        ? [
-            {
-              url: ogImage,
-              width: 1200,
-              height: 630,
-              alt: job.title
-            }
-          ]
-        : undefined,
-      siteName: "JOBTV"
+      images: [{ url: ogImage, width: 1200, height: 630, alt: job.title }],
+      siteName: SITE_NAME
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: ogImage ? [ogImage] : undefined
+      images: [ogImage]
     },
     alternates: {
-      canonical: `/job/${id}`
+      canonical: `${SITE_URL}/job/${id}`
     }
   };
 }
@@ -173,9 +167,18 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
           employment_type: job.employment_type ?? null,
           graduation_year: job.graduation_year ?? 0
         }}
-        company={company}
+        company={{
+          name: company.name,
+          logo_url: company.logo_url ?? null,
+          website: company.website ?? null
+        }}
       />
-      <JobDetailView job={jobData} initialHasApplied={hasApplied ?? false} />
+      <BreadcrumbJsonLd
+        items={[
+          { name: job.title ?? "求人", path: `/job/${id}` }
+        ]}
+      />
+<JobDetailView job={jobData} initialHasApplied={hasApplied ?? false} />
     </>
   );
 }

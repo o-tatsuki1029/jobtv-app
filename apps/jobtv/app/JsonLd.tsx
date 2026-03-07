@@ -9,11 +9,7 @@ export default function JsonLd() {
     url: SITE_URL,
     logo: `${SITE_URL}/logo.svg`,
     description: SITE_DESCRIPTION,
-    sameAs: [
-      // SNSアカウントがあれば追加
-      // "https://twitter.com/jobtv",
-      // "https://www.facebook.com/jobtv",
-    ]
+    sameAs: ["https://x.com/jobtv", "https://www.tiktok.com/@jobtv"]
   };
 
   // WebSite Schema
@@ -22,15 +18,7 @@ export default function JsonLd() {
     "@type": "WebSite",
     name: SITE_NAME,
     url: SITE_URL,
-    description: SITE_DESCRIPTION,
-    potentialAction: {
-      "@type": "SearchAction",
-      target: {
-        "@type": "EntryPoint",
-        urlTemplate: `${SITE_URL}/search?q={search_term_string}`
-      },
-      "query-input": "required name=search_term_string"
-    }
+    description: SITE_DESCRIPTION
   };
 
   return (

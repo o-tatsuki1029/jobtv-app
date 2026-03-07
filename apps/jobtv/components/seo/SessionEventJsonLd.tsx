@@ -14,10 +14,40 @@ interface SessionEventJsonLdProps {
     location_type: string | null;
     location_detail: string | null;
     capacity: number | null;
+    status?: string | null;
   };
   company: { name: string };
   /** 最初の開催日（startDate/endDate に使用、省略可） */
   firstDate?: SessionDateRow | null;
+}
+
+/** location_type を Schema.org の eventAttendanceMode URL に変換 */
+function toAttendanceMode(locationType: string | null): string {
+  if (!locationType) return "https://schema.org/OfflineEventAttendanceMode";
+  if (locationType === "オンライン") return "https://schema.org/OnlineEventAttendanceMode";
+  if (locationType === "対面/オンライン") return "https://schema.org/MixedEventAttendanceMode";
+  return "https://schema.org/OfflineEventAttendanceMode";
+}
+
+/** location_type に応じた location オブジェクトを生成 */
+function toLocation(locationType: string | null, locationDetail: string | null) {
+  const isOnline = locationType === "オンライン";
+  const isMixed = locationType === "対面/オンライン";
+  const name = [locationType, locationDetail].filter(Boolean).join(" / ") || undefined;
+
+  if (isOnline) {
+    return { "@type": "VirtualLocation", name: locationDetail || "オンライン" };
+  }
+  if (isMixed) {
+    return [
+      { "@type": "VirtualLocation", name: "オンライン" },
+      ...(locationDetail ? [{ "@type": "Place", name: locationDetail }] : [])
+    ];
+  }
+  if (name) {
+    return { "@type": "Place", name };
+  }
+  return undefined;
 }
 
 /**
@@ -40,12 +70,19 @@ export default function SessionEventJsonLd({
     endDate = `${datePart}T${end}`;
   }
 
-  const schema = {
+  const eventStatus =
+    session.status === "active" ? "https://schema.org/EventScheduled" : "https://schema.org/EventCancelled";
+
+  const location = toLocation(session.location_type, session.location_detail);
+
+  const schema: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": "Event",
     name: session.title,
     description: session.description || undefined,
     url,
+    eventStatus,
+    eventAttendanceMode: toAttendanceMode(session.location_type),
     organizer: {
       "@type": "Organization",
       name: company.name
@@ -53,13 +90,7 @@ export default function SessionEventJsonLd({
     ...(startDate && { startDate }),
     ...(endDate && { endDate }),
     ...(session.capacity != null && { maximumAttendeeCapacity: session.capacity }),
-    location:
-      session.location_type || session.location_detail
-        ? {
-            "@type": "Place",
-            name: [session.location_type, session.location_detail].filter(Boolean).join(" / ")
-          }
-        : undefined
+    ...(location && { location })
   };
 
   return (

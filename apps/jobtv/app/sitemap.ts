@@ -13,6 +13,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: new Date(),
       changeFrequency: "daily",
       priority: 1
+    },
+    {
+      url: `${SITE_URL}/docs/terms`,
+      lastModified: new Date("2022-12-01"),
+      changeFrequency: "yearly",
+      priority: 0.3
     }
   ];
 

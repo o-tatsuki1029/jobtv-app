@@ -1,9 +1,13 @@
 import CompanyProfileView, { dbToCompanyData } from "@/components/company";
 import { getCompanyProfileById } from "@/lib/actions/company-profile-actions";
+import { getLineLinkStatus } from "@/lib/actions/line-actions";
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { SITE_NAME } from "@/constants/site";
+import { SITE_NAME, OGP_IMAGE, SITE_URL } from "@/constants/site";
+import CompanyOrganizationJsonLd from "@/components/seo/CompanyOrganizationJsonLd";
+import BreadcrumbJsonLd from "@/components/seo/BreadcrumbJsonLd";
+
 
 // モックデータ（フォールバック用）
 const mockCompany = {
@@ -202,7 +206,7 @@ export async function generateMetadata({ params }: CompanyDetailPageProps): Prom
         images: [mockCompany.coverImage]
       },
       alternates: {
-        canonical: `/company/${id}`
+        canonical: `${SITE_URL}/company/${id}`
       }
     };
   }
@@ -229,8 +233,8 @@ export async function generateMetadata({ params }: CompanyDetailPageProps): Prom
         company.prefecture ? `所在地: ${company.prefecture}` : ""
       }`;
 
-  // OGP画像を決定（カバー画像 > ロゴ > デフォルト）
-  const ogImage = company.coverImage || company.logo || undefined;
+  // OGP画像を決定（カバー画像 > ロゴ > デフォルトOGP）
+  const ogImage = company.coverImage || company.logo || OGP_IMAGE;
 
   // キーワードを生成
   const keywords = [company.name, company.industry, company.prefecture, "新卒採用", "就活", "企業情報", SITE_NAME].filter(
@@ -245,26 +249,17 @@ export async function generateMetadata({ params }: CompanyDetailPageProps): Prom
       title,
       description,
       type: "website",
-      images: ogImage
-        ? [
-            {
-              url: ogImage,
-              width: 1200,
-              height: 630,
-              alt: company.name
-            }
-          ]
-        : undefined,
+      images: [{ url: ogImage, width: 1200, height: 630, alt: company.name }],
       siteName: SITE_NAME
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: ogImage ? [ogImage] : undefined
+      images: [ogImage]
     },
     alternates: {
-      canonical: `/company/${id}`
+      canonical: `${SITE_URL}/company/${id}`
     }
   };
 }
@@ -305,5 +300,28 @@ export default async function CompanyDetailPage({ params }: CompanyDetailPagePro
   // データベースから取得したデータを変換
   const company = dbToCompanyData(result.data);
 
-  return <CompanyProfileView company={company} />;
+  // LINE 連携状態を取得（エラーは無視して未連携扱い）
+  const lineLinkResult = await getLineLinkStatus();
+  const lineLinked = lineLinkResult.data?.linked;
+
+  return (
+    <>
+      <CompanyOrganizationJsonLd
+        company={{
+          id,
+          name: company.name,
+          description: company.description,
+          logo: company.logo,
+          coverImage: company.coverImage,
+          industry: company.industry,
+          prefecture: company.prefecture,
+          established: company.established,
+          employees: company.employees,
+          website: company.website
+        }}
+      />
+      <BreadcrumbJsonLd items={[{ name: company.name, path: `/company/${id}` }]} />
+<CompanyProfileView company={company} lineLinked={lineLinked} />
+    </>
+  );
 }

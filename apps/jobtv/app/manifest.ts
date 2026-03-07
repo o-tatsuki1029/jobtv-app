@@ -12,9 +12,10 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: PWA_CONFIG.themeColor,
     icons: [
       {
-        src: "/logo.svg",
+        src: "/icon.svg",
         sizes: "any",
-        type: "image/svg+xml"
+        type: "image/svg+xml",
+        purpose: "any"
       }
     ]
   };

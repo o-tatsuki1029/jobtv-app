@@ -10,8 +10,9 @@ interface JobPostingJsonLdProps {
     location_detail: string | null;
     employment_type: string | null;
     graduation_year: number;
+    application_deadline?: string | null;
   };
-  company: { name: string };
+  company: { name: string; logo_url?: string | null; website?: string | null };
 }
 
 /**
@@ -29,7 +30,9 @@ export default function JobPostingJsonLd({ job, company }: JobPostingJsonLdProps
     datePosted: job.created_at,
     hiringOrganization: {
       "@type": "Organization",
-      name: company.name
+      name: company.name,
+      ...(company.website && { url: company.website }),
+      ...(company.logo_url && { logo: company.logo_url })
     },
     jobLocation: jobLocation
       ? {
@@ -42,6 +45,11 @@ export default function JobPostingJsonLd({ job, company }: JobPostingJsonLdProps
         }
       : undefined,
     employmentType: job.employment_type ?? undefined,
+    validThrough: job.application_deadline ?? undefined,
+    educationRequirements: {
+      "@type": "EducationalOccupationalCredential",
+      credentialCategory: "bachelor degree"
+    },
     jobImmediateStart: false,
     identifier: {
       "@type": "PropertyValue",
