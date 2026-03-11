@@ -5,12 +5,15 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { Tables, TablesInsert, TablesUpdate } from "@jobtv-app/shared/types";
+import { logger } from "@/lib/logger";
+import { logAudit } from "@jobtv-app/shared/utils/audit";
 
 /**
  * 管理者権限をチェック
  */
 export async function checkAdminPermission(): Promise<{
   isAdmin: boolean;
+  userId: string | null;
   error: string | null;
 }> {
   const supabase = await createClient();
@@ -20,7 +23,7 @@ export async function checkAdminPermission(): Promise<{
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return { isAdmin: false, error: "ログインが必要です" };
+    return { isAdmin: false, userId: null, error: "ログインが必要です" };
   }
 
   const { data: profile, error: profileError } = await supabase
@@ -30,12 +33,12 @@ export async function checkAdminPermission(): Promise<{
     .single();
 
   if (profileError || !profile) {
-    return { isAdmin: false, error: "ユーザー情報が見つかりません" };
+    return { isAdmin: false, userId: null, error: "ユーザー情報が見つかりません" };
   }
 
   const isAdmin = profile.role === "admin";
 
-  return { isAdmin, error: null };
+  return { isAdmin, userId: user.id, error: null };
 }
 
 /**
@@ -85,7 +88,7 @@ export async function getAllJobsForReview(params?: {
   const { data: drafts, count: totalCount, error: draftsError } = await draftsQuery;
 
   if (draftsError) {
-    console.error("Get all job drafts for review error:", draftsError);
+    logger.error({ action: "getAllJobsForReview", err: draftsError }, "求人ドラフト一覧の取得に失敗しました");
     return { data: null, count: null, error: draftsError.message };
   }
 
@@ -201,7 +204,7 @@ export async function getAllSessionsForReview(params?: {
   const { data: drafts, count: totalCount, error: draftsError } = await draftsQuery;
 
   if (draftsError) {
-    console.error("Get all session drafts for review error:", draftsError);
+    logger.error({ action: "getAllSessionsForReview", err: draftsError }, "説明会ドラフト一覧の取得に失敗しました");
     return { data: null, count: null, error: draftsError.message };
   }
 
@@ -287,7 +290,7 @@ export async function getAllCompanyInfoForReview() {
     .order("submitted_at", { ascending: false });
 
   if (draftsError) {
-    console.error("Get all company info drafts for review error:", draftsError);
+    logger.error({ action: "getAllCompanyInfoForReview", err: draftsError }, "企業情報ドラフト一覧の取得に失敗しました");
     return { data: null, error: draftsError.message };
   }
 
@@ -358,7 +361,7 @@ export async function getAllCompaniesForReview(params?: {
   const { data: drafts, count: totalCount, error: draftsError } = await draftsQuery;
 
   if (draftsError) {
-    console.error("Get all company pages for review error:", draftsError);
+    logger.error({ action: "getAllCompaniesForReview", err: draftsError }, "企業ページドラフト一覧の取得に失敗しました");
     return { data: null, count: null, error: draftsError.message };
   }
 
@@ -401,6 +404,9 @@ export async function updateJobDraftStatus(draftId: string, status: "approved" |
     return { data: null, error: "管理者権限が必要です" };
   }
 
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
   const supabaseAdmin = createAdminClient();
 
   // draftを取得
@@ -411,7 +417,7 @@ export async function updateJobDraftStatus(draftId: string, status: "approved" |
     .maybeSingle();
 
   if (draftError) {
-    console.error("Get job draft error:", draftError);
+    logger.error({ action: "updateJobDraftStatus", draftId, err: draftError }, "求人ドラフトの取得に失敗しました");
     return { data: null, error: draftError.message };
   }
 
@@ -453,15 +459,13 @@ export async function updateJobDraftStatus(draftId: string, status: "approved" |
       .maybeSingle();
 
     if (updateError) {
-      console.error("Update job for approval error:", updateError);
+      logger.error({ action: "updateJobDraftStatus", draftId, err: updateError }, "求人本番テーブルの更新に失敗しました");
       return { data: null, error: updateError.message };
     }
 
     if (!updatedJob) {
       // 本番テーブルに該当レコードが存在しない可能性がある
-      console.error("updateJobDraftStatus: Production job not found", {
-        production_job_id: draft.production_job_id
-      });
+      logger.error({ action: "updateJobDraftStatus", draftId, production_job_id: draft.production_job_id }, "本番求人レコードが見つかりません。新規作成にフォールバックします");
       // 新規作成にフォールバック
     } else {
       productionJob = updatedJob;
@@ -495,7 +499,7 @@ export async function updateJobDraftStatus(draftId: string, status: "approved" |
       .maybeSingle();
 
     if (insertError) {
-      console.error("Create job for approval error:", insertError);
+      logger.error({ action: "updateJobDraftStatus", draftId, err: insertError }, "求人本番テーブルの作成に失敗しました");
       return { data: null, error: insertError.message };
     }
 
@@ -536,13 +540,26 @@ export async function updateJobDraftStatus(draftId: string, status: "approved" |
   const { error: updateDraftError } = await supabaseAdmin.from("job_postings_draft").update(updateData).eq("id", draftId);
 
   if (updateDraftError) {
-    console.error("Update job draft status error:", updateDraftError);
+    logger.error({ action: "updateJobDraftStatus", draftId, err: updateDraftError }, "求人ドラフトステータスの更新に失敗しました");
     return { data: null, error: updateDraftError.message };
   }
 
   revalidatePath("/admin/review");
   revalidatePath("/admin/jobs");
   revalidatePath("/studio/jobs");
+
+  if (user) {
+    logAudit({
+      userId: user.id,
+      action: status === "approved" ? "job.approve" : "job.reject",
+      category: "content_review",
+      resourceType: "job_postings_draft",
+      resourceId: draftId,
+      app: "jobtv",
+      metadata: { companyId: draft.company_id, jobTitle: draft.title },
+    });
+  }
+
   return { data: productionJob, error: null };
 }
 
@@ -570,6 +587,9 @@ export async function updateSessionDraftStatus(draftId: string, status: "approve
     return { data: null, error: "管理者権限が必要です" };
   }
 
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
   const supabaseAdmin = createAdminClient();
 
   // draftを取得
@@ -580,7 +600,7 @@ export async function updateSessionDraftStatus(draftId: string, status: "approve
     .maybeSingle();
 
   if (draftError) {
-    console.error("Get session draft error:", draftError);
+    logger.error({ action: "updateSessionDraftStatus", draftId, err: draftError }, "説明会ドラフトの取得に失敗しました");
     return { data: null, error: draftError.message };
   }
 
@@ -618,7 +638,7 @@ export async function updateSessionDraftStatus(draftId: string, status: "approve
       .maybeSingle();
 
     if (updateError) {
-      console.error("Update session for approval error:", updateError);
+      logger.error({ action: "updateSessionDraftStatus", draftId, err: updateError }, "説明会本番テーブルの更新に失敗しました");
       return { data: null, error: updateError.message };
     }
 
@@ -651,7 +671,7 @@ export async function updateSessionDraftStatus(draftId: string, status: "approve
       .maybeSingle();
 
     if (insertError) {
-      console.error("Create session for approval error:", insertError);
+      logger.error({ action: "updateSessionDraftStatus", draftId, err: insertError }, "説明会本番テーブルの作成に失敗しました");
       return { data: null, error: insertError.message };
     }
 
@@ -673,7 +693,7 @@ export async function updateSessionDraftStatus(draftId: string, status: "approve
       .eq("session_draft_id", draftId);
 
     if (draftDatesError) {
-      console.error("Get draft dates error:", draftDatesError);
+      logger.error({ action: "updateSessionDraftStatus", draftId, err: draftDatesError }, "ドラフト日程の取得に失敗しました");
       return { data: null, error: `日程の取得に失敗しました: ${draftDatesError.message}` };
     }
 
@@ -687,7 +707,7 @@ export async function updateSessionDraftStatus(draftId: string, status: "approve
         .eq("session_id", productionSession.id);
 
       if (deleteError) {
-        console.error("Delete existing production dates error:", deleteError);
+        logger.error({ action: "updateSessionDraftStatus", draftId, sessionId: productionSession.id, err: deleteError }, "既存本番日程の削除に失敗しました");
         return { data: null, error: `既存日程の削除に失敗しました: ${deleteError.message}` };
       }
 
@@ -707,7 +727,7 @@ export async function updateSessionDraftStatus(draftId: string, status: "approve
         .insert(productionDates);
 
       if (insertDatesError) {
-        console.error("Insert production dates error:", insertDatesError);
+        logger.error({ action: "updateSessionDraftStatus", draftId, sessionId: productionSession.id, err: insertDatesError }, "本番日程のコピーに失敗しました");
         return { data: null, error: `日程のコピーに失敗しました: ${insertDatesError.message}` };
       }
 
@@ -747,13 +767,26 @@ export async function updateSessionDraftStatus(draftId: string, status: "approve
   const { error: updateDraftError } = await supabaseAdmin.from("sessions_draft").update(updateData).eq("id", draftId);
 
   if (updateDraftError) {
-    console.error("Update session draft status error:", updateDraftError);
+    logger.error({ action: "updateSessionDraftStatus", draftId, err: updateDraftError }, "説明会ドラフトステータスの更新に失敗しました");
     return { data: null, error: updateDraftError.message };
   }
 
   revalidatePath("/admin/review");
   revalidatePath("/admin/sessions");
   revalidatePath("/studio/sessions");
+
+  if (user) {
+    logAudit({
+      userId: user.id,
+      action: status === "approved" ? "session.approve" : "session.reject",
+      category: "content_review",
+      resourceType: "sessions_draft",
+      resourceId: draftId,
+      app: "jobtv",
+      metadata: { companyId: draft.company_id, sessionTitle: draft.title },
+    });
+  }
+
   return { data: productionSession, error: null };
 }
 
@@ -781,6 +814,9 @@ export async function updateCompanyInfoDraftStatus(draftId: string, status: "app
     return { data: null, error: "管理者権限が必要です" };
   }
 
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
   const supabaseAdmin = createAdminClient();
 
   // draftを取得
@@ -791,7 +827,7 @@ export async function updateCompanyInfoDraftStatus(draftId: string, status: "app
     .maybeSingle();
 
   if (draftError) {
-    console.error("Get company draft error:", draftError);
+    logger.error({ action: "updateCompanyInfoDraftStatus", draftId, err: draftError }, "企業情報ドラフトの取得に失敗しました");
     return { data: null, error: draftError.message };
   }
 
@@ -832,7 +868,7 @@ export async function updateCompanyInfoDraftStatus(draftId: string, status: "app
       .maybeSingle();
 
     if (updateError) {
-      console.error("Update company for approval error:", updateError);
+      logger.error({ action: "updateCompanyInfoDraftStatus", draftId, err: updateError }, "企業情報本番テーブルの更新に失敗しました");
       return { data: null, error: updateError.message };
     }
 
@@ -866,7 +902,7 @@ export async function updateCompanyInfoDraftStatus(draftId: string, status: "app
       .maybeSingle();
 
     if (insertError) {
-      console.error("Create company for approval error:", insertError);
+      logger.error({ action: "updateCompanyInfoDraftStatus", draftId, err: insertError }, "企業情報本番テーブルの作成に失敗しました");
       return { data: null, error: insertError.message };
     }
 
@@ -907,13 +943,26 @@ export async function updateCompanyInfoDraftStatus(draftId: string, status: "app
   const { error: updateDraftError } = await supabaseAdmin.from("companies_draft").update(updateData).eq("id", draftId);
 
   if (updateDraftError) {
-    console.error("Update company draft status error:", updateDraftError);
+    logger.error({ action: "updateCompanyInfoDraftStatus", draftId, err: updateDraftError }, "企業情報ドラフトステータスの更新に失敗しました");
     return { data: null, error: updateDraftError.message };
   }
 
   revalidatePath("/admin/review");
   revalidatePath("/admin/companies");
   revalidatePath("/studio/settings/profile");
+
+  if (user) {
+    logAudit({
+      userId: user.id,
+      action: status === "approved" ? "company_info.approve" : "company_info.reject",
+      category: "content_review",
+      resourceType: "companies_draft",
+      resourceId: draftId,
+      app: "jobtv",
+      metadata: { companyId: draft.company_id, companyName: draft.name },
+    });
+  }
+
   return { data: productionCompany, error: null };
 }
 
@@ -941,6 +990,9 @@ export async function approveCompanyPage(draftId: string) {
     return { data: null, error: "管理者権限が必要です" };
   }
 
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
   const supabaseAdmin = createAdminClient();
 
   // draftを取得
@@ -951,7 +1003,7 @@ export async function approveCompanyPage(draftId: string) {
     .maybeSingle();
 
   if (draftError) {
-    console.error("Get company page draft error:", draftError);
+    logger.error({ action: "approveCompanyPage", draftId, err: draftError }, "企業ページドラフトの取得に失敗しました");
     return { data: null, error: draftError.message };
   }
 
@@ -972,7 +1024,7 @@ export async function approveCompanyPage(draftId: string) {
     .maybeSingle();
 
   if (findError) {
-    console.error("Find existing company page error:", findError);
+    logger.error({ action: "approveCompanyPage", draftId, companyId: draft.company_id, err: findError }, "既存企業ページの検索に失敗しました");
     return { data: null, error: findError.message };
   }
 
@@ -1005,7 +1057,7 @@ export async function approveCompanyPage(draftId: string) {
       .maybeSingle();
 
     if (updateError) {
-      console.error("Update company page for approval error:", updateError);
+      logger.error({ action: "approveCompanyPage", draftId, err: updateError }, "企業ページ本番テーブルの更新に失敗しました");
       return { data: null, error: updateError.message };
     }
 
@@ -1029,7 +1081,7 @@ export async function approveCompanyPage(draftId: string) {
       .maybeSingle();
 
     if (insertError) {
-      console.error("Create company page for approval error:", insertError);
+      logger.error({ action: "approveCompanyPage", draftId, err: insertError }, "企業ページ本番テーブルの作成に失敗しました");
       return { data: null, error: insertError.message };
     }
 
@@ -1066,13 +1118,26 @@ export async function approveCompanyPage(draftId: string) {
   const { error: updateError } = await supabaseAdmin.from("company_pages_draft").update(updateData).eq("id", draftId);
 
   if (updateError) {
-    console.error("Update draft status error:", updateError);
+    logger.error({ action: "approveCompanyPage", draftId, err: updateError }, "企業ページドラフトステータスの更新に失敗しました");
     return { data: null, error: updateError.message };
   }
 
   revalidatePath("/admin/review");
   revalidatePath("/admin");
   revalidatePath("/studio/company");
+
+  if (user) {
+    logAudit({
+      userId: user.id,
+      action: "company_page.approve",
+      category: "content_review",
+      resourceType: "company_pages_draft",
+      resourceId: draftId,
+      app: "jobtv",
+      metadata: { companyId: draft.company_id },
+    });
+  }
+
   return { data: productionPage, error: null };
 }
 
@@ -1086,7 +1151,17 @@ export async function rejectCompanyPage(draftId: string) {
     return { data: null, error: "管理者権限が必要です" };
   }
 
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
   const supabaseAdmin = createAdminClient();
+
+  // draftを取得（audit用にcompany_idを取得）
+  const { data: draft } = await supabaseAdmin
+    .from("company_pages_draft")
+    .select("company_id")
+    .eq("id", draftId)
+    .maybeSingle();
 
   // draftのstatusを更新
   const { error: updateError } = await supabaseAdmin
@@ -1098,14 +1173,67 @@ export async function rejectCompanyPage(draftId: string) {
     .eq("id", draftId);
 
   if (updateError) {
-    console.error("Reject company page error:", updateError);
+    logger.error({ action: "rejectCompanyPage", draftId, err: updateError }, "企業ページの却下処理に失敗しました");
     return { data: null, error: updateError.message };
   }
 
   revalidatePath("/admin/review");
   revalidatePath("/admin");
   revalidatePath("/studio/company");
+
+  if (user) {
+    logAudit({
+      userId: user.id,
+      action: "company_page.reject",
+      category: "content_review",
+      resourceType: "company_pages_draft",
+      resourceId: draftId,
+      app: "jobtv",
+      metadata: { companyId: draft?.company_id },
+    });
+  }
+
   return { data: null, error: null };
+}
+
+/**
+ * 審査待ちカウントのみを高速取得（COUNT クエリのみ、データ本体は取らない）
+ */
+export async function getReviewCounts(): Promise<{
+  data: {
+    "company-info": number;
+    "company-pages": number;
+    jobs: number;
+    sessions: number;
+    videos: number;
+  } | null;
+  error: string | null;
+}> {
+  const supabaseAdmin = createAdminClient();
+
+  const [companyInfoRes, companyPagesRes, jobsRes, sessionsRes, videosRes] = await Promise.all([
+    supabaseAdmin.from("companies_draft").select("id", { count: "exact", head: true }).eq("draft_status", "submitted"),
+    supabaseAdmin.from("company_pages_draft").select("id", { count: "exact", head: true }).eq("draft_status", "submitted"),
+    supabaseAdmin.from("job_postings_draft").select("id", { count: "exact", head: true }).eq("draft_status", "submitted"),
+    supabaseAdmin.from("sessions_draft").select("id", { count: "exact", head: true }).eq("draft_status", "submitted"),
+    supabaseAdmin.from("videos_draft").select("id", { count: "exact", head: true }).eq("draft_status", "submitted")
+  ]);
+
+  const firstError = companyInfoRes.error || companyPagesRes.error || jobsRes.error || sessionsRes.error || videosRes.error;
+  if (firstError) {
+    return { data: null, error: firstError.message };
+  }
+
+  return {
+    data: {
+      "company-info": companyInfoRes.count ?? 0,
+      "company-pages": companyPagesRes.count ?? 0,
+      jobs: jobsRes.count ?? 0,
+      sessions: sessionsRes.count ?? 0,
+      videos: videosRes.count ?? 0
+    },
+    error: null
+  };
 }
 
 /**

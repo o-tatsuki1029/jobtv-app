@@ -13,7 +13,9 @@ MCP（Model Context Protocol）は、AI エージェント（Claude Code / Curso
 |-----------|------|----------|
 | `supabase` | HTTP | DB操作・マイグレーション適用・型生成・ログ確認 |
 | `github` | HTTP | Issue/PR管理・コードプッシュ・ブランチ操作 |
+| `vercel` | HTTP | デプロイ管理・ビルドログ確認・環境変数操作 |
 | `context7` | stdio | Next.js/Supabase 等の最新ドキュメント取得 |
+| `playwright` | stdio | ブラウザ操作・E2Eテスト自動化 |
 | `sequential-thinking` | ビルトイン | 複雑な問題の段階的思考（設定不要） |
 | `ide` | ビルトイン | IDE 診断情報・エラー取得（設定不要） |
 
@@ -25,8 +27,8 @@ MCP（Model Context Protocol）は、AI エージェント（Claude Code / Curso
 
 | ファイル | スコープ | 内容 |
 |---------|---------|------|
-| `~/.claude/.mcp.json` | ユーザーグローバル | github / supabase（HTTP型） |
-| `.claude/.mcp.json` | プロジェクトレベル | context7（stdio型）— リポジトリに含まれる |
+| `~/.claude.json` | ユーザーグローバル | github / supabase / vercel（HTTP型） |
+| `.mcp.json` | プロジェクトレベル | context7 / playwright（stdio型）— リポジトリに含まれる |
 | `~/.claude/settings.json` | ユーザーグローバル | 権限設定（allow/deny） |
 
 ### Cursor
@@ -42,7 +44,20 @@ MCP（Model Context Protocol）は、AI エージェント（Claude Code / Curso
 
 ### 1. グローバル MCP 設定を追加
 
-`~/.claude/.mcp.json` を作成（または編集）して以下を設定する：
+`claude mcp add` コマンドで登録する（`~/.claude.json` に保存される）：
+
+```bash
+# 環境変数を事前に設定しておく
+export GITHUB_TOKEN=ghp_xxxx
+export SUPABASE_ACCESS_TOKEN=sbp_xxxx
+export VERCEL_TOKEN=vcp_xxxx
+
+claude mcp add --transport http -H "Authorization: Bearer ${GITHUB_TOKEN}" --scope user github https://api.githubcopilot.com/mcp/
+claude mcp add --transport http -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" --scope user supabase https://mcp.supabase.com
+claude mcp add --transport http -H "Authorization: Bearer ${VERCEL_TOKEN}" --scope user vercel https://mcp.vercel.com
+```
+
+上記コマンドで `~/.claude.json` の `mcpServers` に以下が追記される：
 
 ```json
 {
@@ -50,17 +65,18 @@ MCP（Model Context Protocol）は、AI エージェント（Claude Code / Curso
     "github": {
       "type": "http",
       "url": "https://api.githubcopilot.com/mcp/",
-      "headers": {
-        "Authorization": "Bearer ${GITHUB_TOKEN}"
-      }
+      "headers": { "Authorization": "Bearer <TOKEN>" }
     },
     "supabase": {
       "type": "http",
       "url": "https://mcp.supabase.com",
-      "headers": {
-        "Authorization": "Bearer ${SUPABASE_ACCESS_TOKEN}"
-      }
+      "headers": { "Authorization": "Bearer <TOKEN>" }
     },
+    "vercel": {
+      "type": "http",
+      "url": "https://mcp.vercel.com",
+      "headers": { "Authorization": "Bearer <TOKEN>" }
+    }
   }
 }
 ```
@@ -71,6 +87,7 @@ MCP（Model Context Protocol）は、AI エージェント（Claude Code / Curso
 |--------|--------|
 | `GITHUB_TOKEN` | GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens |
 | `SUPABASE_ACCESS_TOKEN` | Supabase Dashboard → Account → Access Tokens（Personal Access Token） |
+| `VERCEL_TOKEN` | Vercel Dashboard → Settings → Tokens |
 **注意**: `SUPABASE_ACCESS_TOKEN` はプロジェクトの `anon key` や `service_role key` ではなく、アカウントレベルの **Personal Access Token**。
 
 ### 3. 権限設定（推奨）
@@ -91,14 +108,22 @@ MCP（Model Context Protocol）は、AI エージェント（Claude Code / Curso
 
 ### 4. プロジェクトレベル context7
 
-`.claude/.mcp.json` はリポジトリに含まれており、設定済み。クローン後は自動的に利用可能。
+`.mcp.json`（プロジェクトルート）はリポジトリに含まれており、設定済み。クローン後は自動的に利用可能。
+
+Claude Code 起動時にプロジェクトスコープのサーバー承認プロンプトが表示されたら承認する。
 
 ```json
 {
   "mcpServers": {
     "context7": {
+      "type": "stdio",
       "command": "npx",
       "args": ["-y", "@upstash/context7-mcp"]
+    },
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest"]
     }
   }
 }

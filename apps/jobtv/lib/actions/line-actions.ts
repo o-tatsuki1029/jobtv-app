@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { logger } from "@/lib/logger";
 
 /**
  * 現在のユーザー（candidate）の LINE 連携状態を返す。
@@ -28,7 +29,7 @@ export async function getLineLinkStatus(): Promise<
       .single();
 
     if (profileError || !profile) {
-      console.error("getLineLinkStatus profile error:", profileError);
+      logger.error({ action: "getLineLinkStatus", err: profileError }, "プロフィールの取得に失敗");
       return { data: null, error: "プロフィールの取得に失敗しました。" };
     }
 
@@ -43,7 +44,7 @@ export async function getLineLinkStatus(): Promise<
       .single();
 
     if (candidateError) {
-      console.error("getLineLinkStatus candidate error:", candidateError);
+      logger.error({ action: "getLineLinkStatus", err: candidateError }, "LINE連携状態の取得に失敗");
       return { data: null, error: "連携状態の取得に失敗しました。" };
     }
 
@@ -52,7 +53,7 @@ export async function getLineLinkStatus(): Promise<
       error: null
     };
   } catch (e) {
-    console.error("getLineLinkStatus error:", e);
+    logger.error({ action: "getLineLinkStatus", err: e }, "LINE連携状態の取得に失敗");
     return { data: null, error: "連携状態の取得に失敗しました。" };
   }
 }
@@ -81,7 +82,7 @@ export async function unlinkLineAccount(): Promise<
       .single();
 
     if (profileError || !profile) {
-      console.error("unlinkLineAccount profile error:", profileError);
+      logger.error({ action: "unlinkLineAccount", err: profileError }, "プロフィールの取得に失敗");
       return { data: null, error: "プロフィールの取得に失敗しました。" };
     }
 
@@ -95,14 +96,14 @@ export async function unlinkLineAccount(): Promise<
       .eq("id", profile.candidate_id);
 
     if (updateError) {
-      console.error("unlinkLineAccount update error:", updateError);
+      logger.error({ action: "unlinkLineAccount", err: updateError }, "LINE連携の解除に失敗");
       return { data: null, error: "連携の解除に失敗しました。" };
     }
 
     revalidatePath("/settings/line", "layout");
     return { data: true, error: null };
   } catch (e) {
-    console.error("unlinkLineAccount error:", e);
+    logger.error({ action: "unlinkLineAccount", err: e }, "LINE連携の解除に失敗");
     return { data: null, error: "連携の解除に失敗しました。" };
   }
 }

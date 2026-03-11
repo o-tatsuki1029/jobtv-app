@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import type { Tables } from "@jobtv-app/shared/types";
 import { getUserCompanyId, checkCompanyEditPermission } from "@jobtv-app/shared/actions/company-utils";
 import { sendTemplatedEmail } from "@/lib/email/send-templated-email";
+import { logger } from "@/lib/logger";
 
 type ProfileRow = Tables<"profiles">;
 
@@ -32,13 +33,13 @@ export async function getTeamMembers(): Promise<{
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Get team members error:", error);
+      logger.error({ action: "getTeamMembers", err: error }, "チームメンバー一覧の取得に失敗しました");
       return { data: null, error: error.message };
     }
 
     return { data: data as ProfileRow[], error: null };
   } catch (error) {
-    console.error("Get team members error:", error);
+    logger.error({ action: "getTeamMembers", err: error }, "チームメンバー一覧の取得に失敗しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "チームメンバーの取得に失敗しました"
@@ -98,7 +99,7 @@ export async function removeTeamMember(memberId: string): Promise<{
       .single();
 
     if (updateError) {
-      console.error("Remove team member error:", updateError);
+      logger.error({ action: "removeTeamMember", err: updateError, memberId }, "チームメンバーの削除に失敗しました");
       return { data: null, error: updateError.message };
     }
 
@@ -106,7 +107,7 @@ export async function removeTeamMember(memberId: string): Promise<{
 
     return { data: updatedMember as ProfileRow, error: null };
   } catch (error) {
-    console.error("Remove team member error:", error);
+    logger.error({ action: "removeTeamMember", err: error, memberId }, "チームメンバーの削除に失敗しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "チームメンバーの削除に失敗しました"
@@ -174,7 +175,7 @@ export async function updateTeamMemberRole(
       .single();
 
     if (updateError) {
-      console.error("Update team member role error:", updateError);
+      logger.error({ action: "updateTeamMemberRole", err: updateError, memberId, role }, "チームメンバーの権限更新に失敗しました");
       return { data: null, error: updateError.message };
     }
 
@@ -182,7 +183,7 @@ export async function updateTeamMemberRole(
 
     return { data: updatedMember as ProfileRow, error: null };
   } catch (error) {
-    console.error("Update team member role error:", error);
+    logger.error({ action: "updateTeamMemberRole", err: error, memberId, role }, "チームメンバーの権限更新に失敗しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "チームメンバーの権限更新に失敗しました"
@@ -227,7 +228,7 @@ export async function inviteTeamMember(
       .maybeSingle();
 
     if (checkError) {
-      console.error("Check existing profile error:", checkError);
+      logger.error({ action: "inviteTeamMember", err: checkError, email }, "既存プロフィールの確認に失敗しました");
       return { data: null, error: "ユーザーの確認に失敗しました" };
     }
 
@@ -251,7 +252,7 @@ export async function inviteTeamMember(
           .eq("id", existingProfile.id);
 
         if (updateError) {
-          console.error("Update existing profile error:", updateError);
+          logger.error({ action: "inviteTeamMember", err: updateError, email }, "既存プロフィールの更新に失敗しました");
           return { data: null, error: "メンバーの追加に失敗しました" };
         }
 
@@ -288,7 +289,7 @@ export async function inviteTeamMember(
     });
 
     if (linkError) {
-      console.error("generateLink error:", linkError);
+      logger.error({ action: "inviteTeamMember", err: linkError, email }, "招待リンクの生成に失敗しました");
       return { data: null, error: "招待リンクの生成に失敗しました" };
     }
 
@@ -306,7 +307,7 @@ export async function inviteTeamMember(
     });
 
     if (emailError) {
-      console.error("招待メールの送信に失敗しました:", emailError);
+      logger.error({ action: "inviteTeamMember", err: emailError, email }, "招待メールの送信に失敗しました");
       return { data: null, error: "招待メールの送信に失敗しました" };
     }
 
@@ -314,7 +315,7 @@ export async function inviteTeamMember(
 
     return { data: { email }, error: null };
   } catch (error) {
-    console.error("Invite team member error:", error);
+    logger.error({ action: "inviteTeamMember", err: error, email }, "メンバーの招待に失敗しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "メンバーの招待に失敗しました"

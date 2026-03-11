@@ -73,12 +73,33 @@ export async function getHlsManifestUrl(
 }
 
 /**
+ * ヒーローアイテムのHLSマニフェストファイルのCloudFront URLを生成
+ */
+export async function getHeroHlsManifestUrl(heroItemId: string): Promise<string> {
+  const s3Key = `admin/hero-items/${heroItemId}/hls/landscape/original.m3u8`;
+  return getCloudFrontUrl(s3Key);
+}
+
+/**
  * MediaConvert Frame Capture 出力のサムネイルファイル名を生成
  * MediaConvert は「original-thumb.{7桁連番}.jpg」で出力する
  * @param index フレームインデックス（0始まり、1枚目は0）
  */
 function formatThumbnailFilename(index: number): string {
   return `original-thumb.${String(index).padStart(7, "0")}.jpg`;
+}
+
+/**
+ * ヒーローアイテムのMediaConvert Frame Capture で生成されたサムネイルのCloudFront URLを生成
+ * @param heroItemId ヒーローアイテムID
+ * @returns サムネイルのCloudFront URL。CloudFrontが未設定の場合はnull
+ */
+export async function getHeroMediaConvertThumbnailUrl(heroItemId: string): Promise<string | null> {
+  const baseUrl = getCloudFrontBaseUrl();
+  if (!baseUrl) return null;
+  const filename = formatThumbnailFilename(0);
+  const s3Key = `admin/hero-items/${heroItemId}/hls/landscape/${filename}`;
+  return getCloudFrontUrl(s3Key);
 }
 
 /**

@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { logger } from "@/lib/logger";
 
 /**
  * 全ての管理者アカウントを取得（削除されていないもののみ）
@@ -21,13 +22,13 @@ export async function getAllAdmins(): Promise<{
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Get all admins error:", error);
+      logger.error({ action: "getAllAdmins", err: error }, "管理者一覧の取得に失敗しました");
       return { data: null, error: error.message };
     }
 
     return { data: admins, error: null };
   } catch (error) {
-    console.error("Get all admins error:", error);
+    logger.error({ action: "getAllAdmins", err: error }, "管理者一覧の取得に失敗しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "管理者アカウントの取得に失敗しました",
@@ -78,7 +79,7 @@ export async function createAdmin(
     });
 
     if (createError) {
-      console.error("Create admin user error:", createError);
+      logger.error({ action: "createAdmin", err: createError }, "管理者ユーザーの作成に失敗しました");
       return { data: null, error: createError.message };
     }
 
@@ -99,14 +100,14 @@ export async function createAdmin(
       .eq("id", newUser.user.id);
 
     if (updateError) {
-      console.error("Update admin profile error:", updateError);
+      logger.error({ action: "createAdmin", err: updateError }, "管理者プロフィールの更新に失敗しました");
       return { data: null, error: "プロフィールの更新に失敗しました" };
     }
 
     revalidatePath("/admin/users");
     return { data: { message: "管理者アカウントを作成しました" }, error: null };
   } catch (error) {
-    console.error("Create admin error:", error);
+    logger.error({ action: "createAdmin", err: error }, "管理者アカウントの作成に失敗しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "管理者アカウントの作成に失敗しました",
@@ -145,14 +146,14 @@ export async function deleteAdmin(adminId: string): Promise<{
       .eq("id", adminId);
 
     if (deleteError) {
-      console.error("Delete admin user error:", deleteError);
+      logger.error({ action: "deleteAdmin", err: deleteError, adminId }, "管理者の論理削除に失敗しました");
       return { data: null, error: deleteError.message };
     }
 
     revalidatePath("/admin/users");
     return { data: { message: "管理者アカウントを削除しました" }, error: null };
   } catch (error) {
-    console.error("Delete admin error:", error);
+    logger.error({ action: "deleteAdmin", err: error, adminId }, "管理者アカウントの削除に失敗しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "管理者アカウントの削除に失敗しました",
@@ -187,14 +188,14 @@ export async function updateAdmin(
       .eq("id", adminId);
 
     if (updateError) {
-      console.error("Update admin profile error:", updateError);
+      logger.error({ action: "updateAdmin", err: updateError, adminId }, "管理者プロフィールの更新に失敗しました");
       return { data: null, error: "プロフィールの更新に失敗しました" };
     }
 
     revalidatePath("/admin/users");
     return { data: { message: "管理者アカウントを更新しました" }, error: null };
   } catch (error) {
-    console.error("Update admin error:", error);
+    logger.error({ action: "updateAdmin", err: error, adminId }, "管理者アカウントの更新に失敗しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "管理者アカウントの更新に失敗しました",

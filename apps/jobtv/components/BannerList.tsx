@@ -23,7 +23,7 @@ export default function BannerList({ banners }: BannerListProps) {
   return (
     <div className="md:mx-4">
       <HorizontalScrollContainer scrollAmount={500}>
-        <div className="flex gap-5 py-6">
+        <div className="flex gap-5 py-6 pl-4 md:pl-0">
           {banners.map((banner) => (
             <a key={banner.id} href={banner.link || "#"} className="flex-shrink-0 group">
               <div

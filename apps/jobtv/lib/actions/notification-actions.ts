@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import type { Tables, TablesInsert } from "@jobtv-app/shared/types";
+import { logger } from "@/lib/logger";
 
 type Notification = Tables<"notifications">;
 type NotificationRead = Tables<"notification_reads">;
@@ -40,7 +41,7 @@ export async function getNotifications() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Get notifications error:", error);
+    logger.error({ action: "getNotifications", err: error }, "お知らせ一覧の取得に失敗");
     return { data: null, error: error.message };
   }
 
@@ -100,7 +101,7 @@ export async function markNotificationAsRead(notificationId: string) {
     .single();
 
   if (error) {
-    console.error("Mark notification as read error:", error);
+    logger.error({ action: "markNotificationAsRead", err: error }, "お知らせの既読処理に失敗");
     return { data: null, error: error.message };
   }
 
@@ -145,7 +146,7 @@ export async function createNotification(
   const { data, error } = await supabase.from("notifications").insert(notificationData).select().single();
 
   if (error) {
-    console.error("Create notification error:", error);
+    logger.error({ action: "createNotification", err: error }, "お知らせの作成に失敗");
     return { data: null, error: error.message };
   }
 
@@ -195,7 +196,7 @@ export async function updateNotification(
     .single();
 
   if (error) {
-    console.error("Update notification error:", error);
+    logger.error({ action: "updateNotification", err: error }, "お知らせの更新に失敗");
     return { data: null, error: error.message };
   }
 
@@ -228,7 +229,7 @@ export async function deleteNotification(notificationId: string) {
   const { error } = await supabase.from("notifications").delete().eq("id", notificationId);
 
   if (error) {
-    console.error("Delete notification error:", error);
+    logger.error({ action: "deleteNotification", err: error }, "お知らせの削除に失敗");
     return { data: null, error: error.message };
   }
 
@@ -271,7 +272,7 @@ export async function getAllNotificationsForAdmin() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Get all notifications for admin error:", error);
+    logger.error({ action: "getAllNotificationsForAdmin", err: error }, "管理者向けお知らせ一覧の取得に失敗");
     return { data: null, error: error.message };
   }
 

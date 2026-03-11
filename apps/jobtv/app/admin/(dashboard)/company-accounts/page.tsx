@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Building, Plus, X, Search, LogIn, FileUp, ImagePlus, Loader2, FileText } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Building, Plus, X, Search, FileUp, Pencil } from "lucide-react";
 import StudioButton from "@/components/studio/atoms/StudioButton";
 import StudioBadge from "@/components/studio/atoms/StudioBadge";
 import LoadingSpinner from "@/components/studio/atoms/LoadingSpinner";
@@ -11,10 +12,9 @@ import StudioFormField from "@/components/studio/molecules/StudioFormField";
 import StudioLabel from "@/components/studio/atoms/StudioLabel";
 import PrefectureSelect from "@/components/studio/molecules/PrefectureSelect";
 import PaginationBar from "@/components/studio/molecules/PaginationBar";
-import { getCompanies, createCompanyWithRecruiter, uploadCompanyThumbnail, createCompanyPageWithDummyData } from "@/lib/actions/company-account-actions";
+import { getCompanies, createCompanyWithRecruiter } from "@/lib/actions/company-account-actions";
 import { createCompaniesFromCsv } from "@/lib/actions/company-csv-import";
 import { downloadCSV } from "@/lib/utils/csv";
-import { proxyLoginAsCompany } from "@/lib/actions/proxy-login-actions";
 import { validateRequired, validateMaxLength, validateUrlWithProtocol, validateEmail, validateKatakana } from "@jobtv-app/shared/utils/validation";
 import { REPRESENTATIVE_NAME_MAX_LENGTH, COMPANY_INFO_MAX_LENGTH } from "@/constants/validation";
 import type { Tables } from "@jobtv-app/shared/types";
@@ -31,6 +31,7 @@ const PAGE_SIZE_OPTIONS = [10, 50, 100] as const;
 type PageSizeOption = (typeof PAGE_SIZE_OPTIONS)[number];
 
 export default function AdminCompanyAccountsPage() {
+  const router = useRouter();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -48,9 +49,6 @@ export default function AdminCompanyAccountsPage() {
   const [sortBy, setSortBy] = useState<"name_asc" | "name_desc">("name_asc");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [debouncedSearch, setDebouncedSearch] = useState<string>("");
-  const [uploadingCompanyId, setUploadingCompanyId] = useState<string | null>(null);
-  const [thumbnailError, setThumbnailError] = useState<string | null>(null);
-  const [creatingPageCompanyId, setCreatingPageCompanyId] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{
     name?: string;
     established?: string;
@@ -192,8 +190,8 @@ export default function AdminCompanyAccountsPage() {
   };
 
   const handleDownloadCsvTemplate = () => {
-    const headers = ["企業名", "業界", "都道府県", "市区町村・番地", "ビル名・部屋番号", "公式サイト", "代表者名", "設立年月", "従業員数", "企業情報", "ステータス", "メールアドレス", "姓", "名", "姓カナ", "名カナ"];
-    const sample = ["サンプル株式会社", "IT・ソフトウエア", "東京都", "渋谷区1-2-3", "サンプルビル5F", "https://example.com", "山田太郎", "2020年4月", "51-100人", "企業情報の例。", "active", "recruiter@example.com", "山田", "太郎", "ヤマダ", "タロウ"];
+    const headers = ["企業名", "業界", "都道府県", "市区町村・番地", "ビル名・部屋番号", "公式サイト", "代表者名", "設立年月", "従業員数", "企業情報", "ステータス"];
+    const sample = ["サンプル株式会社", "IT・ソフトウエア", "東京都", "渋谷区1-2-3", "サンプルビル5F", "https://example.com", "山田太郎", "2020年4月", "51-100人", "企業情報の例。", "active"];
     downloadCSV(headers, [sample], "company-accounts-template");
   };
 
@@ -487,38 +485,6 @@ export default function AdminCompanyAccountsPage() {
     setIsSubmitting(false);
   };
 
-  const handleThumbnailUpload = async (companyId: string, file: File) => {
-    setThumbnailError(null);
-    setUploadingCompanyId(companyId);
-    const formData = new FormData();
-    formData.append("file", file);
-    const { data, error } = await uploadCompanyThumbnail(companyId, formData);
-    setUploadingCompanyId(null);
-    if (error) {
-      setThumbnailError(error);
-      return;
-    }
-    if (data?.thumbnailUrl) {
-      setCompanies((prev) =>
-        prev.map((c) => (c.id === companyId ? { ...c, thumbnail_url: data.thumbnailUrl } : c))
-      );
-    }
-  };
-
-  const handleCreateCompanyPageTest = async (companyId: string) => {
-    setCreatingPageCompanyId(companyId);
-    setError(null);
-    const { data, error } = await createCompanyPageWithDummyData(companyId);
-    setCreatingPageCompanyId(null);
-    if (error) {
-      setError(error);
-      return;
-    }
-    if (data?.pageId) {
-      setSuccessMessage("企業ページをダミーデータで本番公開しました。");
-      setTimeout(() => setSuccessMessage(null), 5000);
-    }
-  };
 
   const getStatusBadge = (status: string | null) => {
     if (status === "active") {
@@ -603,18 +569,6 @@ export default function AdminCompanyAccountsPage() {
         />
       )}
 
-      {thumbnailError && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center justify-between">
-          <p className="text-sm font-bold text-red-800">{thumbnailError}</p>
-          <button
-            type="button"
-            onClick={() => setThumbnailError(null)}
-            className="text-red-600 hover:text-red-800 p-1"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
 
       {/* 企業一覧テーブル */}
       <div className={`bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden relative transition-opacity duration-150 ${loading ? "opacity-50 pointer-events-none" : ""}`}>
@@ -622,7 +576,6 @@ export default function AdminCompanyAccountsPage() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100 text-xs uppercase tracking-wider font-bold text-gray-500">
-                <th className="px-6 py-4 w-28">サムネ</th>
                 <th className="px-6 py-4">企業名</th>
                 <th className="px-6 py-4">業界</th>
                 <th className="px-6 py-4">所在地</th>
@@ -633,7 +586,7 @@ export default function AdminCompanyAccountsPage() {
             <tbody className="divide-y divide-gray-50 text-sm">
               {companies.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
                     <Building className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                     <p>{searchQuery ? "検索結果が見つかりませんでした" : "企業がありません"}</p>
                   </td>
@@ -641,40 +594,6 @@ export default function AdminCompanyAccountsPage() {
               ) : (
                 companies.map((company) => (
                   <tr key={company.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 align-middle">
-                      <div className="flex items-center gap-2">
-                        <div className="w-14 h-14 rounded-lg border border-gray-200 bg-gray-50 overflow-hidden flex-shrink-0 flex items-center justify-center">
-                          {uploadingCompanyId === company.id ? (
-                            <Loader2 className="w-6 h-6 text-gray-400 animate-spin" />
-                          ) : company.thumbnail_url ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={company.thumbnail_url}
-                              alt=""
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <ImagePlus className="w-6 h-6 text-gray-300" />
-                          )}
-                        </div>
-                        <label className="cursor-pointer">
-                          <input
-                            type="file"
-                            accept="image/jpeg,image/png,image/webp,image/gif"
-                            className="sr-only"
-                            disabled={uploadingCompanyId !== null}
-                            onChange={(e) => {
-                              const f = e.target.files?.[0];
-                              if (f) handleThumbnailUpload(company.id, f);
-                              e.target.value = "";
-                            }}
-                          />
-                          <span className="text-xs font-bold text-red-600 hover:text-red-700 hover:underline">
-                            {company.thumbnail_url ? "変更" : "追加"}
-                          </span>
-                        </label>
-                      </div>
-                    </td>
                     <td className="px-6 py-4">
                       <span className="font-bold text-gray-900">{company.name}</span>
                     </td>
@@ -690,32 +609,10 @@ export default function AdminCompanyAccountsPage() {
                         <StudioButton
                           variant="outline"
                           size="sm"
-                          icon={<LogIn className="w-4 h-4" />}
-                          onClick={async () => {
-                            const result = await proxyLoginAsCompany(company.id);
-                            if (result.error) {
-                              setError(result.error);
-                            } else if (result.data?.redirectUrl) {
-                              window.location.href = result.data.redirectUrl;
-                            }
-                          }}
+                          icon={<Pencil className="w-4 h-4" />}
+                          onClick={() => router.push(`/admin/company-accounts/${company.id}`)}
                         >
-                          代理ログイン
-                        </StudioButton>
-                        <StudioButton
-                          variant="outline"
-                          size="sm"
-                          icon={
-                            creatingPageCompanyId === company.id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <FileText className="w-4 h-4" />
-                            )
-                          }
-                          disabled={creatingPageCompanyId !== null}
-                          onClick={() => handleCreateCompanyPageTest(company.id)}
-                        >
-                          企業ページ作成（テスト）
+                          編集
                         </StudioButton>
                       </div>
                     </td>

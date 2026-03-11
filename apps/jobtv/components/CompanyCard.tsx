@@ -22,13 +22,13 @@ export default function CompanyCard({ id, name, thumbnailUrl, logoUrl }: Company
     <Link href={`/company/${id}`} className="group cursor-pointer block">
       <div className={cn("relative overflow-hidden rounded-lg bg-gray-900 mb-3 shadow-sm group-hover:shadow-lg transition-shadow duration-300", HORIZONTAL_CARD_ASPECT_RATIO_CLASS)}>
         {imageUrl ? (
-          <div className="absolute inset-0 bg-white">
+          <div className="absolute inset-0">
             <Image
               src={imageUrl}
               alt={name}
               fill
               sizes="(max-width: 768px) 120px, (max-width: 1200px) 140px, 160px"
-              className="object-contain group-hover:scale-105 transition-transform duration-300 origin-center"
+              className="object-cover group-hover:scale-105 transition-transform duration-300 origin-center"
               loading="lazy"
             />
           </div>

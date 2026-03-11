@@ -15,9 +15,9 @@ export const HORIZONTAL_CARD_ASPECT_RATIO_16_9_CLASS = "aspect-[16/9]" as const;
  */
 export const HORIZONTAL_CARD_WIDTH = {
   /** 企業カード（CompanySection） */
-  company: "w-[160px] sm:w-[180px] md:w-[200px]" as const,
+  company: "w-[140px] sm:w-[180px] md:w-[200px]" as const,
   /** 就活Shorts（ShortVideoSection） */
-  shortVideo: "w-[160px] sm:w-[180px] md:w-[200px]" as const,
+  shortVideo: "w-[140px] sm:w-[180px] md:w-[200px]" as const,
   /** バナー（BannerList） */
   banner: "w-[250px] sm:w-[300px] md:w-[350px]" as const,
   /** 企業ページ動画（CompanyVideos・ドキュメンタリー等 16:9） */

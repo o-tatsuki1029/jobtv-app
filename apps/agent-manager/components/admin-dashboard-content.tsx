@@ -22,9 +22,10 @@ export async function AdminDashboardContent() {
   // 最近の応募を取得
   type RecentApplication = Tables<"applications"> & {
     candidates: {
-      first_name: string;
-      last_name: string;
-      email: string | null;
+      profiles: {
+        first_name: string;
+        last_name: string;
+      } | null;
     } | null;
     job_postings: {
       title: string;
@@ -42,9 +43,7 @@ export async function AdminDashboardContent() {
       applied_at,
       current_status,
       candidates (
-        first_name,
-        last_name,
-        email
+        profiles!profiles_candidate_id_fkey(first_name, last_name)
       ),
       job_postings (
         title,
@@ -124,8 +123,8 @@ export async function AdminDashboardContent() {
                 >
                   <div className="space-y-1">
                     <p className="text-sm font-medium">
-                      {application.candidates
-                        ? `${application.candidates.last_name} ${application.candidates.first_name}`
+                      {application.candidates?.profiles
+                        ? `${application.candidates.profiles.last_name} ${application.candidates.profiles.first_name}`
                         : "不明"}
                     </p>
                     <p className="text-xs text-muted-foreground">

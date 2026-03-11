@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { logger } from "@/lib/logger";
 import { insertRecord, updateRecord } from "./supabase-actions";
 import type { TablesInsert } from "@jobtv-app/shared/types";
 
@@ -59,7 +60,7 @@ export async function getJobs() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Get jobs error:", error);
+    logger.error({ action: "getJobs", err: error }, "求人一覧の取得に失敗しました");
     return { data: null, error: error.message };
   }
 
@@ -79,7 +80,7 @@ export async function getJob(id: string) {
     .single();
 
   if (error) {
-    console.error("Get job error:", error);
+    logger.error({ action: "getJob", err: error, jobId: id }, "求人の取得に失敗しました");
     return { data: null, error: error.message };
   }
 
@@ -99,10 +100,7 @@ export async function getJobApplications(jobId: string) {
       *,
       candidates (
         id,
-        last_name,
-        first_name,
-        last_name_kana,
-        first_name_kana
+        profiles!profiles_candidate_id_fkey(last_name, first_name, last_name_kana, first_name_kana)
       )
     `
     )
@@ -110,7 +108,7 @@ export async function getJobApplications(jobId: string) {
     .order("applied_at", { ascending: false });
 
   if (error) {
-    console.error("Get job applications error:", error);
+    logger.error({ action: "getJobApplications", err: error, jobId }, "求人の応募一覧の取得に失敗しました");
     return { data: null, error: error.message };
   }
 
@@ -130,7 +128,7 @@ export async function getJobWithStatuses(jobId: string) {
     .single();
 
   if (error) {
-    console.error("Get job with statuses error:", error);
+    logger.error({ action: "getJobWithStatuses", err: error, jobId }, "求人ステータスの取得に失敗しました");
     return { data: null, error: error.message };
   }
 
@@ -151,7 +149,7 @@ export async function getCompanyActiveJobs(companyId: string) {
     .order("title");
 
   if (error) {
-    console.error("Get company active jobs error:", error);
+    logger.error({ action: "getCompanyActiveJobs", err: error, companyId }, "企業のアクティブ求人一覧の取得に失敗しました");
     return { data: null, error: error.message };
   }
 
@@ -175,10 +173,7 @@ export async function getMultipleJobApplications(jobIds: string[]) {
       *,
       candidates (
         id,
-        last_name,
-        first_name,
-        last_name_kana,
-        first_name_kana
+        profiles!profiles_candidate_id_fkey(last_name, first_name, last_name_kana, first_name_kana)
       ),
       job_postings (
         id,
@@ -191,7 +186,7 @@ export async function getMultipleJobApplications(jobIds: string[]) {
     .order("applied_at", { ascending: false });
 
   if (error) {
-    console.error("Get multiple job applications error:", error);
+    logger.error({ action: "getMultipleJobApplications", err: error, jobIds }, "複数求人の応募一覧の取得に失敗しました");
     return { data: null, error: error.message };
   }
 
@@ -212,7 +207,7 @@ export async function updateJobStatus(id: string, status: "active" | "closed" | 
     .single();
 
   if (error) {
-    console.error("Update job status error:", error);
+    logger.error({ action: "updateJobStatus", err: error, jobId: id, status }, "求人ステータスの更新に失敗しました");
     return { data: null, error: error.message };
   }
 

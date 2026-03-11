@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { getUserCompanyId } from "@jobtv-app/shared/actions/company-utils";
 import type { TablesInsert, TablesUpdate } from "@jobtv-app/shared/types";
+import { logger } from "@/lib/logger";
 
 /** 一覧表示用：取得するドラフト列（軽量化） */
 const LIST_SESSION_DRAFT_COLUMNS =
@@ -51,7 +52,7 @@ export async function getSessions() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Get sessions error:", error);
+    logger.error({ action: "getSessions", err: error }, "説明会一覧の取得に失敗しました");
     return { data: null, error: error.message };
   }
 
@@ -67,7 +68,7 @@ export async function getSession(id: string) {
   const { data, error } = await supabase.from("sessions").select("*").eq("id", id).single();
 
   if (error) {
-    console.error("Get session error:", error);
+    logger.error({ action: "getSession", err: error, sessionId: id }, "説明会の取得に失敗しました");
     return { data: null, error: error.message };
   }
 
@@ -124,7 +125,7 @@ export async function toggleSessionStatus(productionSessionId: string, newStatus
     .maybeSingle();
 
   if (error) {
-    console.error("Toggle session status error:", error);
+    logger.error({ action: "toggleSessionStatus", err: error, productionSessionId, newStatus }, "説明会ステータスの切り替えに失敗しました");
     return { data: null, error: error.message };
   }
 
@@ -150,7 +151,7 @@ export async function getSessionReservationCounts(sessionIds: string[]) {
     .in("session_id", sessionIds);
 
   if (datesError) {
-    console.error("Get session dates error:", datesError);
+    logger.error({ action: "getSessionReservationCounts", err: datesError }, "説明会日程の取得に失敗しました");
     return { data: null, error: datesError.message };
   }
 
@@ -172,7 +173,7 @@ export async function getSessionReservationCounts(sessionIds: string[]) {
     .eq("status", "reserved");
 
   if (error) {
-    console.error("Get session reservation counts error:", error);
+    logger.error({ action: "getSessionReservationCounts", err: error }, "説明会予約数の取得に失敗しました");
     return { data: null, error: error.message };
   }
 
@@ -202,7 +203,7 @@ export async function getSessionDates(sessionId: string) {
     .order("start_time", { ascending: true });
 
   if (error) {
-    console.error("Get session dates error:", error);
+    logger.error({ action: "getSessionDates", err: error, sessionId }, "説明会日程の取得に失敗しました");
     return { data: null, error: error.message };
   }
 
@@ -273,7 +274,7 @@ export async function getSessionDatesDraft(sessionDraftId: string) {
     .order("start_time", { ascending: true });
 
   if (error) {
-    console.error("Get session dates draft error:", error);
+    logger.error({ action: "getSessionDatesDraft", err: error, sessionDraftId }, "下書き説明会日程の取得に失敗しました");
     return { data: null, error: error.message };
   }
 
@@ -294,7 +295,7 @@ export async function getProductionSessionDates(productionSessionId: string) {
     .order("start_time", { ascending: true });
 
   if (error) {
-    console.error("Get production session dates error:", error);
+    logger.error({ action: "getProductionSessionDates", err: error, productionSessionId }, "本番説明会日程の取得に失敗しました");
     return { data: null, error: error.message };
   }
 
@@ -318,7 +319,7 @@ export async function saveSessionDatesDraft(
       .eq("session_draft_id", sessionDraftId);
 
     if (deleteError) {
-      console.error("Delete session dates draft error:", deleteError);
+      logger.error({ action: "saveSessionDatesDraft", err: deleteError, sessionDraftId }, "下書き日程の削除に失敗しました");
       return { data: null, error: deleteError.message };
     }
 
@@ -338,7 +339,7 @@ export async function saveSessionDatesDraft(
         .select();
 
       if (insertError) {
-        console.error("Insert session dates draft error:", insertError);
+        logger.error({ action: "saveSessionDatesDraft", err: insertError, sessionDraftId }, "下書き日程の挿入に失敗しました");
         return { data: null, error: insertError.message };
       }
 
@@ -347,7 +348,7 @@ export async function saveSessionDatesDraft(
 
     return { data: [], error: null };
   } catch (error) {
-    console.error("Save session dates draft error:", error);
+    logger.error({ action: "saveSessionDatesDraft", err: error, sessionDraftId }, "下書き日程の保存中に予期しないエラーが発生しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "日程の保存に失敗しました"
@@ -402,7 +403,7 @@ export async function createSessionDraft(
   const { data: result, error } = await supabase.from("sessions_draft").insert(draftData).select().single();
 
   if (error) {
-    console.error("Create session draft error:", error);
+    logger.error({ action: "createSessionDraft", err: error }, "説明会下書きの作成に失敗しました");
     return { data: null, error: error.message };
   }
 
@@ -439,7 +440,7 @@ export async function updateSessionDraft(
     .single();
 
   if (fetchError) {
-    console.error("Get session draft error:", fetchError);
+    logger.error({ action: "updateSessionDraft", err: fetchError, draftId: id }, "説明会下書きの取得に失敗しました");
     return { data: null, error: fetchError.message };
   }
 
@@ -468,7 +469,7 @@ export async function updateSessionDraft(
     .single();
 
   if (error) {
-    console.error("Update session draft error:", error);
+    logger.error({ action: "updateSessionDraft", err: error, draftId: id }, "説明会下書きの更新に失敗しました");
     return { data: null, error: error.message };
   }
 
@@ -528,7 +529,7 @@ export async function getSessionDraft(id: string) {
       .maybeSingle();
 
     if (latestDraftError) {
-      console.error("Get session draft error:", latestDraftError);
+      logger.error({ action: "getSessionDraft", err: latestDraftError, draftId: id }, "最新の説明会下書きの取得に失敗しました");
       return { data: null, error: latestDraftError.message };
     }
 
@@ -580,7 +581,7 @@ async function getSessionDraftsByCompanyId(companyId: string) {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Get session drafts error:", error);
+    logger.error({ action: "getSessionDraftsByCompanyId", err: error, companyId }, "説明会下書き一覧の取得に失敗しました");
     return { data: null, error: error.message };
   }
   if (!drafts || drafts.length === 0) return { data: [], error: null };
@@ -695,7 +696,7 @@ export async function submitSessionForReview(draftId: string, keepProductionActi
     .single();
 
   if (updateError) {
-    console.error("Update draft status error:", updateError);
+    logger.error({ action: "submitSessionForReview", err: updateError, draftId }, "説明会の審査申請ステータス更新に失敗しました");
     return { data: null, error: updateError.message };
   }
 
@@ -712,7 +713,7 @@ export async function submitSessionForReview(draftId: string, keepProductionActi
       .eq("id", draft.production_session_id);
 
     if (productionUpdateError) {
-      console.error("Failed to close production session:", productionUpdateError);
+      logger.error({ action: "submitSessionForReview", err: productionUpdateError, productionSessionId: draft.production_session_id }, "本番説明会の非公開化に失敗しました");
       // エラーが発生しても審査申請は成功とみなす
     }
   }
@@ -759,7 +760,7 @@ export async function reorderSessions(orders: Array<{ id: string; display_order:
       .eq("company_id", profile.company_id);
 
     if (draftsError) {
-      console.error("Get session drafts error:", draftsError);
+      logger.error({ action: "reorderSessions", err: draftsError }, "説明会下書き一覧の取得に失敗しました");
       return { data: null, error: draftsError.message };
     }
 
@@ -782,7 +783,7 @@ export async function reorderSessions(orders: Array<{ id: string; display_order:
           .eq("company_id", profile.company_id);
 
         if (error) {
-          console.error("Reorder sessions error:", error);
+          logger.error({ action: "reorderSessions", err: error, productionId }, "説明会の並び順更新に失敗しました");
           return { data: null, error: error.message };
         }
       }
@@ -791,7 +792,7 @@ export async function reorderSessions(orders: Array<{ id: string; display_order:
     revalidatePath("/studio/sessions");
     return { data: true, error: null };
   } catch (error) {
-    console.error("Reorder sessions error:", error);
+    logger.error({ action: "reorderSessions", err: error }, "説明会の並び替え中に予期しないエラーが発生しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "並び替えに失敗しました"
@@ -862,7 +863,7 @@ export async function uploadSessionDraftCoverImage(
       });
 
     if (uploadError) {
-      console.error("Upload session draft cover image error:", uploadError);
+      logger.error({ action: "uploadSessionDraftCoverImage", err: uploadError, draftId }, "説明会カバー画像のアップロードに失敗しました");
       return { data: null, error: uploadError.message };
     }
 
@@ -873,7 +874,7 @@ export async function uploadSessionDraftCoverImage(
 
     return { data: publicUrl, error: null };
   } catch (error) {
-    console.error("Upload session draft cover image error:", error);
+    logger.error({ action: "uploadSessionDraftCoverImage", err: error, draftId }, "説明会カバー画像のアップロード中に予期しないエラーが発生しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "ファイルのアップロードに失敗しました"
@@ -894,18 +895,18 @@ export async function getSessionDraftById(draftId: string) {
     const { data: draft, error } = await supabase.from("sessions_draft").select("*").eq("id", draftId).maybeSingle();
 
     if (error) {
-      console.error("Get session draft by id error:", error);
+      logger.error({ action: "getSessionDraftById", err: error, draftId }, "説明会下書きの取得に失敗しました");
       return { data: null, error: error.message };
     }
 
     if (!draft) {
-      console.error("Draft not found for id:", draftId);
+      logger.error({ action: "getSessionDraftById", draftId }, "指定IDの下書きが見つかりません");
       return { data: null, error: "下書きが見つかりません" };
     }
 
     return { data: draft, error: null };
   } catch (error) {
-    console.error("Unexpected error in getSessionDraftById:", error);
+    logger.error({ action: "getSessionDraftById", err: error, draftId }, "説明会下書きの取得中に予期しないエラーが発生しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "予期しないエラーが発生しました"
@@ -926,7 +927,7 @@ export async function getSessionDraftByProductionId(productionSessionId: string)
     .maybeSingle();
 
   if (error) {
-    console.error("Get session draft by production id error:", error);
+    logger.error({ action: "getSessionDraftByProductionId", err: error, productionSessionId }, "本番IDからの下書き取得に失敗しました");
     return { data: null, error: error.message };
   }
 

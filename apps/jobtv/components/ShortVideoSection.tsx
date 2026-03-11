@@ -52,21 +52,23 @@ export default function ShortVideoSection({
           <p className={cn("text-sm mb-3", classes.textSecondary)}>{description}</p>
         )}
         <div className={cn("border-b mb-4", classes.sectionBorder)} />
-        <HorizontalScrollContainer>
-          <div className="flex gap-5 min-w-max">
-            {videos.map((video) => (
-              <div key={video.id} className={cn(HORIZONTAL_CARD_WIDTH.shortVideo, "flex-shrink-0")}>
-                <ShortVideoCard
-                  title={video.title}
-                  thumbnail={video.thumbnail}
-                  channel={video.channel}
-                  duration={video.duration}
-                  onClick={() => onVideoClick?.(video)}
-                />
-              </div>
-            ))}
-          </div>
-        </HorizontalScrollContainer>
+        <div className="-mx-4 md:mx-0">
+          <HorizontalScrollContainer>
+            <div className="flex gap-5 min-w-max pl-4 md:pl-0">
+              {videos.map((video) => (
+                <div key={video.id} className={cn(HORIZONTAL_CARD_WIDTH.shortVideo, "flex-shrink-0")}>
+                  <ShortVideoCard
+                    title={video.title}
+                    thumbnail={video.thumbnail}
+                    channel={video.channel}
+                    duration={video.duration}
+                    onClick={() => onVideoClick?.(video)}
+                  />
+                </div>
+              ))}
+            </div>
+          </HorizontalScrollContainer>
+        </div>
       </div>
     </section>
   );

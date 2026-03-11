@@ -81,12 +81,4 @@ export function getErrorMessage(error: unknown): string {
   return formatted.message;
 }
 
-/**
- * エラーログを出力（開発環境のみ）
- */
-export function logError(context: string, error: unknown): void {
-  if (process.env.NODE_ENV === "development") {
-    console.error(`[${context}]`, error);
-  }
-}
 

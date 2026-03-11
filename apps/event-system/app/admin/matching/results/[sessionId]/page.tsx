@@ -32,7 +32,7 @@ export default async function MatchingResultsPage({
   const { data: sessionData } = await supabase
     .from("event_matching_sessions")
     .select(
-      "event_id, events(event_date, start_time, master_event_types(name))"
+      "event_id, events(event_date, start_time, event_types(name))"
     )
     .eq("id", sessionId)
     .single();
@@ -40,7 +40,7 @@ export default async function MatchingResultsPage({
   const eventData = sessionData?.events as any;
   const eventDate = eventData?.event_date || "";
   const startTime = eventData?.start_time || "";
-  const eventName = eventData?.master_event_types?.name || "";
+  const eventName = eventData?.event_types?.name || "";
 
   let allSessions: Array<{
     id: string;

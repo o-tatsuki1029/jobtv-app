@@ -2,14 +2,16 @@ import { EventReservation } from "@/types/eventReservation.types";
 
 export type ReservationWithCandidate = EventReservation & {
   candidates: {
-    last_name: string;
-    first_name: string;
-    last_name_kana: string;
-    first_name_kana: string;
     phone: string | null;
     school_name: string | null;
     gender: string | null;
-    profiles: { email: string | null } | null;
+    profiles: {
+      email: string | null;
+      last_name: string;
+      first_name: string;
+      last_name_kana: string;
+      first_name_kana: string;
+    } | null;
   } | null;
 };
 
@@ -43,11 +45,11 @@ export function formatReservationData(
     candidate_id: candidateId,
     seat_number: reservation.seat_number || "",
     attended: reservation.attended ? "出席" : "未出席",
-    candidate_name: reservation.candidates
-      ? `${reservation.candidates.last_name} ${reservation.candidates.first_name}`
+    candidate_name: reservation.candidates?.profiles
+      ? `${reservation.candidates.profiles.last_name} ${reservation.candidates.profiles.first_name}`
       : "不明",
-    candidate_kana: reservation.candidates
-      ? `${reservation.candidates.last_name_kana} ${reservation.candidates.first_name_kana}`
+    candidate_kana: reservation.candidates?.profiles
+      ? `${reservation.candidates.profiles.last_name_kana} ${reservation.candidates.profiles.first_name_kana}`
       : "不明",
     phone: reservation.candidates?.phone || "",
     email: reservation.candidates?.profiles?.email ?? "",

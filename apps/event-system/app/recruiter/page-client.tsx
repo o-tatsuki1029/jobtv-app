@@ -81,7 +81,7 @@ function EventSelectionPageClient({
 
       let query = supabase.from("events").select(`
         *,
-        master_event_types (
+        event_types (
           name,
           target_graduation_year,
           area
@@ -118,7 +118,7 @@ function EventSelectionPageClient({
       // データを整形
       const formattedEvents: ExtendedEvent[] = (data || [])
         .map((event: any) => {
-          const eventType = event.master_event_types;
+          const eventType = event.event_types;
           return {
             ...event,
             event_name: eventType?.name || "",

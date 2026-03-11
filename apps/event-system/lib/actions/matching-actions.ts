@@ -1,6 +1,8 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { logger } from "@/lib/logger";
+import { logAudit } from "@jobtv-app/shared/utils/audit";
 import { generateMatchScores, generateMatching } from "@/utils/data/matching";
 import { MatchingWeights, SpecialInterviewInput } from "@/types/matching.types";
 import { RATING_NUMBER_MAP } from "@/types/rating.types";
@@ -16,6 +18,7 @@ export async function executeMatching(
 ) {
   try {
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
     // 既存のマッチングセッションを確認（同じイベントで未完了のものがあれば削除）
     const { data: existingSessions } = await supabase
@@ -62,7 +65,7 @@ export async function executeMatching(
       .single();
 
     if (sessionError || !session) {
-      console.error("セッション作成エラー:", sessionError);
+      logger.error({ action: "executeMatching", err: sessionError, eventId }, "マッチングセッションの作成に失敗");
       return {
         success: false,
         error: "マッチングセッションの作成に失敗しました",
@@ -76,7 +79,7 @@ export async function executeMatching(
       .eq("event_id", eventId);
 
     if (companiesError || !eventCompanies) {
-      console.error("企業取得エラー:", companiesError);
+      logger.error({ action: "executeMatching", err: companiesError, eventId }, "参加企業の取得に失敗");
       return {
         success: false,
         error: "参加企業の取得に失敗しました",
@@ -93,7 +96,7 @@ export async function executeMatching(
       .eq("attended", true);
 
     if (reservationsError || !reservations) {
-      console.error("学生取得エラー:", reservationsError);
+      logger.error({ action: "executeMatching", err: reservationsError, eventId }, "出席学生の取得に失敗");
       return {
         success: false,
         error: "出席学生の取得に失敗しました",
@@ -119,7 +122,7 @@ export async function executeMatching(
     });
 
     if (companyRatingsError) {
-      console.error("企業評価取得エラー:", companyRatingsError);
+      logger.error({ action: "executeMatching", err: companyRatingsError, eventId }, "企業評価の取得に失敗");
       return {
         success: false,
         error: "企業評価の取得に失敗しました",
@@ -141,7 +144,7 @@ export async function executeMatching(
     });
 
     if (candidateRatingsError) {
-      console.error("学生評価取得エラー:", candidateRatingsError);
+      logger.error({ action: "executeMatching", err: candidateRatingsError, eventId }, "学生評価の取得に失敗");
       return {
         success: false,
         error: "学生評価の取得に失敗しました",
@@ -238,7 +241,7 @@ export async function executeMatching(
         .insert(resultInserts);
 
       if (resultsError) {
-        console.error("マッチング結果保存エラー:", resultsError);
+        logger.error({ action: "executeMatching", err: resultsError, eventId, matchingSessionId: session.id }, "マッチング結果の保存に失敗");
         return {
           success: false,
           error: `マッチング結果の保存に失敗しました: ${
@@ -260,11 +263,23 @@ export async function executeMatching(
       .eq("id", session.id);
 
     if (updateError) {
-      console.error("セッション更新エラー:", updateError);
+      logger.error({ action: "executeMatching", err: updateError, eventId, matchingSessionId: session.id }, "セッションステータスの更新に失敗");
       return {
         success: false,
         error: "セッションの更新に失敗しました",
       };
+    }
+
+    if (user) {
+      logAudit({
+        userId: user.id,
+        action: "matching.execute",
+        category: "matching",
+        resourceType: "event_matching_sessions",
+        resourceId: session.id,
+        app: "event-system",
+        metadata: { eventId },
+      });
     }
 
     return {
@@ -272,7 +287,7 @@ export async function executeMatching(
       sessionId: session.id,
     };
   } catch (error: unknown) {
-    console.error("マッチング実行エラー:", error);
+    logger.error({ action: "executeMatching", err: error, eventId }, "マッチング実行中に予期しないエラーが発生");
     return {
       success: false,
       error:
@@ -304,7 +319,7 @@ export async function getMatchingSession(eventId: string) {
         ? String((error as { code: string }).code)
         : "";
     if (error && errorCode !== "PGRST116") {
-      console.error("セッション取得エラー:", error);
+      logger.error({ action: "getMatchingSession", err: error, eventId }, "マッチングセッションの取得に失敗");
       const errorMessage =
         error && typeof error === "object" && "message" in error
           ? String((error as { message: string }).message)
@@ -314,7 +329,7 @@ export async function getMatchingSession(eventId: string) {
 
     return { success: true, session: data || null };
   } catch (error: unknown) {
-    console.error("セッション取得エラー:", error);
+    logger.error({ action: "getMatchingSession", err: error, eventId }, "セッション取得中に予期しないエラーが発生");
     return {
       success: false,
       error:
@@ -338,7 +353,7 @@ export async function getAllMatchingSessions(eventId: string) {
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("セッション取得エラー:", error);
+      logger.error({ action: "getAllMatchingSessions", err: error, eventId }, "全マッチングセッションの取得に失敗");
       const errorMessage =
         error && typeof error === "object" && "message" in error
           ? String((error as { message: string }).message)
@@ -348,7 +363,7 @@ export async function getAllMatchingSessions(eventId: string) {
 
     return { success: true, sessions: data || [] };
   } catch (error: unknown) {
-    console.error("セッション取得エラー:", error);
+    logger.error({ action: "getAllMatchingSessions", err: error, eventId }, "全セッション取得中に予期しないエラーが発生");
     return {
       success: false,
       error:
@@ -372,7 +387,7 @@ export async function getMatchingResults(matchingSessionId: string) {
       .single();
 
     if (sessionError) {
-      console.error("セッション取得エラー:", sessionError);
+      logger.error({ action: "getMatchingResults", err: sessionError, matchingSessionId }, "マッチングセッションの取得に失敗");
       return { success: false, error: sessionError.message };
     }
 
@@ -385,7 +400,7 @@ export async function getMatchingResults(matchingSessionId: string) {
       .order("company_id");
 
     if (resultsError) {
-      console.error("結果取得エラー:", resultsError);
+      logger.error({ action: "getMatchingResults", err: resultsError, matchingSessionId }, "マッチング結果の取得に失敗");
       return { success: false, error: resultsError.message };
     }
 
@@ -411,7 +426,7 @@ export async function getMatchingResults(matchingSessionId: string) {
       .not("overall_rating", "is", null);
 
     if (companyRatingsError) {
-      console.error("企業評価取得エラー:", companyRatingsError);
+      logger.error({ action: "getMatchingResults", err: companyRatingsError, matchingSessionId }, "企業評価の取得に失敗");
       return { success: false, error: companyRatingsError.message };
     }
 
@@ -425,7 +440,7 @@ export async function getMatchingResults(matchingSessionId: string) {
         .in("candidate_id", candidateIds);
 
     if (candidateRatingsError) {
-      console.error("学生評価取得エラー:", candidateRatingsError);
+      logger.error({ action: "getMatchingResults", err: candidateRatingsError, matchingSessionId }, "学生評価の取得に失敗");
       return { success: false, error: candidateRatingsError.message };
     }
 
@@ -491,20 +506,32 @@ export async function getMatchingResults(matchingSessionId: string) {
       .in("id", companyIds);
 
     if (companiesError) {
-      console.error("企業取得エラー:", companiesError);
+      logger.error({ action: "getMatchingResults", err: companiesError, matchingSessionId }, "企業情報の取得に失敗");
       return { success: false, error: companiesError.message };
     }
 
-    // 学生情報を取得
-    const { data: candidates, error: candidatesError } = await supabase
+    // 学生情報を取得（名前は profiles から）
+    const { data: candidatesRaw, error: candidatesError } = await supabase
       .from("candidates")
-      .select("id, last_name, first_name, last_name_kana, first_name_kana")
+      .select("id, profiles!profiles_candidate_id_fkey(last_name, first_name, last_name_kana, first_name_kana)")
       .in("id", candidateIds);
 
     if (candidatesError) {
-      console.error("学生取得エラー:", candidatesError);
+      logger.error({ action: "getMatchingResults", err: candidatesError, matchingSessionId }, "学生情報の取得に失敗");
       return { success: false, error: candidatesError.message };
     }
+
+    // profiles からフラット化
+    const candidates = (candidatesRaw || []).map((c: any) => {
+      const p = Array.isArray(c.profiles) ? c.profiles[0] : c.profiles;
+      return {
+        id: c.id,
+        last_name: p?.last_name || "",
+        first_name: p?.first_name || "",
+        last_name_kana: p?.last_name_kana || "",
+        first_name_kana: p?.first_name_kana || "",
+      };
+    });
 
     // 席番号を取得
     const { data: reservations, error: reservationsError } = await supabase
@@ -515,7 +542,7 @@ export async function getMatchingResults(matchingSessionId: string) {
       .eq("attended", true);
 
     if (reservationsError) {
-      console.error("席番号取得エラー:", reservationsError);
+      logger.error({ action: "getMatchingResults", err: reservationsError, matchingSessionId }, "席番号の取得に失敗");
       // エラーでも続行
     }
 
@@ -566,7 +593,7 @@ export async function getMatchingResults(matchingSessionId: string) {
 
     return { success: true, results: enrichedResults };
   } catch (error: unknown) {
-    console.error("結果取得エラー:", error);
+    logger.error({ action: "getMatchingResults", err: error, matchingSessionId }, "マッチング結果取得中に予期しないエラーが発生");
     return {
       success: false,
       error: error instanceof Error ? error.message : "結果取得に失敗しました",
@@ -589,7 +616,7 @@ export async function getSpecialInterviews(matchingSessionId: string) {
       .single();
 
     if (sessionError) {
-      console.error("セッション取得エラー:", sessionError);
+      logger.error({ action: "getSpecialInterviews", err: sessionError, matchingSessionId }, "特別面談用セッションの取得に失敗");
       return { success: false, error: sessionError.message };
     }
 
@@ -617,7 +644,7 @@ export async function getSpecialInterviews(matchingSessionId: string) {
       .in("id", companyIds);
 
     if (companiesError) {
-      console.error("企業取得エラー:", companiesError);
+      logger.error({ action: "getSpecialInterviews", err: companiesError, matchingSessionId }, "特別面談の企業情報取得に失敗");
       const errorMessage =
         companiesError &&
         typeof companiesError === "object" &&
@@ -627,14 +654,14 @@ export async function getSpecialInterviews(matchingSessionId: string) {
       return { success: false, error: errorMessage };
     }
 
-    // 学生情報を取得
-    const { data: candidates, error: candidatesError } = await supabase
+    // 学生情報を取得（名前は profiles から）
+    const { data: candidatesRaw, error: candidatesError } = await supabase
       .from("candidates")
-      .select("id, last_name, first_name, last_name_kana, first_name_kana")
+      .select("id, profiles!profiles_candidate_id_fkey(last_name, first_name, last_name_kana, first_name_kana)")
       .in("id", candidateIds);
 
     if (candidatesError) {
-      console.error("学生取得エラー:", candidatesError);
+      logger.error({ action: "getSpecialInterviews", err: candidatesError, matchingSessionId }, "特別面談の学生情報取得に失敗");
       const errorMessage =
         candidatesError &&
         typeof candidatesError === "object" &&
@@ -643,6 +670,18 @@ export async function getSpecialInterviews(matchingSessionId: string) {
           : "学生取得に失敗しました";
       return { success: false, error: errorMessage };
     }
+
+    // profiles からフラット化
+    const candidates = (candidatesRaw || []).map((c: any) => {
+      const p = Array.isArray(c.profiles) ? c.profiles[0] : c.profiles;
+      return {
+        id: c.id,
+        last_name: p?.last_name || "",
+        first_name: p?.first_name || "",
+        last_name_kana: p?.last_name_kana || "",
+        first_name_kana: p?.first_name_kana || "",
+      };
+    });
 
     // 企業と学生のマップを作成
     const companyMap = new Map((companies || []).map((c) => [c.id, c]));
@@ -675,7 +714,7 @@ export async function getSpecialInterviews(matchingSessionId: string) {
 
     return { success: true, specialInterviews: enrichedInterviews };
   } catch (error: unknown) {
-    console.error("特別面談取得エラー:", error);
+    logger.error({ action: "getSpecialInterviews", err: error, matchingSessionId }, "特別面談取得中に予期しないエラーが発生");
     return {
       success: false,
       error:
@@ -699,13 +738,13 @@ export async function getEventSpecialInterviews(eventId: string) {
       .order("company_id");
 
     if (error) {
-      console.error("特別面談設定取得エラー:", error);
+      logger.error({ action: "getEventSpecialInterviews", err: error, eventId }, "特別面談設定の取得に失敗");
       return { success: false, error: error.message };
     }
 
     return { success: true, specialInterviews: data || [] };
   } catch (error: unknown) {
-    console.error("特別面談設定取得エラー:", error);
+    logger.error({ action: "getEventSpecialInterviews", err: error, eventId }, "特別面談設定取得中に予期しないエラーが発生");
     return {
       success: false,
       error:
@@ -725,6 +764,7 @@ export async function saveEventSpecialInterviews(
 ) {
   try {
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
     // トランザクション的に実行（削除して挿入）
     // まず既存の設定を削除
@@ -734,7 +774,7 @@ export async function saveEventSpecialInterviews(
       .eq("event_id", eventId);
 
     if (deleteError) {
-      console.error("特別面談設定削除エラー:", deleteError);
+      logger.error({ action: "saveEventSpecialInterviews", err: deleteError, eventId }, "特別面談設定の削除に失敗");
       return { success: false, error: deleteError.message };
     }
 
@@ -755,13 +795,24 @@ export async function saveEventSpecialInterviews(
       .insert(inserts);
 
     if (insertError) {
-      console.error("特別面談設定保存エラー:", insertError);
+      logger.error({ action: "saveEventSpecialInterviews", err: insertError, eventId }, "特別面談設定の保存に失敗");
       return { success: false, error: insertError.message };
+    }
+
+    if (user) {
+      logAudit({
+        userId: user.id,
+        action: "matching.save_special_interviews",
+        category: "matching",
+        resourceType: "event_special_interviews",
+        app: "event-system",
+        metadata: { eventId },
+      });
     }
 
     return { success: true };
   } catch (error: unknown) {
-    console.error("特別面談設定保存エラー:", error);
+    logger.error({ action: "saveEventSpecialInterviews", err: error, eventId }, "特別面談設定保存中に予期しないエラーが発生");
     return {
       success: false,
       error:

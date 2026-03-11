@@ -83,7 +83,7 @@ export default function MatchingPageClient() {
         .select(
           `
           *,
-          master_event_types (
+          event_types (
             name,
             target_graduation_year,
             area
@@ -99,14 +99,14 @@ export default function MatchingPageClient() {
 
       // イベントタイプマスタの情報をマージ
       type EventWithMaster = Event & {
-        master_event_types: {
+        event_types: {
           name: string;
           target_graduation_year: number | null;
           area: string | null;
         } | null;
       };
       let eventsWithNames = (data || []).map((event: EventWithMaster) => {
-        const eventType = event.master_event_types;
+        const eventType = event.event_types;
         return {
           ...event,
           event_name: eventType?.name || "",
@@ -230,11 +230,8 @@ export default function MatchingPageClient() {
           seat_number,
           candidates (
             id,
-            last_name,
-            first_name,
-            last_name_kana,
-            first_name_kana,
-            school_name
+            school_name,
+            profiles!profiles_candidate_id_fkey(last_name, first_name, last_name_kana, first_name_kana)
           )
         `
         )
@@ -340,20 +337,22 @@ export default function MatchingPageClient() {
             candidate_id: string;
             seat_number: string | null;
             candidates: {
-              last_name: string;
-              first_name: string;
-              last_name_kana: string;
-              first_name_kana: string;
               school_name: string | null;
+              profiles: {
+                last_name: string;
+                first_name: string;
+                last_name_kana: string;
+                first_name_kana: string;
+              } | null;
             } | null;
           }>
         ).map((r) => ({
           id: r.candidate_id,
-          name: r.candidates
-            ? `${r.candidates.last_name} ${r.candidates.first_name}`
+          name: r.candidates?.profiles
+            ? `${r.candidates.profiles.last_name} ${r.candidates.profiles.first_name}`
             : "",
-          kana: r.candidates
-            ? `${r.candidates.last_name_kana} ${r.candidates.first_name_kana}`
+          kana: r.candidates?.profiles
+            ? `${r.candidates.profiles.last_name_kana} ${r.candidates.profiles.first_name_kana}`
             : undefined,
           seat_number: r.seat_number || null,
           school_name: r.candidates?.school_name || null,
@@ -386,8 +385,10 @@ export default function MatchingPageClient() {
           candidate_id: string;
           seat_number: string | null;
           candidates: {
-            last_name: string;
-            first_name: string;
+            profiles: {
+              last_name: string;
+              first_name: string;
+            } | null;
           } | null;
         }>
       ).forEach((r) => {
@@ -402,8 +403,8 @@ export default function MatchingPageClient() {
 
         candidates.push({
           id: candidateId,
-          name: r.candidates
-            ? `${r.candidates.last_name} ${r.candidates.first_name}`
+          name: r.candidates?.profiles
+            ? `${r.candidates.profiles.last_name} ${r.candidates.profiles.first_name}`
             : "",
           seat_number: r.seat_number || null,
           unratedCompanies: allCompanies

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import HeroSection from "@/components/HeroSection";
+import HeroSection, { type HeroItem } from "@/components/HeroSection";
 import ProgramSection from "@/components/ProgramSection";
 import ShortVideoSection from "@/components/ShortVideoSection";
 import ShundiarySection from "@/components/ShundiarySection";
@@ -25,14 +25,7 @@ export interface MainPageIndustrySection {
 }
 
 export interface MainPageContentProps {
-  heroProgram: {
-    title: string;
-    description: string;
-    thumbnail: string;
-    videoUrl: string;
-    channel: string;
-    viewers: number;
-  };
+  heroPrograms: HeroItem[];
   banners: Array<{ id: string; title: string; image: string }>;
   shortVideos: Array<{
     id: string;
@@ -58,7 +51,7 @@ export interface MainPageContentProps {
 }
 
 export default function MainPageContent({
-  heroProgram,
+  heroPrograms,
   banners,
   shortVideos,
   accounts,
@@ -77,14 +70,7 @@ export default function MainPageContent({
 
   return (
     <div className={cn("min-h-screen", classes.pageBg, classes.pageText)}>
-      <HeroSection
-        title={heroProgram.title}
-        description={heroProgram.description}
-        thumbnail={heroProgram.thumbnail}
-        videoUrl={heroProgram.videoUrl}
-        channel={heroProgram.channel}
-        viewers={heroProgram.viewers}
-      />
+      <HeroSection items={heroPrograms} />
       <div className={classes.contentAreaBg}>
         <div className={classes.bannerListBg}>
           <BannerList banners={banners} />

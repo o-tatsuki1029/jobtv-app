@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth/require-auth";
+import { logger } from "@/lib/logger";
 
 /** セグメント条件（すべてオプション。指定した条件で AND 絞り込み） */
 export interface LineBroadcastFilters {
@@ -50,13 +51,13 @@ export async function getLineBroadcastEligibleCount(
     const { count, error } = await q;
 
     if (error) {
-      console.error("getLineBroadcastEligibleCount error:", error);
+      logger.error({ action: "getLineBroadcastEligibleCount", err: error }, "対象件数の取得に失敗");
       return { data: null, error: "対象件数の取得に失敗しました。" };
     }
 
     return { data: count ?? 0, error: null };
   } catch (e) {
-    console.error("getLineBroadcastEligibleCount error:", e);
+    logger.error({ action: "getLineBroadcastEligibleCount", err: e }, "対象件数の取得に失敗");
     return { data: null, error: "対象件数の取得に失敗しました。" };
   }
 }
@@ -81,7 +82,7 @@ export async function sendLineBroadcast(
 
   const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
   if (!token) {
-    console.error("LINE_CHANNEL_ACCESS_TOKEN is not set");
+    logger.error({ action: "sendLineBroadcast" }, "LINE_CHANNEL_ACCESS_TOKENが未設定");
     return { data: null, error: "LINE 配信の設定がありません。" };
   }
 
@@ -116,7 +117,7 @@ export async function sendLineBroadcast(
     const { data: rows, error } = await q;
 
     if (error) {
-      console.error("sendLineBroadcast select error:", error);
+      logger.error({ action: "sendLineBroadcast", err: error }, "配信対象の取得に失敗");
       return { data: null, error: "配信対象の取得に失敗しました。" };
     }
 
@@ -142,7 +143,7 @@ export async function sendLineBroadcast(
       } else {
         failed++;
         const errBody = await res.text();
-        console.error("LINE push error for", row.id, res.status, errBody);
+        logger.error({ action: "sendLineBroadcast", candidateId: row.id, status: res.status, body: errBody }, "LINEプッシュ送信に失敗");
       }
 
       if (LINE_PUSH_DELAY_MS > 0) {
@@ -152,7 +153,7 @@ export async function sendLineBroadcast(
 
     return { data: { sent, failed }, error: null };
   } catch (e) {
-    console.error("sendLineBroadcast error:", e);
+    logger.error({ action: "sendLineBroadcast", err: e }, "LINE配信の実行に失敗");
     return { data: null, error: "配信の実行に失敗しました。" };
   }
 }

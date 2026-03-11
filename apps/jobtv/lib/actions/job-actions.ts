@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { getUserCompanyId } from "@jobtv-app/shared/actions/company-utils";
 import type { TablesInsert, TablesUpdate } from "@jobtv-app/shared/types";
+import { logger } from "@/lib/logger";
 
 /** 一覧表示用：取得するドラフト列（軽量化） */
 const LIST_JOB_DRAFT_COLUMNS =
@@ -62,7 +63,7 @@ export async function toggleJobStatus(productionJobId: string, newStatus: "activ
     .maybeSingle();
 
   if (error) {
-    console.error("Toggle job status error:", error);
+    logger.error({ action: "toggleJobStatus", err: error }, "求人ステータス切り替えに失敗しました");
     return { data: null, error: error.message };
   }
 
@@ -110,7 +111,7 @@ export async function getJobs() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Get jobs error:", error);
+    logger.error({ action: "getJobs", err: error }, "求人一覧の取得に失敗しました");
     return { data: null, error: error.message };
   }
 
@@ -126,7 +127,7 @@ export async function getJob(id: string) {
   const { data, error } = await supabase.from("job_postings").select("*").eq("id", id).single();
 
   if (error) {
-    console.error("Get job error:", error);
+    logger.error({ action: "getJob", err: error, jobId: id }, "求人の取得に失敗しました");
     return { data: null, error: error.message };
   }
 
@@ -145,7 +146,7 @@ export async function getJobApplicationCount(jobId: string) {
     .eq("job_posting_id", jobId);
 
   if (error) {
-    console.error("Get job application count error:", error);
+    logger.error({ action: "getJobApplicationCount", err: error, jobId }, "求人応募数の取得に失敗しました");
     return { data: null, error: error.message };
   }
 
@@ -165,7 +166,7 @@ export async function getJobApplicationCounts(jobIds: string[]) {
   const { data, error } = await supabase.from("applications").select("job_posting_id").in("job_posting_id", jobIds);
 
   if (error) {
-    console.error("Get job application counts error:", error);
+    logger.error({ action: "getJobApplicationCounts", err: error }, "求人応募数の一括取得に失敗しました");
     return { data: null, error: error.message };
   }
 
@@ -230,7 +231,7 @@ export async function createJobDraft(
   const { data: result, error } = await supabase.from("job_postings_draft").insert(draftData).select().single();
 
   if (error) {
-    console.error("Create job draft error:", error);
+    logger.error({ action: "createJobDraft", err: error }, "求人ドラフトの作成に失敗しました");
     return { data: null, error: error.message };
   }
 
@@ -267,7 +268,7 @@ export async function updateJobDraft(
     .single();
 
   if (fetchError) {
-    console.error("Get job draft error:", fetchError);
+    logger.error({ action: "updateJobDraft", err: fetchError, draftId: id }, "求人ドラフトの取得に失敗しました");
     return { data: null, error: fetchError.message };
   }
 
@@ -296,7 +297,7 @@ export async function updateJobDraft(
     .single();
 
   if (error) {
-    console.error("Update job draft error:", error);
+    logger.error({ action: "updateJobDraft", err: error, draftId: id }, "求人ドラフトの更新に失敗しました");
     return { data: null, error: error.message };
   }
 
@@ -356,7 +357,7 @@ export async function getJobDraft(id: string) {
       .maybeSingle();
 
     if (latestDraftError) {
-      console.error("Get job draft error:", latestDraftError);
+      logger.error({ action: "getJobDraft", err: latestDraftError }, "最新の求人ドラフト取得に失敗しました");
       return { data: null, error: latestDraftError.message };
     }
 
@@ -408,7 +409,7 @@ async function getJobDraftsByCompanyId(companyId: string) {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Get job drafts error:", error);
+    logger.error({ action: "getJobDraftsByCompanyId", err: error, companyId }, "求人ドラフト一覧の取得に失敗しました");
     return { data: null, error: error.message };
   }
   if (!drafts || drafts.length === 0) return { data: [], error: null };
@@ -532,7 +533,7 @@ export async function submitJobForReview(draftId: string, keepProductionActive: 
     .single();
 
   if (updateError) {
-    console.error("Update draft status error:", updateError);
+    logger.error({ action: "submitJobForReview", err: updateError, draftId }, "ドラフトステータスの更新に失敗しました");
     return { data: null, error: updateError.message };
   }
 
@@ -549,7 +550,7 @@ export async function submitJobForReview(draftId: string, keepProductionActive: 
       .eq("id", draft.production_job_id);
 
     if (productionUpdateError) {
-      console.error("Failed to close production job:", productionUpdateError);
+      logger.error({ action: "submitJobForReview", err: productionUpdateError, productionJobId: draft.production_job_id }, "本番求人の非公開化に失敗しました");
       // エラーが発生しても審査申請は成功とみなす
     }
   }
@@ -576,7 +577,7 @@ export async function getJobDraftById(draftId: string) {
       .maybeSingle();
 
     if (error) {
-      console.error("Get job draft by id error:", error);
+      logger.error({ action: "getJobDraftById", err: error, draftId }, "求人ドラフトの取得に失敗しました");
       return { data: null, error: error.message };
     }
 
@@ -585,7 +586,7 @@ export async function getJobDraftById(draftId: string) {
     }
     return { data: draft as JobDraftData | null, error: null };
   } catch (error) {
-    console.error("Unexpected error in getJobDraftById:", error);
+    logger.error({ action: "getJobDraftById", err: error, draftId }, "求人ドラフト取得で予期しないエラーが発生しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "予期しないエラーが発生しました"
@@ -607,7 +608,7 @@ export async function getJobDraftByProductionId(productionJobId: string) {
       .maybeSingle();
 
     if (error) {
-      console.error("Get job draft by production id error:", error);
+      logger.error({ action: "getJobDraftByProductionId", err: error, productionJobId }, "本番IDからの求人ドラフト取得に失敗しました");
       return { data: null, error: error.message };
     }
 
@@ -616,7 +617,7 @@ export async function getJobDraftByProductionId(productionJobId: string) {
     }
     return { data: draft as JobDraftData | null, error: null };
   } catch (error) {
-    console.error("Unexpected error in getJobDraftByProductionId:", error);
+    logger.error({ action: "getJobDraftByProductionId", err: error, productionJobId }, "求人ドラフト取得で予期しないエラーが発生しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "予期しないエラーが発生しました"
@@ -661,7 +662,7 @@ export async function reorderJobs(orders: Array<{ id: string; display_order: num
       .eq("company_id", profile.company_id);
 
     if (draftsError) {
-      console.error("Get job drafts error:", draftsError);
+      logger.error({ action: "reorderJobs", err: draftsError }, "並び替え用ドラフト取得に失敗しました");
       return { data: null, error: draftsError.message };
     }
 
@@ -684,7 +685,7 @@ export async function reorderJobs(orders: Array<{ id: string; display_order: num
           .eq("company_id", profile.company_id);
 
         if (error) {
-          console.error("Reorder jobs error:", error);
+          logger.error({ action: "reorderJobs", err: error, productionId }, "求人の表示順序更新に失敗しました");
           return { data: null, error: error.message };
         }
       }
@@ -693,7 +694,7 @@ export async function reorderJobs(orders: Array<{ id: string; display_order: num
     revalidatePath("/studio/jobs");
     return { data: true, error: null };
   } catch (error) {
-    console.error("Reorder jobs error:", error);
+    logger.error({ action: "reorderJobs", err: error }, "求人の並び替えで予期しないエラーが発生しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "並び替えに失敗しました"
@@ -765,7 +766,7 @@ export async function uploadJobDraftCoverImage(
       });
 
     if (uploadError) {
-      console.error("Upload job draft cover image error:", uploadError);
+      logger.error({ action: "uploadJobDraftCoverImage", err: uploadError, draftId }, "カバー画像のアップロードに失敗しました");
       return { data: null, error: uploadError.message };
     }
 
@@ -776,7 +777,7 @@ export async function uploadJobDraftCoverImage(
 
     return { data: publicUrl, error: null };
   } catch (error) {
-    console.error("Upload job draft cover image error:", error);
+    logger.error({ action: "uploadJobDraftCoverImage", err: error, draftId }, "カバー画像アップロードで予期しないエラーが発生しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "ファイルのアップロードに失敗しました"

@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import type { Tables, TablesInsert, TablesUpdate } from "@jobtv-app/shared/types";
 import type { CompanyProfileFormData } from "@/components/company/types";
 import { getUserCompanyId, checkCompanyEditPermission } from "@jobtv-app/shared/actions/company-utils";
+import { logger } from "@/lib/logger";
 
 type CompanyPageRow = Tables<"company_pages">;
 type CompanyPageUpdate = TablesUpdate<"company_pages">;
@@ -31,14 +32,14 @@ export async function getCompanyPage(): Promise<{
     const { data, error } = await supabase.from("company_pages").select("*").eq("company_id", companyId).maybeSingle();
 
     if (error) {
-      console.error("Get company page error:", error);
+      logger.error({ action: "getCompanyPage", err: error }, "企業ページ情報の取得に失敗しました");
       return { data: null, error: error.message };
     }
 
     // データが存在しない場合はnullを返す（新規作成可能）
     return { data: data || null, error: null };
   } catch (error) {
-    console.error("Get company page error:", error);
+    logger.error({ action: "getCompanyPage", err: error }, "企業ページ情報取得で予期しないエラーが発生しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "企業ページ情報の取得に失敗しました"
@@ -66,13 +67,13 @@ export async function getCompanyPageById(companyId: string): Promise<{
       .maybeSingle();
 
     if (error) {
-      console.error("Get company page by id error:", error);
+      logger.error({ action: "getCompanyPageById", err: error, companyId }, "企業ページ情報の取得に失敗しました");
       return { data: null, error: error.message };
     }
 
     return { data: data || null, error: null };
   } catch (error) {
-    console.error("Get company page by id error:", error);
+    logger.error({ action: "getCompanyPageById", err: error, companyId }, "企業ページ情報取得で予期しないエラーが発生しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "企業ページ情報の取得に失敗しました"
@@ -189,7 +190,7 @@ export async function saveCompanyPage(formData: CompanyProfileFormData): Promise
 
     return { data: result, error: null };
   } catch (error) {
-    console.error("Save company page error:", error);
+    logger.error({ action: "saveCompanyPage", err: error }, "企業ページ情報の保存に失敗しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "企業ページ情報の保存に失敗しました"
@@ -229,7 +230,7 @@ export async function createCompanyPageDraft(
   const { data: result, error } = await supabase.from("company_pages_draft").insert(draftData).select().single();
 
   if (error) {
-    console.error("Create company page draft error:", error);
+    logger.error({ action: "createCompanyPageDraft", err: error }, "企業ページドラフトの作成に失敗しました");
     return { data: null, error: error.message };
   }
 
@@ -266,7 +267,7 @@ export async function updateCompanyPageDraft(
     .single();
 
   if (fetchError) {
-    console.error("Get company page draft error:", fetchError);
+    logger.error({ action: "updateCompanyPageDraft", err: fetchError, draftId: id }, "企業ページドラフトの取得に失敗しました");
     return { data: null, error: fetchError.message };
   }
 
@@ -295,7 +296,7 @@ export async function updateCompanyPageDraft(
     .single();
 
   if (error) {
-    console.error("Update company page draft error:", error);
+    logger.error({ action: "updateCompanyPageDraft", err: error, draftId: id }, "企業ページドラフトの更新に失敗しました");
     return { data: null, error: error.message };
   }
 
@@ -356,7 +357,7 @@ export async function getCompanyPageDraft(id?: string) {
         .maybeSingle();
 
       if (latestDraftError) {
-        console.error("Get company page draft error:", latestDraftError);
+        logger.error({ action: "getCompanyPageDraft", err: latestDraftError }, "IDフォールバックでの企業ページドラフト取得に失敗しました");
         return { data: null, error: latestDraftError.message };
       }
 
@@ -379,7 +380,7 @@ export async function getCompanyPageDraft(id?: string) {
         .maybeSingle();
 
       if (latestDraftError) {
-        console.error("Get company page draft error:", latestDraftError);
+        logger.error({ action: "getCompanyPageDraft", err: latestDraftError }, "承認済みドラフトの最新版取得に失敗しました");
         return { data: null, error: latestDraftError.message };
       }
 
@@ -401,7 +402,7 @@ export async function getCompanyPageDraft(id?: string) {
       .maybeSingle();
 
     if (latestDraftError) {
-      console.error("Get company page draft error:", latestDraftError);
+      logger.error({ action: "getCompanyPageDraft", err: latestDraftError }, "最新の企業ページドラフト取得に失敗しました");
       return { data: null, error: latestDraftError.message };
     }
 
@@ -427,7 +428,7 @@ export async function getCompanyPageDraftByIdAdmin(draftId: string) {
       .single();
 
     if (error) {
-      console.error("Get company page draft by id (admin) error:", error);
+      logger.error({ action: "getCompanyPageDraftByIdAdmin", err: error, draftId }, "管理者用企業ページドラフトの取得に失敗しました");
       return { data: null, error: error.message };
     }
 
@@ -437,7 +438,7 @@ export async function getCompanyPageDraftByIdAdmin(draftId: string) {
 
     return { data: draft, error: null };
   } catch (error) {
-    console.error("Unexpected error in getCompanyPageDraftByIdAdmin:", error);
+    logger.error({ action: "getCompanyPageDraftByIdAdmin", err: error, draftId }, "管理者用ドラフト取得で予期しないエラーが発生しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "予期しないエラーが発生しました"
@@ -484,7 +485,7 @@ export async function getCompanyPageDrafts() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Get company page drafts error:", error);
+    logger.error({ action: "getCompanyPageDrafts", err: error }, "企業ページドラフト一覧の取得に失敗しました");
     return { data: null, error: error.message };
   }
 
@@ -536,7 +537,7 @@ export async function submitCompanyPageForReview(draftId: string, keepProduction
     .single();
 
   if (updateError) {
-    console.error("Update draft status error:", updateError);
+    logger.error({ action: "submitCompanyPageForReview", err: updateError, draftId }, "ドラフトステータスの更新に失敗しました");
     return { data: null, error: updateError.message };
   }
 
@@ -548,7 +549,7 @@ export async function submitCompanyPageForReview(draftId: string, keepProduction
       .eq("id", draft.production_page_id);
 
     if (statusError) {
-      console.error("Update production page status error:", statusError);
+      logger.error({ action: "submitCompanyPageForReview", err: statusError, productionPageId: draft.production_page_id }, "本番ページの非公開化に失敗しました");
       // エラーが発生しても審査申請は完了しているので、警告のみ
     }
   }
@@ -621,7 +622,7 @@ export async function uploadCompanyPageDraftCoverImage(
       });
 
     if (uploadError) {
-      console.error("Upload company page draft cover image error:", uploadError);
+      logger.error({ action: "uploadCompanyPageDraftCoverImage", err: uploadError, draftId }, "カバー画像のアップロードに失敗しました");
       return { data: null, error: uploadError.message };
     }
 
@@ -632,7 +633,7 @@ export async function uploadCompanyPageDraftCoverImage(
 
     return { data: publicUrl, error: null };
   } catch (error) {
-    console.error("Upload company page draft cover image error:", error);
+    logger.error({ action: "uploadCompanyPageDraftCoverImage", err: error, draftId }, "カバー画像アップロードで予期しないエラーが発生しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "ファイルのアップロードに失敗しました"
@@ -680,7 +681,7 @@ export async function toggleCompanyPageStatus(companyId: string, newStatus: "act
       .maybeSingle();
 
     if (pageError) {
-      console.error("Get company page error:", pageError);
+      logger.error({ action: "toggleCompanyPageStatus", err: pageError, companyId }, "企業ページ情報の取得に失敗しました");
       return { data: null, error: pageError.message };
     }
 
@@ -697,14 +698,14 @@ export async function toggleCompanyPageStatus(companyId: string, newStatus: "act
       .single();
 
     if (updateError) {
-      console.error("Toggle company page status error:", updateError);
+      logger.error({ action: "toggleCompanyPageStatus", err: updateError, companyId }, "企業ページステータスの切り替えに失敗しました");
       return { data: null, error: updateError.message };
     }
 
     revalidatePath("/studio/company");
     return { data: updatedPage, error: null };
   } catch (error) {
-    console.error("Toggle company page status error:", error);
+    logger.error({ action: "toggleCompanyPageStatus", err: error, companyId }, "企業ページステータス切り替えで予期しないエラーが発生しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "ステータスの切り替えに失敗しました"

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getUserCompanyId } from "@jobtv-app/shared/actions/company-utils";
 import type { TablesInsert } from "@jobtv-app/shared/types";
 import { sendJobApplicationNotification } from "@/lib/email/send-entry-notification";
+import { logger } from "@/lib/logger";
 
 /**
  * 候補者管理ページ用：自社の求人への応募一覧（候補者情報・メール含む）
@@ -62,7 +63,7 @@ export async function getCompanyApplications({
     .eq("company_id", companyId);
 
   if (jobsError) {
-    console.error("Get job postings error:", jobsError);
+    logger.error({ action: "getCompanyApplications", err: jobsError }, "求人情報の取得に失敗しました");
     return { data: null, count: null, error: jobsError.message };
   }
   if (!jobs || jobs.length === 0) return { data: [], count: 0, error: null };
@@ -83,7 +84,7 @@ export async function getCompanyApplications({
   const { data: applications, count: totalCount, error: applicationsError } = await applicationsQuery;
 
   if (applicationsError) {
-    console.error("Get company applications error:", applicationsError);
+    logger.error({ action: "getCompanyApplications", err: applicationsError }, "応募一覧の取得に失敗しました");
     return { data: null, count: null, error: applicationsError.message };
   }
   if (!applications || applications.length === 0) return { data: [], count: totalCount ?? 0, error: null };
@@ -91,16 +92,15 @@ export async function getCompanyApplications({
   const candidateIds = [...new Set(applications.map((a) => a.candidate_id))];
   const { data: candidatesRows, error: candidatesError } = await supabase
     .from("candidates")
-    .select(`id, last_name, first_name, last_name_kana, first_name_kana,
-      gender, date_of_birth, phone,
+    .select(`id, gender, date_of_birth, phone,
       school_name, school_type, faculty_name, department_name, major_field, graduation_year,
       desired_work_location, desired_industry, desired_job_type,
-      assigned_to,
-      profiles!profiles_candidate_id_fkey (email)`)
+      candidate_management(assigned_to),
+      profiles!profiles_candidate_id_fkey (email, last_name, first_name, last_name_kana, first_name_kana)`)
     .in("id", candidateIds);
 
   if (candidatesError) {
-    console.error("Get candidates for applications error:", candidatesError);
+    logger.error({ action: "getCompanyApplications", err: candidatesError }, "応募者の候補者情報の取得に失敗しました");
     return { data: null, count: null, error: candidatesError.message };
   }
 
@@ -128,11 +128,15 @@ export async function getCompanyApplications({
     }
   >();
   (candidatesRows ?? []).forEach((c: Record<string, unknown>) => {
+    const prof = Array.isArray(c.profiles) && c.profiles.length > 0
+      ? c.profiles[0] as { email: string | null; last_name: string | null; first_name: string | null; last_name_kana: string | null; first_name_kana: string | null }
+      : c.profiles as { email: string | null; last_name: string | null; first_name: string | null; last_name_kana: string | null; first_name_kana: string | null } | null;
+    const mgmt = Array.isArray(c.candidate_management) ? (c.candidate_management as { assigned_to?: string | null }[])[0] : c.candidate_management as { assigned_to?: string | null } | null;
     candidateMap.set(c.id as string, {
-      last_name: (c.last_name as string) ?? "",
-      first_name: (c.first_name as string) ?? "",
-      last_name_kana: (c.last_name_kana as string | null) ?? null,
-      first_name_kana: (c.first_name_kana as string | null) ?? null,
+      last_name: prof?.last_name ?? "",
+      first_name: prof?.first_name ?? "",
+      last_name_kana: prof?.last_name_kana ?? null,
+      first_name_kana: prof?.first_name_kana ?? null,
       phone: (c.phone as string | null) ?? null,
       school_name: (c.school_name as string | null) ?? null,
       school_type: (c.school_type as string | null) ?? null,
@@ -145,10 +149,8 @@ export async function getCompanyApplications({
       desired_work_location: (c.desired_work_location as string | null) ?? null,
       desired_industry: (c.desired_industry as string[] | null) ?? null,
       desired_job_type: (c.desired_job_type as string[] | null) ?? null,
-      assigned_to: (c.assigned_to as string | null) ?? null,
-      profiles: Array.isArray(c.profiles) && c.profiles.length > 0
-        ? { email: (c.profiles[0] as { email: string | null }).email }
-        : null
+      assigned_to: mgmt?.assigned_to ?? null,
+      profiles: prof ? { email: prof.email } : null
     });
   });
 
@@ -188,7 +190,7 @@ export async function createApplicationsForCandidate(jobPostingIds: string[]) {
     .single();
 
   if (profileError || !profile) {
-    console.error("Get profile error:", profileError);
+    logger.error({ action: "createApplicationsForCandidate", err: profileError }, "プロフィールの取得に失敗しました");
     return { data: null, error: "プロフィールを取得できませんでした" };
   }
 
@@ -210,7 +212,7 @@ export async function createApplicationsForCandidate(jobPostingIds: string[]) {
     .in("id", jobPostingIds);
 
   if (jobsError) {
-    console.error("Get job postings error:", jobsError);
+    logger.error({ action: "createApplicationsForCandidate", err: jobsError }, "公開中の求人情報の取得に失敗しました");
     return { data: null, error: "求人情報の取得に失敗しました" };
   }
 
@@ -236,7 +238,7 @@ export async function createApplicationsForCandidate(jobPostingIds: string[]) {
         // unique_violation (candidate_id, job_posting_id)
         alreadyApplied.push(jobPostingId);
       } else {
-        console.error("Insert application error:", insertError);
+        logger.error({ action: "createApplicationsForCandidate", err: insertError, jobPostingId }, "応募の登録に失敗しました");
         return { data: null, error: "エントリーの登録に失敗しました" };
       }
     } else {
@@ -247,7 +249,7 @@ export async function createApplicationsForCandidate(jobPostingIds: string[]) {
   revalidatePath("/", "layout");
 
   if (created.length > 0) {
-    sendJobApplicationNotification(created, candidateId).catch(console.error);
+    sendJobApplicationNotification(created, candidateId).catch((e) => logger.error({ action: "createApplicationsForCandidate", err: e }, "エントリー通知メールの送信に失敗しました"));
   }
 
   return {
@@ -291,7 +293,7 @@ export async function getAppliedJobIdsForCurrentCandidate(jobIds: string[]) {
     .in("job_posting_id", jobIds);
 
   if (error) {
-    console.error("getAppliedJobIdsForCurrentCandidate error:", error);
+    logger.error({ action: "getAppliedJobIdsForCurrentCandidate", err: error }, "エントリー済み求人IDの取得に失敗しました");
     return { data: [], error: null };
   }
 

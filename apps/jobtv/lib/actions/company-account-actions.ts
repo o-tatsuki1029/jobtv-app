@@ -5,9 +5,13 @@ import { revalidatePath } from "next/cache";
 import type { Tables, TablesInsert, TablesUpdate } from "@jobtv-app/shared/types";
 import { checkAdminPermission } from "@/lib/actions/admin-actions";
 import { sendTemplatedEmail } from "@/lib/email/send-templated-email";
+import { logger } from "@/lib/logger";
+import { logAudit } from "@jobtv-app/shared/utils/audit";
+import { createClient } from "@/lib/supabase/server";
 
 type Company = Tables<"companies">;
 type CompanyInsert = TablesInsert<"companies">;
+type Profile = Tables<"profiles">;
 
 /**
  * 企業一覧をページネーション付きで取得
@@ -44,13 +48,13 @@ export async function getCompanies(params: {
     const { data, count, error } = await query;
 
     if (error) {
-      console.error("Get companies error:", error);
+      logger.error({ action: "getCompanies", err: error }, "企業一覧の取得に失敗しました");
       return { data: null, count: null, error: error.message };
     }
 
     return { data: data || [], count: count ?? 0, error: null };
   } catch (error) {
-    console.error("Get companies error:", error);
+    logger.error({ action: "getCompanies", err: error }, "企業一覧の取得中に例外が発生しました");
     return {
       data: null,
       count: null,
@@ -62,19 +66,22 @@ export async function getCompanies(params: {
 /**
  * 企業のみを作成（管理者のみ）
  */
-export async function createCompany(companyData: {
-  name: string;
-  industry?: string | null;
-  prefecture?: string | null;
-  address_line1?: string | null;
-  address_line2?: string | null;
-  website?: string | null;
-  representative?: string | null;
-  established?: string | null;
-  employees?: string | null;
-  company_info?: string | null;
-  status?: "active" | "closed" | null;
-}): Promise<{ data: { companyId: string } | null; error: string | null }> {
+export async function createCompany(
+  companyData: {
+    name: string;
+    industry?: string | null;
+    prefecture?: string | null;
+    address_line1?: string | null;
+    address_line2?: string | null;
+    website?: string | null;
+    representative?: string | null;
+    established?: string | null;
+    employees?: string | null;
+    company_info?: string | null;
+    status?: "active" | "closed" | null;
+  },
+  options?: { withDraft?: boolean }
+): Promise<{ data: { companyId: string } | null; error: string | null }> {
   const { isAdmin } = await checkAdminPermission();
   if (!isAdmin) {
     return { data: null, error: "管理者権限が必要です" };
@@ -99,13 +106,52 @@ export async function createCompany(companyData: {
       .select()
       .single();
     if (error || !newCompany) {
-      console.error("Create company error:", error);
+      logger.error({ action: "createCompany", err: error }, "企業の作成に失敗しました");
       return { data: null, error: error?.message ?? "企業の作成に失敗しました" };
     }
+    if (options?.withDraft) {
+      const now = new Date().toISOString();
+      const { error: draftError } = await supabaseAdmin
+        .from("companies_draft")
+        .insert({
+          company_id: newCompany.id,
+          production_company_id: newCompany.id,
+          name: newCompany.name,
+          industry: newCompany.industry,
+          prefecture: newCompany.prefecture,
+          address_line1: newCompany.address_line1,
+          address_line2: newCompany.address_line2,
+          website: newCompany.website,
+          representative: newCompany.representative,
+          established: newCompany.established,
+          employees: newCompany.employees,
+          company_info: newCompany.company_info,
+          draft_status: "approved",
+          approved_at: now,
+        });
+      if (draftError) {
+        logger.error({ action: "createCompany", err: draftError }, "ドラフトの作成に失敗しました（非致命的）");
+      }
+    }
     revalidatePath("/admin/company-accounts");
+
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      logAudit({
+        userId: user.id,
+        action: "company.create",
+        category: "account",
+        resourceType: "companies",
+        resourceId: newCompany.id,
+        app: "jobtv",
+        metadata: { companyName: companyData.name },
+      });
+    }
+
     return { data: { companyId: newCompany.id }, error: null };
   } catch (err) {
-    console.error("Create company error:", err);
+    logger.error({ action: "createCompany", err }, "企業作成中に例外が発生しました");
     return {
       data: null,
       error: err instanceof Error ? err.message : "企業の作成に失敗しました",
@@ -175,7 +221,7 @@ export async function createCompanyWithRecruiter(
       .single();
 
     if (companyError || !newCompany) {
-      console.error("Create company error:", companyError);
+      logger.error({ action: "createCompanyWithRecruiter", err: companyError }, "企業の作成に失敗しました");
       return {
         data: null,
         error: companyError?.message || "企業の作成に失敗しました",
@@ -199,12 +245,12 @@ export async function createCompanyWithRecruiter(
           company_id: companyId,
           role: "recruiter",
         },
-        redirectTo: `${siteUrl}/auth/update-password`,
+        redirectTo: `${siteUrl}/studio/update-password`,
       },
     });
 
     if (linkError || !linkData?.user?.id) {
-      console.error("generateLink error:", linkError);
+      logger.error({ action: "createCompanyWithRecruiter", err: linkError }, "招待リンクの生成に失敗しました");
 
       // 企業作成をロールバック（削除）
       await supabaseAdmin.from("companies").delete().eq("id", companyId);
@@ -242,7 +288,7 @@ export async function createCompanyWithRecruiter(
 
     if (emailError) {
       // auth user は作成済みのため企業をロールバックしない。警告のみ。
-      console.error("招待メールの送信に失敗しました（アカウントは作成済み）:", emailError);
+      logger.error({ action: "createCompanyWithRecruiter", err: emailError }, "招待メールの送信に失敗しました（アカウントは作成済み）");
     }
 
     // 3. profilesレコードを待機（最大3秒、100ms間隔でポーリング）
@@ -315,6 +361,30 @@ export async function createCompanyWithRecruiter(
     }
 
     revalidatePath("/admin/company-accounts");
+
+    const supabase = await createClient();
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    if (currentUser) {
+      logAudit({
+        userId: currentUser.id,
+        action: "company.create",
+        category: "account",
+        resourceType: "companies",
+        resourceId: companyId,
+        app: "jobtv",
+        metadata: { companyName: companyData.name },
+      });
+      logAudit({
+        userId: currentUser.id,
+        action: "recruiter.invite",
+        category: "account",
+        resourceType: "profiles",
+        resourceId: userId,
+        app: "jobtv",
+        metadata: { companyId, recruiterEmail: recruiterData.email },
+      });
+    }
+
     return {
       data: {
         companyId,
@@ -323,10 +393,288 @@ export async function createCompanyWithRecruiter(
       error: null,
     };
   } catch (error) {
-    console.error("Create company with recruiter error:", error);
+    logger.error({ action: "createCompanyWithRecruiter", err: error }, "企業とリクルーターアカウントの作成中に例外が発生しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "企業とリクルーターアカウントの作成に失敗しました",
+    };
+  }
+}
+
+/**
+ * 企業をIDで取得
+ */
+export async function getCompanyById(
+  companyId: string
+): Promise<{ data: Company | null; error: string | null }> {
+  const { isAdmin } = await checkAdminPermission();
+  if (!isAdmin) {
+    return { data: null, error: "管理者権限が必要です" };
+  }
+  try {
+    const supabaseAdmin = createAdminClient();
+    const { data, error } = await supabaseAdmin
+      .from("companies")
+      .select("*")
+      .eq("id", companyId)
+      .single();
+    if (error) {
+      return { data: null, error: error.message };
+    }
+    return { data, error: null };
+  } catch (err) {
+    return {
+      data: null,
+      error: err instanceof Error ? err.message : "企業情報の取得に失敗しました",
+    };
+  }
+}
+
+/**
+ * 企業情報を更新
+ */
+export async function updateCompany(
+  companyId: string,
+  data: {
+    name?: string;
+    industry?: string | null;
+    prefecture?: string | null;
+    address_line1?: string | null;
+    address_line2?: string | null;
+    website?: string | null;
+    representative?: string | null;
+    established?: string | null;
+    employees?: string | null;
+    company_info?: string | null;
+    status?: "active" | "closed" | null;
+  }
+): Promise<{ data: { companyId: string } | null; error: string | null }> {
+  const { isAdmin } = await checkAdminPermission();
+  if (!isAdmin) {
+    return { data: null, error: "管理者権限が必要です" };
+  }
+  try {
+    const supabaseAdmin = createAdminClient();
+    const { error } = await supabaseAdmin
+      .from("companies")
+      .update({ ...data, updated_at: new Date().toISOString() })
+      .eq("id", companyId);
+    if (error) {
+      return { data: null, error: error.message };
+    }
+    revalidatePath("/admin/company-accounts");
+    revalidatePath(`/admin/company-accounts/${companyId}`);
+
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      logAudit({
+        userId: user.id,
+        action: "company.update",
+        category: "account",
+        resourceType: "companies",
+        resourceId: companyId,
+        app: "jobtv",
+        metadata: { companyId, changedFields: Object.keys(data) },
+      });
+    }
+
+    return { data: { companyId }, error: null };
+  } catch (err) {
+    return {
+      data: null,
+      error: err instanceof Error ? err.message : "企業情報の更新に失敗しました",
+    };
+  }
+}
+
+/**
+ * 企業に紐づくリクルーター一覧を取得
+ */
+export async function getCompanyRecruiters(
+  companyId: string
+): Promise<{ data: Profile[] | null; error: string | null }> {
+  const { isAdmin } = await checkAdminPermission();
+  if (!isAdmin) {
+    return { data: null, error: "管理者権限が必要です" };
+  }
+  try {
+    const supabaseAdmin = createAdminClient();
+    const { data, error } = await supabaseAdmin
+      .from("profiles")
+      .select("*")
+      .eq("company_id", companyId)
+      .eq("role", "recruiter")
+      .order("created_at", { ascending: true });
+    if (error) {
+      return { data: null, error: error.message };
+    }
+    return { data: data || [], error: null };
+  } catch (err) {
+    return {
+      data: null,
+      error: err instanceof Error ? err.message : "リクルーター一覧の取得に失敗しました",
+    };
+  }
+}
+
+/**
+ * 既存企業にリクルーターを招待
+ */
+export async function inviteRecruiterToCompany(
+  companyId: string,
+  recruiterData: {
+    email: string;
+    last_name: string;
+    first_name: string;
+    last_name_kana: string;
+    first_name_kana: string;
+  }
+): Promise<{ data: { recruiterId: string } | null; error: string | null }> {
+  const { isAdmin } = await checkAdminPermission();
+  if (!isAdmin) {
+    return { data: null, error: "管理者権限が必要です" };
+  }
+  try {
+    const supabaseAdmin = createAdminClient();
+
+    // 既存のメールアドレスをチェック
+    const { data: existingProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("id")
+      .eq("email", recruiterData.email)
+      .single();
+
+    if (existingProfile) {
+      return { data: null, error: "このメールアドレスは既に使用されています" };
+    }
+
+    // 企業名を取得
+    const { data: company, error: companyError } = await supabaseAdmin
+      .from("companies")
+      .select("name")
+      .eq("id", companyId)
+      .single();
+
+    if (companyError || !company) {
+      return { data: null, error: "企業情報の取得に失敗しました" };
+    }
+
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+      type: "invite",
+      email: recruiterData.email,
+      options: {
+        data: {
+          first_name: recruiterData.first_name,
+          last_name: recruiterData.last_name,
+          first_name_kana: recruiterData.first_name_kana,
+          last_name_kana: recruiterData.last_name_kana,
+          company_id: companyId,
+          role: "recruiter",
+        },
+        redirectTo: `${siteUrl}/studio/update-password`,
+      },
+    });
+
+    if (linkError || !linkData?.user?.id) {
+      const errorMessage =
+        linkError instanceof Error
+          ? linkError.message
+          : typeof linkError === "object" && linkError !== null && "message" in linkError
+            ? String((linkError as { message: string }).message)
+            : "招待リンクの生成に失敗しました";
+      return { data: null, error: `リクルーターアカウントの招待に失敗しました: ${errorMessage}` };
+    }
+
+    const userId = linkData.user.id;
+    const inviteUrl = linkData.properties.action_link;
+
+    const { error: emailError } = await sendTemplatedEmail({
+      templateName: "invite_recruiter",
+      recipientEmail: recruiterData.email,
+      variables: {
+        first_name: recruiterData.first_name,
+        last_name: recruiterData.last_name,
+        company_name: company.name,
+        invite_url: inviteUrl,
+        site_url: siteUrl,
+      },
+    });
+
+    if (emailError) {
+      logger.error({ action: "inviteRecruiterToCompany", err: emailError }, "招待メールの送信に失敗しました（アカウントは作成済み）");
+    }
+
+    // profilesレコードを待機
+    let profileExists = false;
+    for (let i = 0; i < 30; i++) {
+      const { data: existingProfilePoll } = await supabaseAdmin
+        .from("profiles")
+        .select("id")
+        .eq("id", userId)
+        .single();
+      if (existingProfilePoll) {
+        profileExists = true;
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    const now = new Date().toISOString();
+    const profileData = {
+      id: userId,
+      email: recruiterData.email,
+      role: "recruiter" as const,
+      company_id: companyId,
+      last_name: recruiterData.last_name,
+      first_name: recruiterData.first_name,
+      last_name_kana: recruiterData.last_name_kana,
+      first_name_kana: recruiterData.first_name_kana,
+      updated_at: now,
+    };
+
+    let upsertError;
+    if (profileExists) {
+      const { error } = await supabaseAdmin.from("profiles").update(profileData).eq("id", userId);
+      upsertError = error;
+    } else {
+      const { error } = await supabaseAdmin
+        .from("profiles")
+        .upsert(profileData, { onConflict: "id" });
+      upsertError = error;
+    }
+
+    if (upsertError) {
+      await supabaseAdmin.auth.admin.deleteUser(userId);
+      return {
+        data: null,
+        error: `プロファイル情報の更新に失敗しました: ${upsertError.message}`,
+      };
+    }
+
+    revalidatePath(`/admin/company-accounts/${companyId}`);
+
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      logAudit({
+        userId: user.id,
+        action: "recruiter.invite",
+        category: "account",
+        resourceType: "profiles",
+        resourceId: userId,
+        app: "jobtv",
+        metadata: { companyId, recruiterEmail: recruiterData.email },
+      });
+    }
+
+    return { data: { recruiterId: userId }, error: null };
+  } catch (err) {
+    return {
+      data: null,
+      error: err instanceof Error ? err.message : "リクルーターの招待に失敗しました",
     };
   }
 }
@@ -373,7 +721,7 @@ export async function uploadCompanyThumbnail(
       .upload(fileName, file, { cacheControl: "3600", upsert: false });
 
     if (uploadError) {
-      console.error("Upload company thumbnail error:", uploadError);
+      logger.error({ action: "uploadCompanyThumbnail", err: uploadError, companyId }, "サムネ画像のアップロードに失敗しました");
       return { data: null, error: uploadError.message };
     }
 
@@ -387,14 +735,14 @@ export async function uploadCompanyThumbnail(
       .eq("id", companyId);
 
     if (updateError) {
-      console.error("Update company thumbnail_url error:", updateError);
+      logger.error({ action: "uploadCompanyThumbnail", err: updateError, companyId }, "サムネURLの更新に失敗しました");
       return { data: null, error: updateError.message };
     }
 
     revalidatePath("/admin/company-accounts");
     return { data: { thumbnailUrl: publicUrl }, error: null };
   } catch (err) {
-    console.error("Upload company thumbnail error:", err);
+    logger.error({ action: "uploadCompanyThumbnail", err, companyId }, "サムネアップロード中に例外が発生しました");
     return {
       data: null,
       error: err instanceof Error ? err.message : "サムネのアップロードに失敗しました",
@@ -441,7 +789,7 @@ export async function createCompanyPageWithDummyData(
       .maybeSingle();
 
     if (findError) {
-      console.error("Find existing company page error:", findError);
+      logger.error({ action: "createCompanyPageWithDummyData", err: findError, companyId }, "既存企業ページの検索に失敗しました");
       return { data: null, error: findError.message };
     }
 
@@ -460,7 +808,7 @@ export async function createCompanyPageWithDummyData(
         .single();
 
       if (updateError) {
-        console.error("Update company page with dummy error:", updateError);
+        logger.error({ action: "createCompanyPageWithDummyData", err: updateError, companyId }, "企業ページのダミーデータ更新に失敗しました");
         return { data: null, error: updateError.message };
       }
       revalidatePath("/admin/company-accounts");
@@ -480,7 +828,7 @@ export async function createCompanyPageWithDummyData(
       .single();
 
     if (insertError) {
-      console.error("Create company page with dummy error:", insertError);
+      logger.error({ action: "createCompanyPageWithDummyData", err: insertError, companyId }, "企業ページのダミーデータ作成に失敗しました");
       return { data: null, error: insertError.message };
     }
 
@@ -488,7 +836,7 @@ export async function createCompanyPageWithDummyData(
     revalidatePath(`/company/${companyId}`);
     return { data: { pageId: inserted.id }, error: null };
   } catch (err) {
-    console.error("Create company page with dummy error:", err);
+    logger.error({ action: "createCompanyPageWithDummyData", err, companyId }, "企業ページ作成中に例外が発生しました");
     return {
       data: null,
       error: err instanceof Error ? err.message : "企業ページの作成に失敗しました",

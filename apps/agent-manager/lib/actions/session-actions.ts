@@ -2,6 +2,7 @@
 
 import type { TablesInsert } from "@jobtv-app/shared/types";
 import { createClient } from "@/lib/supabase/server";
+import { logger } from "@/lib/logger";
 import { revalidatePath } from "next/cache";
 
 export type SessionData = Partial<TablesInsert<"sessions">> & { id?: string };
@@ -26,7 +27,7 @@ export async function getSessions() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Get sessions error:", error);
+    logger.error({ action: "getSessions", err: error }, "説明会一覧の取得に失敗しました");
     return { data: null, error: error.message };
   }
 
@@ -42,7 +43,7 @@ export async function getSession(id: string) {
   const { data, error } = await supabase.from("sessions").select("*").eq("id", id).single();
 
   if (error) {
-    console.error("Get session error:", error);
+    logger.error({ action: "getSession", err: error, sessionId: id }, "説明会の取得に失敗しました");
     return { data: null, error: error.message };
   }
 
@@ -63,7 +64,7 @@ export async function updateSessionStatus(id: string, status: "active" | "closed
     .single();
 
   if (error) {
-    console.error("Update session status error:", error);
+    logger.error({ action: "updateSessionStatus", err: error, sessionId: id, status }, "説明会ステータスの更新に失敗しました");
     return { data: null, error: error.message };
   }
 

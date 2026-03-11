@@ -33,20 +33,22 @@ export default function CompanySection({ title, companies }: CompanySectionProps
         {title && (
           <SectionHeader icon={Building2} title={title} titleClassName={classes.textPrimary} />
         )}
-        <HorizontalScrollContainer>
-          <div className="flex gap-4 min-w-max md:px-4 pb-6">
-            {companies.map((company) => (
-              <div key={company.id} className={cn(HORIZONTAL_CARD_WIDTH.company, "flex-shrink-0")}>
-                <CompanyCard
-                id={company.id}
-                name={company.name}
-                thumbnailUrl={company.thumbnail_url}
-                logoUrl={company.logo_url}
-              />
-              </div>
-            ))}
-          </div>
-        </HorizontalScrollContainer>
+        <div className="-mx-4 md:mx-0">
+          <HorizontalScrollContainer>
+            <div className="flex gap-4 min-w-max pl-4 md:px-4 pb-6">
+              {companies.map((company) => (
+                <div key={company.id} className={cn(HORIZONTAL_CARD_WIDTH.company, "flex-shrink-0")}>
+                  <CompanyCard
+                    id={company.id}
+                    name={company.name}
+                    thumbnailUrl={company.thumbnail_url}
+                    logoUrl={company.logo_url}
+                  />
+                </div>
+              ))}
+            </div>
+          </HorizontalScrollContainer>
+        </div>
       </div>
     </section>
   );

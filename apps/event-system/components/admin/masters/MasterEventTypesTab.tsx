@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/types";
 import MasterEventTypeFormModal from "./MasterEventTypeFormModal";
 
-type MasterEventType = Database["public"]["Tables"]["master_event_types"]["Row"];
+type MasterEventType = Database["public"]["Tables"]["event_types"]["Row"];
 
 type MasterEventTypesTabProps = {
   eventTypes: MasterEventType[];
@@ -54,7 +54,7 @@ export default function MasterEventTypesTab({
       try {
         const supabase = createClient();
         const { error } = await supabase
-          .from("master_event_types")
+          .from("event_types")
           .delete()
           .eq("id", eventType.id);
 
@@ -78,7 +78,7 @@ export default function MasterEventTypesTab({
       try {
         const supabase = createClient();
         const { error } = await supabase
-          .from("master_event_types")
+          .from("event_types")
           .update({ is_active: !eventType.is_active })
           .eq("id", eventType.id);
 

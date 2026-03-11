@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { logger } from "@/lib/logger";
 
 /**
  * 応募一覧を取得
@@ -31,7 +32,7 @@ export async function getApplications() {
     .order("applied_at", { ascending: false });
 
   if (error) {
-    console.error("Get applications error:", error);
+    logger.error({ action: "getApplications", err: error }, "応募一覧の取得に失敗しました");
     return { data: null, error: error.message };
   }
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { logger } from "@/lib/logger";
 
 /**
  * CloudFront URLを生成（内部関数）
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
       message = JSON.parse(body);
     } catch (error) {
       console.log("[Webhook] NG: invalid JSON");
-      console.error("Failed to parse SNS message:", error);
+      logger.error({ action: "POST", hook: "mediaconvert", err: error }, "SNSメッセージのパースに失敗しました");
       return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
     }
 
@@ -49,7 +50,7 @@ export async function POST(request: NextRequest) {
         notificationMessage = JSON.parse(message.Message);
       } catch (error) {
         console.log("[Webhook] NG: invalid notification message");
-        console.error("Failed to parse notification message:", error);
+        logger.error({ action: "POST", hook: "mediaconvert", err: error }, "通知メッセージのパースに失敗しました");
         return NextResponse.json({ error: "Invalid notification message" }, { status: 400 });
       }
 
@@ -73,7 +74,7 @@ export async function POST(request: NextRequest) {
 
       if (findError || !draft) {
         console.log("[Webhook] NG: draft not found jobId=" + jobId);
-        console.error("Video draft not found for job ID:", jobId, findError);
+        logger.error({ action: "POST", hook: "mediaconvert", jobId, err: findError }, "動画ドラフトが見つかりません");
         return NextResponse.json({ error: "Video draft not found" }, { status: 404 });
       }
 
@@ -105,7 +106,7 @@ export async function POST(request: NextRequest) {
 
         if (updateError) {
           console.log("[Webhook] NG: update draft error=" + updateError.message);
-          console.error("Failed to update video draft:", updateError);
+          logger.error({ action: "POST", hook: "mediaconvert", jobId, draftId: draft.id, err: updateError }, "動画ドラフトの更新に失敗しました");
           return NextResponse.json({ error: "Failed to update video draft" }, { status: 500 });
         }
 
@@ -123,7 +124,7 @@ export async function POST(request: NextRequest) {
 
         if (updateError) {
           console.log("[Webhook] NG: update draft status error=" + updateError.message);
-          console.error("Failed to update video draft status:", updateError);
+          logger.error({ action: "POST", hook: "mediaconvert", jobId, draftId: draft.id, err: updateError }, "動画ドラフトのステータス更新に失敗しました");
           return NextResponse.json({ error: "Failed to update video draft status" }, { status: 500 });
         }
 
@@ -139,7 +140,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Internal server error";
     console.log("[Webhook] NG: " + msg);
-    console.error("Webhook error:", error);
+    logger.error({ action: "POST", hook: "mediaconvert", err: error }, "Webhook処理中にエラーが発生しました");
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

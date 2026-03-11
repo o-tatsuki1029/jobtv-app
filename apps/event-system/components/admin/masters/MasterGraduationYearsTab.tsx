@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/types";
 import MasterGraduationYearFormModal from "./MasterGraduationYearFormModal";
 
-type MasterGraduationYear = Database["public"]["Tables"]["master_graduation_years"]["Row"];
+type MasterGraduationYear = Database["public"]["Tables"]["event_graduation_years"]["Row"];
 
 type MasterGraduationYearsTabProps = {
   graduationYears: MasterGraduationYear[];
@@ -52,7 +52,7 @@ export default function MasterGraduationYearsTab({
       try {
         const supabase = createClient();
         const { error } = await supabase
-          .from("master_graduation_years")
+          .from("event_graduation_years")
           .delete()
           .eq("id", year.id);
 
@@ -75,7 +75,7 @@ export default function MasterGraduationYearsTab({
       try {
         const supabase = createClient();
         const { error } = await supabase
-          .from("master_graduation_years")
+          .from("event_graduation_years")
           .update({ is_active: !year.is_active })
           .eq("id", year.id);
 

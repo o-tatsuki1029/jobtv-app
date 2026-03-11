@@ -18,6 +18,7 @@ import { getUserCompanyId, checkCompanyEditPermission } from "@jobtv-app/shared/
 import { uploadVideoToS3, uploadThumbnailToS3 } from "@/lib/aws/s3-client";
 import { createMediaConvertJob, getMediaConvertJobStatus } from "@/lib/aws/mediaconvert-client";
 import { getHlsManifestUrl, getMediaConvertThumbnailUrl } from "@/lib/aws/cloudfront-client";
+import { logger } from "@/lib/logger";
 
 /**
  * ログイン企業の本番動画一覧を取得
@@ -44,13 +45,13 @@ export async function getVideos(): Promise<{
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Get videos error:", error);
+      logger.error({ action: "getVideos", err: error }, "動画一覧の取得に失敗しました");
       return { data: null, error: error.message };
     }
 
     return { data: data || [], error: null };
   } catch (error) {
-    console.error("Get videos error:", error);
+    logger.error({ action: "getVideos", err: error }, "動画一覧の取得中に予期しないエラーが発生しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "動画一覧の取得に失敗しました"
@@ -83,7 +84,7 @@ export async function getVideosDraft(): Promise<{
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Get videos draft error:", error);
+      logger.error({ action: "getVideosDraft", err: error }, "下書き動画一覧の取得に失敗しました");
       return { data: null, error: error.message };
     }
 
@@ -95,7 +96,7 @@ export async function getVideosDraft(): Promise<{
 
     return { data: formattedData, error: null };
   } catch (error) {
-    console.error("Get videos draft error:", error);
+    logger.error({ action: "getVideosDraft", err: error }, "下書き動画一覧の取得中に予期しないエラーが発生しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "下書き動画一覧の取得に失敗しました"
@@ -128,7 +129,7 @@ export async function getVideoDraftById(id: string): Promise<{
       .single();
 
     if (error) {
-      console.error("Get video draft by id error:", error);
+      logger.error({ action: "getVideoDraftById", err: error, draftId: id }, "下書き動画の取得に失敗しました");
       return { data: null, error: error.message };
     }
 
@@ -139,7 +140,7 @@ export async function getVideoDraftById(id: string): Promise<{
 
     return { data: formattedData, error: null };
   } catch (error) {
-    console.error("Get video draft by id error:", error);
+    logger.error({ action: "getVideoDraftById", err: error, draftId: id }, "下書き動画の取得中に予期しないエラーが発生しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "下書き動画の取得に失敗しました"
@@ -231,7 +232,7 @@ export async function createVideoDraft(formData: VideoFormData): Promise<{
     const { data, error } = await supabase.from("videos_draft").insert(draftData).select().single();
 
     if (error) {
-      console.error("Create video draft error:", error);
+      logger.error({ action: "createVideoDraft", err: error }, "下書き動画の作成に失敗しました");
       return { data: null, error: error.message };
     }
 
@@ -255,7 +256,7 @@ export async function createVideoDraft(formData: VideoFormData): Promise<{
     revalidatePath("/studio/videos");
     return { data: formattedData, error: null };
   } catch (error) {
-    console.error("Create video draft error:", error);
+    logger.error({ action: "createVideoDraft", err: error }, "下書き動画の作成中に予期しないエラーが発生しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "下書き動画の作成に失敗しました"
@@ -296,7 +297,7 @@ export async function updateVideoDraft(
       .single();
 
     if (fetchError) {
-      console.error("Get current draft error:", fetchError);
+      logger.error({ action: "updateVideoDraft", err: fetchError, draftId: id }, "現在の下書き取得に失敗しました");
       return { data: null, error: fetchError.message };
     }
 
@@ -353,7 +354,7 @@ export async function updateVideoDraft(
       .single();
 
     if (error) {
-      console.error("Update video draft error:", error);
+      logger.error({ action: "updateVideoDraft", err: error, draftId: id }, "下書き動画の更新に失敗しました");
       return { data: null, error: error.message };
     }
 
@@ -366,7 +367,7 @@ export async function updateVideoDraft(
     revalidatePath(`/studio/videos/${id}`);
     return { data: formattedData, error: null };
   } catch (error) {
-    console.error("Update video draft error:", error);
+    logger.error({ action: "updateVideoDraft", err: error, draftId: id }, "下書き動画の更新中に予期しないエラーが発生しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "下書き動画の更新に失敗しました"
@@ -405,7 +406,7 @@ export async function deleteVideoPhysically(id: string): Promise<{
       .single();
 
     if (fetchError || !draft) {
-      console.error("Get draft error:", fetchError);
+      logger.error({ action: "deleteVideoPhysically", err: fetchError, draftId: id }, "削除対象の下書き取得に失敗しました");
       return { data: false, error: "削除対象の動画が見つかりません" };
     }
 
@@ -418,7 +419,7 @@ export async function deleteVideoPhysically(id: string): Promise<{
         .eq("company_id", companyId);
 
       if (prodDeleteError) {
-        console.error("Delete production video error:", prodDeleteError);
+        logger.error({ action: "deleteVideoPhysically", err: prodDeleteError, productionVideoId: draft.production_video_id }, "本番動画の削除に失敗しました");
         return { data: false, error: "本番動画の削除に失敗しました" };
       }
     }
@@ -431,7 +432,7 @@ export async function deleteVideoPhysically(id: string): Promise<{
       .eq("company_id", companyId);
 
     if (draftDeleteError) {
-      console.error("Delete video draft error:", draftDeleteError);
+      logger.error({ action: "deleteVideoPhysically", err: draftDeleteError, draftId: id }, "下書き動画の削除に失敗しました");
       return { data: false, error: "下書き動画の削除に失敗しました" };
     }
 
@@ -442,7 +443,7 @@ export async function deleteVideoPhysically(id: string): Promise<{
     revalidatePath(`/company/${companyId}`);
     return { data: true, error: null };
   } catch (error) {
-    console.error("Delete video physically error:", error);
+    logger.error({ action: "deleteVideoPhysically", err: error, draftId: id }, "動画の物理削除中に予期しないエラーが発生しました");
     return {
       data: false,
       error: error instanceof Error ? error.message : "動画の削除に失敗しました"
@@ -510,7 +511,7 @@ export async function submitVideoForReview(draftId: string): Promise<{
       .single();
 
     if (updateError) {
-      console.error("Submit video for review error:", updateError);
+      logger.error({ action: "submitVideoForReview", err: updateError, draftId }, "審査申請の更新に失敗しました");
       return { data: null, error: updateError.message };
     }
 
@@ -519,7 +520,7 @@ export async function submitVideoForReview(draftId: string): Promise<{
     revalidatePath("/admin/review");
     return { data: updatedDraft, error: null };
   } catch (error) {
-    console.error("Submit video for review error:", error);
+    logger.error({ action: "submitVideoForReview", err: error, draftId }, "審査申請中に予期しないエラーが発生しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "審査申請に失敗しました"
@@ -565,7 +566,7 @@ export async function toggleVideoStatus(
       .single();
 
     if (error) {
-      console.error("Toggle video status error:", error);
+      logger.error({ action: "toggleVideoStatus", err: error, videoId, newStatus }, "動画ステータスの切り替えに失敗しました");
       return { data: null, error: error.message };
     }
 
@@ -573,7 +574,7 @@ export async function toggleVideoStatus(
     revalidatePath(`/company/${companyId}`);
     return { data, error: null };
   } catch (error) {
-    console.error("Toggle video status error:", error);
+    logger.error({ action: "toggleVideoStatus", err: error, videoId, newStatus }, "動画ステータスの切り替え中に予期しないエラーが発生しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "ステータスの切り替えに失敗しました"
@@ -617,14 +618,14 @@ export async function reorderVideosDraft(orders: { id: string; display_order: nu
     const firstError = results.find((r) => r.error)?.error;
 
     if (firstError) {
-      console.error("Reorder videos draft error:", firstError);
+      logger.error({ action: "reorderVideosDraft", err: firstError }, "下書き動画の並び順更新に失敗しました");
       return { data: false, error: firstError.message };
     }
 
     revalidatePath("/studio/videos");
     return { data: true, error: null };
   } catch (error) {
-    console.error("Reorder videos draft error:", error);
+    logger.error({ action: "reorderVideosDraft", err: error }, "下書き動画の並び順更新中に予期しないエラーが発生しました");
     return {
       data: false,
       error: error instanceof Error ? error.message : "並び順の更新に失敗しました"
@@ -683,7 +684,7 @@ export async function uploadVideoAsset(
       });
 
     if (uploadError) {
-      console.error("Upload video asset error:", uploadError);
+      logger.error({ action: "uploadVideoAsset", err: uploadError, type }, "動画アセットのアップロードに失敗しました");
       return { data: null, error: uploadError.message };
     }
 
@@ -694,7 +695,7 @@ export async function uploadVideoAsset(
 
     return { data: publicUrl, error: null };
   } catch (error) {
-    console.error("Upload video asset error:", error);
+    logger.error({ action: "uploadVideoAsset", err: error, type }, "動画アセットのアップロード中に予期しないエラーが発生しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "ファイルのアップロードに失敗しました"
@@ -749,7 +750,7 @@ export async function uploadVideoToS3Action(
 
     if (jobResult.error) {
       console.log("[VideoUpload] MediaConvert job create NG: error=" + jobResult.error);
-      console.error("MediaConvert job creation failed:", jobResult.error);
+      logger.error({ action: "uploadVideoToS3Action", err: jobResult.error, videoId: targetVideoId }, "MediaConvertジョブの作成に失敗しました");
       // ジョブ作成失敗でもS3アップロードは成功しているので、警告のみ
       // 必要に応じて後で手動でジョブを作成できる
     } else if (jobResult.jobId) {
@@ -791,7 +792,7 @@ export async function uploadVideoToS3Action(
         : null
     };
   } catch (error) {
-    console.error("Upload video to S3 action error:", error);
+    logger.error({ action: "uploadVideoToS3Action", err: error }, "S3への動画アップロード中に予期しないエラーが発生しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "動画のアップロードに失敗しました"
@@ -842,13 +843,13 @@ export async function saveMediaConvertJobToDraft(
       .eq("company_id", companyId);
 
     if (error) {
-      console.error("Save MediaConvert job to draft error:", error);
+      logger.error({ action: "saveMediaConvertJobToDraft", err: error, draftId, jobId }, "MediaConvertジョブ情報の保存に失敗しました");
       return { error: error.message };
     }
 
     return { error: null };
   } catch (error) {
-    console.error("Save MediaConvert job to draft error:", error);
+    logger.error({ action: "saveMediaConvertJobToDraft", err: error, draftId, jobId }, "MediaConvertジョブ情報の保存中に予期しないエラーが発生しました");
     return { error: error instanceof Error ? error.message : "ジョブ情報の保存に失敗しました" };
   }
 }
@@ -983,7 +984,7 @@ export async function checkAndUpdateConversionStatus(draftId: string): Promise<{
       error: null
     };
   } catch (error) {
-    console.error("Check conversion status error:", error);
+    logger.error({ action: "checkAndUpdateConversionStatus", err: error, draftId }, "変換ステータスの確認中に予期しないエラーが発生しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "変換ステータスの確認に失敗しました"
@@ -1094,7 +1095,7 @@ export async function uploadThumbnailToS3Action(
 
     return result;
   } catch (error) {
-    console.error("Upload thumbnail to S3 action error:", error);
+    logger.error({ action: "uploadThumbnailToS3Action", err: error, videoId }, "サムネイルのS3アップロード中に予期しないエラーが発生しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "サムネイルのアップロードに失敗しました"

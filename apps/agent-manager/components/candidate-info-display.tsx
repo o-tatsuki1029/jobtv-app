@@ -3,15 +3,11 @@ import { getCandidateDisplayName } from "@/utils";
 interface CandidateInfoDisplayProps {
   candidate: {
     id: string;
-    first_name?: string | null;
-    last_name?: string | null;
-    first_name_kana?: string | null;
-    last_name_kana?: string | null;
     phone?: string | null;
     notes?: string | null;
     graduation_year?: number | null;
     assigned_to?: string | null;
-    profiles?: { email: string | null } | null;
+    profiles?: { email: string | null; first_name?: string | null; last_name?: string | null; first_name_kana?: string | null; last_name_kana?: string | null } | null;
   };
 }
 

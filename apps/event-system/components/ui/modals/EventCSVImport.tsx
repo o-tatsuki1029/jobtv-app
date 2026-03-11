@@ -3,7 +3,7 @@
 import { useCallback } from "react";
 import CSVImport from "@/components/ui/csv/CSVImport";
 import { EventFormData } from "@/types/event.types";
-import { getMasterEventTypes } from "@/lib/actions/masters-actions";
+import { getEventTypes } from "@/lib/actions/masters-actions";
 
 export default function EventCSVImport() {
   const transformRow = useCallback(
@@ -27,7 +27,7 @@ export default function EventCSVImport() {
       }
 
       // イベントタイプマスタからIDを取得
-      const eventTypes = await getMasterEventTypes();
+      const eventTypes = await getEventTypes();
       const eventType = eventTypes.find((et) => et.name === eventTypeName);
 
       if (!eventType) {

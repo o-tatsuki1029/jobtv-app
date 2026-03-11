@@ -587,11 +587,8 @@ function RecruiterRatingPageClient({
             `
           *,
           candidates (
-            last_name,
-            first_name,
-            last_name_kana,
-            first_name_kana,
-            school_name
+            school_name,
+            profiles!profiles_candidate_id_fkey(last_name, first_name, last_name_kana, first_name_kana)
           )
         `
           )
@@ -675,9 +672,15 @@ function RecruiterRatingPageClient({
 
         type ReservationData =
           Database["public"]["Tables"]["event_reservations"]["Row"] & {
-            candidates:
-              | Database["public"]["Tables"]["candidates"]["Row"]
-              | null;
+            candidates: {
+              school_name: string | null;
+              profiles: {
+                last_name: string;
+                first_name: string;
+                last_name_kana: string;
+                first_name_kana: string;
+              } | null;
+            } | null;
           };
         (data || []).forEach((reservation: ReservationData) => {
           // この学生に対するすべての評価を取得（担当者でフィルタリングしない）
@@ -697,11 +700,11 @@ function RecruiterRatingPageClient({
               formattedData.push({
                 id: `${reservation.id}_${rating.id}`, // 一意のIDを生成（予約ID + 評価ID）
                 candidate_id: reservation.candidate_id,
-                candidate_name: reservation.candidates
-                  ? `${reservation.candidates.last_name} ${reservation.candidates.first_name}`
+                candidate_name: reservation.candidates?.profiles
+                  ? `${reservation.candidates.profiles.last_name} ${reservation.candidates.profiles.first_name}`
                   : "不明",
-                candidate_kana: reservation.candidates
-                  ? `${reservation.candidates.last_name_kana} ${reservation.candidates.first_name_kana}`
+                candidate_kana: reservation.candidates?.profiles
+                  ? `${reservation.candidates.profiles.last_name_kana} ${reservation.candidates.profiles.first_name_kana}`
                   : "不明",
                 phone: "", // 表示しない
                 email: "", // 表示しない
@@ -754,11 +757,11 @@ function RecruiterRatingPageClient({
             formattedData.push({
               id: reservation.id,
               candidate_id: reservation.candidate_id,
-              candidate_name: reservation.candidates
-                ? `${reservation.candidates.last_name} ${reservation.candidates.first_name}`
+              candidate_name: reservation.candidates?.profiles
+                ? `${reservation.candidates.profiles.last_name} ${reservation.candidates.profiles.first_name}`
                 : "不明",
-              candidate_kana: reservation.candidates
-                ? `${reservation.candidates.last_name_kana} ${reservation.candidates.first_name_kana}`
+              candidate_kana: reservation.candidates?.profiles
+                ? `${reservation.candidates.profiles.last_name_kana} ${reservation.candidates.profiles.first_name_kana}`
                 : "不明",
               phone: "", // 表示しない
               email: "", // 表示しない

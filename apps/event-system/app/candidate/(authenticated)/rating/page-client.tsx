@@ -24,7 +24,7 @@ type Candidate = {
   id: string;
   last_name: string;
   first_name: string;
-  email: string;
+  email: string | null;
 };
 
 type InitialData = {
@@ -100,15 +100,24 @@ function CandidateRatingPageClient({
     const supabase = createClient();
     const { data, error } = await supabase
       .from("candidates")
-      .select("id, last_name, first_name, email")
-      .order("last_name_kana");
+      .select("id, profiles!profiles_candidate_id_fkey(last_name, first_name, last_name_kana, email)")
+      .order("id");
 
     if (error) {
       console.error("学生取得エラー:", error);
       return;
     }
 
-    setCandidates(data || []);
+    // profiles から名前とメールをフラット化
+    const flatCandidates: Candidate[] = (data || []).map((c: any) => ({
+      id: c.id,
+      last_name: c.profiles?.last_name || "",
+      first_name: c.profiles?.first_name || "",
+      email: c.profiles?.email || null,
+    }));
+    // カナでソート
+    flatCandidates.sort((a, b) => a.last_name.localeCompare(b.last_name, "ja"));
+    setCandidates(flatCandidates);
   }, [isAdmin]);
 
   // クッキーからcandidate_idとevent_idを取得（APIルート経由、httpOnlyクッキーのため）

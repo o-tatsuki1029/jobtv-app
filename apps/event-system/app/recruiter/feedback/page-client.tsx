@@ -222,10 +222,10 @@ function RecruiterFeedbackPageClient({
           }
         });
 
-        // 学生情報を個別に取得
+        // 学生情報を個別に取得（名前は profiles から）
         const { data: candidatesData, error: candidatesError } = await supabase
           .from("candidates")
-          .select("id, last_name, first_name, last_name_kana, first_name_kana")
+          .select("id, profiles!profiles_candidate_id_fkey(last_name, first_name, last_name_kana, first_name_kana)")
           .in("id", candidateIds);
 
         if (candidatesError) {
@@ -239,7 +239,13 @@ function RecruiterFeedbackPageClient({
           // エラーでも評価データは表示する（学生名は「-」になる）
         }
 
-        // 学生情報のマップを作成
+        // 学生情報のマップを作成（profiles からフラット化）
+        type ProfileItem = {
+          last_name: string;
+          first_name: string;
+          last_name_kana: string;
+          first_name_kana: string;
+        };
         type CandidateItem = {
           id: string;
           last_name: string;
@@ -248,7 +254,16 @@ function RecruiterFeedbackPageClient({
           first_name_kana: string;
         };
         const candidatesMap = new Map(
-          (candidatesData || []).map((c: CandidateItem) => [c.id, c])
+          (candidatesData || []).map((c: { id: string; profiles: ProfileItem | ProfileItem[] | null }) => {
+            const p = Array.isArray(c.profiles) ? c.profiles[0] : c.profiles;
+            return [c.id, {
+              id: c.id,
+              last_name: p?.last_name || "",
+              first_name: p?.first_name || "",
+              last_name_kana: p?.last_name_kana || "",
+              first_name_kana: p?.first_name_kana || "",
+            } as CandidateItem];
+          })
         );
 
         // イベント情報を取得

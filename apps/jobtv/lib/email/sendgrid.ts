@@ -24,7 +24,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
   }
 
   const fromEmail = options.fromEmail ?? process.env.SENDGRID_FROM_EMAIL ?? "noreply@jobtv.jp";
-  const fromName  = options.fromName  ?? process.env.SENDGRID_FROM_NAME  ?? "JobTV";
+  const fromName  = options.fromName  ?? process.env.SENDGRID_FROM_NAME  ?? "JOBTV";
 
   const payload = {
     personalizations: [{ to: [{ email: options.to }] }],

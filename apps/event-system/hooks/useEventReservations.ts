@@ -33,7 +33,7 @@ export function useEventReservations(
       .select(
         `
         *,
-        master_event_types (
+        event_types (
           name,
           target_graduation_year,
           area
@@ -52,9 +52,9 @@ export function useEventReservations(
     if (data) {
       const eventWithName = {
         ...data,
-        event_name: (data.master_event_types as { name: string } | null)?.name || "",
-        target_graduation_year: (data.master_event_types as { target_graduation_year: number | null } | null)?.target_graduation_year || null,
-        area: (data.master_event_types as { area: string | null } | null)?.area || null,
+        event_name: (data.event_types as { name: string } | null)?.name || "",
+        target_graduation_year: (data.event_types as { target_graduation_year: number | null } | null)?.target_graduation_year || null,
+        area: (data.event_types as { area: string | null } | null)?.area || null,
       };
       setEvent(eventWithName as Event);
     }
@@ -70,14 +70,10 @@ export function useEventReservations(
           `
           *,
           candidates (
-            last_name,
-            first_name,
-            last_name_kana,
-            first_name_kana,
             phone,
             school_name,
             gender,
-            profiles!profiles_candidate_id_fkey(email)
+            profiles!profiles_candidate_id_fkey(email, last_name, first_name, last_name_kana, first_name_kana)
           )
         `
         )

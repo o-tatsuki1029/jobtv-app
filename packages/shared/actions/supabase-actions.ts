@@ -1,7 +1,10 @@
 "use server";
 
+import pino from "pino";
 import { createClient } from "@jobtv-app/shared/supabase/server";
 import type { Database, Tables, TablesInsert, TablesUpdate } from "@jobtv-app/shared/types";
+
+const logger = pino({ name: "shared/supabase-actions" });
 
 /**
  * Supabase CRUD操作の共通ユーティリティ
@@ -56,13 +59,13 @@ export async function supabaseSelect<TableName extends keyof Database["public"][
     const { data, error } = await query;
 
     if (error) {
-      console.error("Query error:", error);
+      logger.error({ action: "supabaseSelect", err: error, table }, "データの取得に失敗しました");
       return { data: null, error: error.message };
     }
 
     return { data: data as Tables<TableName>[], error: null };
   } catch (error) {
-    console.error("Unexpected error:", error);
+    logger.error({ action: "supabaseSelect", err: error, table }, "予期しないエラーが発生しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "予期しないエラーが発生しました",
@@ -86,13 +89,13 @@ export async function supabaseInsert<TableName extends keyof Database["public"][
       .single();
 
     if (error) {
-      console.error("Insert error:", error);
+      logger.error({ action: "supabaseInsert", err: error, table }, "レコードの挿入に失敗しました");
       return { data: null, error: error.message };
     }
 
     return { data: data as Tables<TableName>, error: null };
   } catch (error) {
-    console.error("Unexpected error:", error);
+    logger.error({ action: "supabaseInsert", err: error, table }, "予期しないエラーが発生しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "予期しないエラーが発生しました",
@@ -118,13 +121,13 @@ export async function supabaseUpdate<TableName extends keyof Database["public"][
       .single();
 
     if (error) {
-      console.error("Update error:", error);
+      logger.error({ action: "supabaseUpdate", err: error, table }, "レコードの更新に失敗しました");
       return { data: null, error: error.message };
     }
 
     return { data: data as Tables<TableName>, error: null };
   } catch (error) {
-    console.error("Unexpected error:", error);
+    logger.error({ action: "supabaseUpdate", err: error, table }, "予期しないエラーが発生しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "予期しないエラーが発生しました",
@@ -149,13 +152,13 @@ export async function supabaseDelete<TableName extends keyof Database["public"][
       .single();
 
     if (error) {
-      console.error("Delete error:", error);
+      logger.error({ action: "supabaseDelete", err: error, table }, "レコードの削除に失敗しました");
       return { data: null, error: error.message };
     }
 
     return { data: data as Tables<TableName>, error: null };
   } catch (error) {
-    console.error("Unexpected error:", error);
+    logger.error({ action: "supabaseDelete", err: error, table }, "予期しないエラーが発生しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "予期しないエラーが発生しました",
@@ -179,13 +182,13 @@ export async function supabaseGetById<TableName extends keyof Database["public"]
       .single();
 
     if (error) {
-      console.error("Get record error:", error);
+      logger.error({ action: "supabaseGetById", err: error, table, id }, "レコードの取得に失敗しました");
       return { data: null, error: error.message };
     }
 
     return { data: data as Tables<TableName>, error: null };
   } catch (error) {
-    console.error("Unexpected error:", error);
+    logger.error({ action: "supabaseGetById", err: error, table, id }, "予期しないエラーが発生しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "予期しないエラーが発生しました",

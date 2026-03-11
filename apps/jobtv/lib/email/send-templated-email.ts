@@ -7,6 +7,7 @@ import { sendEmail } from "./sendgrid";
 import { renderTemplate } from "./template-renderer";
 import { notifySlackEmailSent } from "./slack";
 import { SITE_URL } from "@/constants/site";
+import { logger } from "@/lib/logger";
 
 const LINE_CTA_HTML = `<div style="background:#f0fff4;border:1px solid #06C755;border-radius:8px;padding:16px 20px;margin:24px 0;">
   <p style="margin:0 0 8px;font-weight:bold;color:#222;">LINEと連携して就活情報をいち早くゲット！</p>
@@ -44,7 +45,7 @@ export async function sendTemplatedEmail(
 
   if (templateError || !template) {
     const err = `メールテンプレートが見つかりません: ${options.templateName}`;
-    console.error("[sendTemplatedEmail]", err);
+    logger.error({ action: "sendTemplatedEmail", templateName: options.templateName }, err);
     return { data: null, error: err };
   }
 
@@ -97,23 +98,25 @@ export async function sendTemplatedEmail(
     .single();
 
   if (logError) {
-    console.error("[sendTemplatedEmail] ログの記録に失敗:", logError);
+    logger.error({ action: "sendTemplatedEmail", err: logError }, "メール送付ログの記録に失敗");
   }
 
-  // 5. Slack 通知
+  // 5. Slack 通知（送信失敗時のみ）
   let slackNotified = false;
-  try {
-    await notifySlackEmailSent({
-      templateName:      options.templateName,
-      recipientEmail:    options.recipientEmail,
-      subject:           renderedSubject,
-      status,
-      errorMessage:      sendResult.error ?? undefined,
-      sendgridMessageId: sendResult.messageId,
-    });
-    slackNotified = true;
-  } catch {
-    // Slack 失敗はサイレント
+  if (status === "failed") {
+    try {
+      await notifySlackEmailSent({
+        templateName:      options.templateName,
+        recipientEmail:    options.recipientEmail,
+        subject:           renderedSubject,
+        status,
+        errorMessage:      sendResult.error ?? undefined,
+        sendgridMessageId: sendResult.messageId,
+      });
+      slackNotified = true;
+    } catch {
+      // Slack 失敗はサイレント
+    }
   }
 
   // slack_notified フラグを更新

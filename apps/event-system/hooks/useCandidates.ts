@@ -45,39 +45,43 @@ export function useCandidates({
       const from = pagination.page * pagination.pageSize;
       const to = from + pagination.pageSize - 1;
 
-      // 必要なカラムのみを取得（メールは profiles から join）
+      // 必要なカラムのみを取得（名前・メールは profiles から join）
       let query = supabase.from("candidates").select(
-        "id, last_name, first_name, last_name_kana, first_name_kana, phone, graduation_year, school_name, gender, major_field, school_type, entry_channel, referrer, utm_source, utm_medium, utm_campaign, utm_term, utm_content, created_at, updated_at, profiles!profiles_candidate_id_fkey(email)",
+        "id, phone, graduation_year, school_name, gender, major_field, school_type, entry_channel, referrer, utm_source, utm_medium, utm_campaign, utm_term, utm_content, created_at, updated_at, profiles!profiles_candidate_id_fkey(email, last_name, first_name, last_name_kana, first_name_kana)",
         { count: "exact" }
       );
 
-      // キーワード検索（メールは profiles で検索し、電話番号・フルネームは candidates で）
+      // キーワード検索（名前・メールは profiles で検索し、電話番号は candidates で）
       if (keyword) {
-        const { data: profileIds } = await supabase
+        const { data: profileMatches } = await supabase
           .from("profiles")
           .select("candidate_id")
-          .ilike("email", `%${keyword}%`);
-        const candidateIdsFromEmail = (profileIds ?? []).map((p) => p.candidate_id).filter(Boolean);
+          .not("candidate_id", "is", null)
+          .or(`email.ilike.%${keyword}%,last_name.ilike.%${keyword}%,first_name.ilike.%${keyword}%,last_name_kana.ilike.%${keyword}%,first_name_kana.ilike.%${keyword}%`);
+        const candidateIdsFromProfiles = (profileMatches ?? []).map((p) => p.candidate_id).filter(Boolean);
         const orParts = [
           `phone.ilike.%${keyword}%`,
-          `last_name.ilike.%${keyword}%`,
-          `first_name.ilike.%${keyword}%`,
-          `last_name_kana.ilike.%${keyword}%`,
-          `first_name_kana.ilike.%${keyword}%`,
         ];
-        if (candidateIdsFromEmail.length > 0) {
-          orParts.push(`id.in.(${candidateIdsFromEmail.join(",")})`);
+        if (candidateIdsFromProfiles.length > 0) {
+          orParts.push(`id.in.(${candidateIdsFromProfiles.join(",")})`);
         }
         query = query.or(orParts.join(","));
+      }
+
+      // 名前フィールドは profiles にあるため、サーバーソートは candidates のカラムのみ
+      const nameFields = ["last_name", "first_name", "last_name_kana", "first_name_kana", "email"];
+      const isNameSort = nameFields.includes(String(sort.sortKey));
+      if (!isNameSort) {
+        query = query.order(String(sort.sortKey), { ascending: sort.sortAsc });
+      } else {
+        query = query.order("created_at", { ascending: false });
       }
 
       const {
         data,
         error: queryError,
         count,
-      } = await query
-        .order(String(sort.sortKey), { ascending: sort.sortAsc })
-        .range(from, to);
+      } = await query.range(from, to);
 
       if (queryError) {
         console.error("取得エラー:", queryError);
@@ -87,12 +91,32 @@ export function useCandidates({
         return;
       }
 
-      // データをCandidate型に変換（email は profiles からフラットに展開）
-      type Row = (typeof data)[number] & { profiles?: { email: string | null } | null };
+      // データをCandidate型に変換（名前・email は profiles からフラットに展開）
+      type ProfileData = { email: string | null; last_name: string | null; first_name: string | null; last_name_kana: string | null; first_name_kana: string | null };
+      type Row = (typeof data)[number] & { profiles?: ProfileData | ProfileData[] | null };
       const candidates = ((data || []) as Row[]).map((row) => {
-        const { profiles, ...rest } = row;
-        return { ...rest, email: profiles?.email ?? null } as import("@/types/candidate.types").CandidateWithEmail;
+        const { profiles: profilesRaw, ...rest } = row;
+        const prof = Array.isArray(profilesRaw) ? profilesRaw[0] : profilesRaw;
+        return {
+          ...rest,
+          last_name: prof?.last_name ?? "",
+          first_name: prof?.first_name ?? "",
+          last_name_kana: prof?.last_name_kana ?? "",
+          first_name_kana: prof?.first_name_kana ?? "",
+          email: prof?.email ?? null,
+        } as import("@/types/candidate.types").CandidateWithEmail;
       });
+
+      // 名前フィールドのソートはクライアントサイドで実施
+      if (isNameSort) {
+        const key = String(sort.sortKey) as keyof import("@/types/candidate.types").CandidateWithEmail;
+        candidates.sort((a, b) => {
+          const va = (a[key] as string) ?? "";
+          const vb = (b[key] as string) ?? "";
+          return sort.sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+        });
+      }
+
       setCandidates(candidates);
       pagination.setTotalCount(count || 0);
     } catch (err) {

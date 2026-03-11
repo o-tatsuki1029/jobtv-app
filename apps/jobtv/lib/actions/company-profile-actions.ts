@@ -7,6 +7,7 @@ import type { CompanyProfileFormData } from "@/components/company/types";
 import { getUserCompanyId, checkCompanyEditPermission } from "@jobtv-app/shared/actions/company-utils";
 import { getCompanyPage, getCompanyPageDraft } from "./company-page-actions";
 import { getCompanyPageById } from "./company-page-actions";
+import { logger } from "@/lib/logger";
 
 type CompanyRow = Tables<"companies">;
 type CompanyUpdate = TablesUpdate<"companies">;
@@ -31,13 +32,13 @@ export async function getCompanyProfile(): Promise<{
     const { data, error } = await supabase.from("companies").select("*").eq("id", companyId).single();
 
     if (error) {
-      console.error("Get company profile error:", error);
+      logger.error({ action: "getCompanyProfile", err: error }, "企業プロフィールの取得に失敗しました");
       return { data: null, error: error.message };
     }
 
     return { data: data as CompanyRow, error: null };
   } catch (error) {
-    console.error("Get company profile error:", error);
+    logger.error({ action: "getCompanyProfile", err: error }, "企業プロフィール取得中に例外が発生しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "企業プロフィールの取得に失敗しました"
@@ -76,7 +77,7 @@ export async function getCompanyCoverImageForStudio(): Promise<{
 
     return { data: prod ? { cover_image_url: prod.cover_image_url } : { cover_image_url: null }, error: null };
   } catch (error) {
-    console.error("Get company cover image error:", error);
+    logger.error({ action: "getCompanyCoverImageForStudio", err: error }, "カバー画像の取得に失敗しました");
     return { data: null, error: "カバー画像の取得に失敗しました" };
   }
 }
@@ -103,7 +104,7 @@ export async function getCompanyProfileWithPage(): Promise<{
     // ドラフトテーブルから最新の情報を取得（唯一のソース）
     const draftResult = await getCompanyPageDraft();
     if (draftResult.error && !draftResult.error.includes("下書きが見つかりません")) {
-      console.error("Get company page draft error:", draftResult.error);
+      logger.error({ action: "getCompanyProfileWithPage", err: draftResult.error }, "企業ページドラフトの取得に失敗しました");
     }
 
     // 本番テーブルから現在のステータス情報を取得（トグルボタン用）
@@ -181,7 +182,7 @@ export async function getCompanyProfileWithPage(): Promise<{
       error: null
     };
   } catch (error) {
-    console.error("Get company profile with page error:", error);
+    logger.error({ action: "getCompanyProfileWithPage", err: error }, "企業プロフィールとページ情報の取得中に例外が発生しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "企業プロフィールの取得に失敗しました"
@@ -209,7 +210,7 @@ export async function getCompanyProfileById(id: string): Promise<{
       .maybeSingle();
 
     if (companyError) {
-      console.error("Get company profile by id error:", companyError);
+      logger.error({ action: "getCompanyProfileById", err: companyError, companyId: id }, "企業プロフィールの取得に失敗しました");
       return { data: null, error: companyError.message };
     }
 
@@ -220,7 +221,7 @@ export async function getCompanyProfileById(id: string): Promise<{
     // 企業ページ情報を取得（getCompanyPageByIdを使用）
     const pageResult = await getCompanyPageById(id);
     if (pageResult.error) {
-      console.error("Get company page error:", pageResult.error);
+      logger.error({ action: "getCompanyProfileById", err: pageResult.error, companyId: id }, "企業ページ情報の取得に失敗しました");
       // ページ情報の取得エラーは無視
     }
 
@@ -263,7 +264,7 @@ export async function getCompanyProfileById(id: string): Promise<{
     const { data: jobsData, error: jobsError } = await jobsQuery;
 
     if (jobsError) {
-      console.error("Get company jobs error:", jobsError);
+      logger.error({ action: "getCompanyProfileById", err: jobsError, companyId: id }, "求人情報の取得に失敗しました");
       // 求人の取得エラーは無視して企業情報のみ返す
     }
 
@@ -276,7 +277,7 @@ export async function getCompanyProfileById(id: string): Promise<{
       .order("display_order", { ascending: true });
 
     if (videosError) {
-      console.error("Get company videos error:", videosError);
+      logger.error({ action: "getCompanyProfileById", err: videosError, companyId: id }, "動画情報の取得に失敗しました");
       // 動画の取得エラーは無視
     }
 
@@ -308,7 +309,7 @@ export async function getCompanyProfileById(id: string): Promise<{
     const { data: sessionsData, error: sessionsError } = await sessionsQuery;
 
     if (sessionsError) {
-      console.error("Get company sessions error:", sessionsError);
+      logger.error({ action: "getCompanyProfileById", err: sessionsError, companyId: id }, "説明会情報の取得に失敗しました");
       // 説明会の取得エラーは無視
     }
 
@@ -330,7 +331,7 @@ export async function getCompanyProfileById(id: string): Promise<{
       error: null
     };
   } catch (error) {
-    console.error("Get company profile by id error:", error);
+    logger.error({ action: "getCompanyProfileById", err: error, companyId: id }, "企業プロフィール取得中に例外が発生しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "企業プロフィールの取得に失敗しました"
@@ -393,7 +394,7 @@ export async function uploadCompanyAsset(
       });
 
     if (uploadError) {
-      console.error("Upload company asset error:", uploadError);
+      logger.error({ action: "uploadCompanyAsset", err: uploadError, type }, "企業アセットのアップロードに失敗しました");
       return { data: null, error: uploadError.message };
     }
 
@@ -404,7 +405,7 @@ export async function uploadCompanyAsset(
 
     return { data: publicUrl, error: null };
   } catch (error) {
-    console.error("Upload company asset error:", error);
+    logger.error({ action: "uploadCompanyAsset", err: error, type }, "企業アセットアップロード中に例外が発生しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "ファイルのアップロードに失敗しました"

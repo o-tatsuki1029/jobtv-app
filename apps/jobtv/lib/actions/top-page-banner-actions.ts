@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { checkAdminPermission } from "@/lib/actions/admin-actions";
+import { logger } from "@/lib/logger";
 
 const ALLOWED_BANNER_MIME = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const MAX_BANNER_SIZE = 5 * 1024 * 1024; // 5MB
@@ -33,7 +34,7 @@ export async function getTopPageBanners(): Promise<{
     if (error) return { data: null, error: error.message };
     return { data: data ?? [], error: null };
   } catch (e) {
-    console.error("getTopPageBanners error:", e);
+    logger.error({ action: "getTopPageBanners", err: e }, "バナー一覧の取得に失敗しました");
     return { data: null, error: e instanceof Error ? e.message : "取得に失敗しました" };
   }
 }
@@ -56,7 +57,7 @@ export async function getAdminTopPageBanners(): Promise<{
     if (error) return { data: null, error: error.message };
     return { data: data ?? [], error: null };
   } catch (e) {
-    console.error("getAdminTopPageBanners error:", e);
+    logger.error({ action: "getAdminTopPageBanners", err: e }, "管理画面バナー一覧の取得に失敗しました");
     return { data: null, error: e instanceof Error ? e.message : "取得に失敗しました" };
   }
 }
@@ -99,7 +100,7 @@ export async function createTopPageBanner(formData: FormData): Promise<{
       .upload(fileName, file, { cacheControl: "3600", upsert: false });
 
     if (uploadError) {
-      console.error("createTopPageBanner upload error:", uploadError);
+      logger.error({ action: "createTopPageBanner", err: uploadError }, "バナー画像のアップロードに失敗しました");
       return { data: null, error: uploadError.message };
     }
 
@@ -125,7 +126,7 @@ export async function createTopPageBanner(formData: FormData): Promise<{
     });
 
     if (insertError) {
-      console.error("createTopPageBanner insert error:", insertError);
+      logger.error({ action: "createTopPageBanner", err: insertError }, "バナーレコードの挿入に失敗しました");
       return { data: null, error: insertError.message };
     }
 
@@ -133,7 +134,7 @@ export async function createTopPageBanner(formData: FormData): Promise<{
     revalidatePath("/admin/banners");
     return { data: { id }, error: null };
   } catch (e) {
-    console.error("createTopPageBanner error:", e);
+    logger.error({ action: "createTopPageBanner", err: e }, "バナーの作成に失敗しました");
     return { data: null, error: e instanceof Error ? e.message : "作成に失敗しました" };
   }
 }
@@ -179,7 +180,7 @@ export async function updateTopPageBanner(
         .upload(fileName, file, { cacheControl: "3600", upsert: false });
 
       if (uploadError) {
-        console.error("updateTopPageBanner upload error:", uploadError);
+        logger.error({ action: "updateTopPageBanner", err: uploadError }, "バナー画像のアップロードに失敗しました");
         return { data: null, error: uploadError.message };
       }
 
@@ -196,7 +197,7 @@ export async function updateTopPageBanner(
       .eq("id", id);
 
     if (updateError) {
-      console.error("updateTopPageBanner error:", updateError);
+      logger.error({ action: "updateTopPageBanner", err: updateError }, "バナーの更新に失敗しました");
       return { data: null, error: updateError.message };
     }
 
@@ -204,7 +205,7 @@ export async function updateTopPageBanner(
     revalidatePath("/admin/banners");
     return { data: true, error: null };
   } catch (e) {
-    console.error("updateTopPageBanner error:", e);
+    logger.error({ action: "updateTopPageBanner", err: e }, "バナーの更新に失敗しました");
     return { data: null, error: e instanceof Error ? e.message : "更新に失敗しました" };
   }
 }
@@ -221,7 +222,7 @@ export async function deleteTopPageBanner(
     const { error } = await supabase.from("top_page_banners").delete().eq("id", id);
 
     if (error) {
-      console.error("deleteTopPageBanner error:", error);
+      logger.error({ action: "deleteTopPageBanner", err: error }, "バナーの削除に失敗しました");
       return { data: null, error: error.message };
     }
 
@@ -229,7 +230,7 @@ export async function deleteTopPageBanner(
     revalidatePath("/admin/banners");
     return { data: true, error: null };
   } catch (e) {
-    console.error("deleteTopPageBanner error:", e);
+    logger.error({ action: "deleteTopPageBanner", err: e }, "バナーの削除に失敗しました");
     return { data: null, error: e instanceof Error ? e.message : "削除に失敗しました" };
   }
 }
@@ -252,7 +253,7 @@ export async function reorderTopPageBanners(
         .eq("id", orderedIds[i]);
 
       if (error) {
-        console.error("reorderTopPageBanners error:", error);
+        logger.error({ action: "reorderTopPageBanners", err: error }, "バナーの並び替えに失敗しました");
         return { data: null, error: error.message };
       }
     }
@@ -261,7 +262,7 @@ export async function reorderTopPageBanners(
     revalidatePath("/admin/banners");
     return { data: true, error: null };
   } catch (e) {
-    console.error("reorderTopPageBanners error:", e);
+    logger.error({ action: "reorderTopPageBanners", err: e }, "バナーの並び替えに失敗しました");
     return { data: null, error: e instanceof Error ? e.message : "並び替えに失敗しました" };
   }
 }

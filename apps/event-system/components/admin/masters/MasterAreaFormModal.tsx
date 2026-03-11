@@ -8,7 +8,7 @@ import { FormField, TextInput } from "@/components/ui/form/FormField";
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/types";
 
-type MasterArea = Database["public"]["Tables"]["master_areas"]["Row"];
+type MasterArea = Database["public"]["Tables"]["event_areas"]["Row"];
 
 type MasterAreaFormModalProps = {
   isOpen: boolean;
@@ -58,7 +58,7 @@ export default function MasterAreaFormModal({
       if (isEditMode && initialData) {
         // 更新
         const { error: updateError } = await supabase
-          .from("master_areas")
+          .from("event_areas")
           .update({
             name: name.trim(),
             is_active: isActive,
@@ -73,7 +73,7 @@ export default function MasterAreaFormModal({
       } else {
         // 新規作成
         const { error: insertError } = await supabase
-          .from("master_areas")
+          .from("event_areas")
           .insert({
             name: name.trim(),
             is_active: isActive,

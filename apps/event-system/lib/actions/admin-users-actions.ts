@@ -2,6 +2,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
+import { logger } from "@/lib/logger";
 
 // Supabase Admin API用のクライアント
 // 注意: この関数は重複しているため、@/lib/supabase/adminからインポートすることを推奨
@@ -118,16 +119,7 @@ export async function createAdminUser(email: string, password: string) {
         ? String(upsertError.hint)
         : '';
       
-      console.error("profilesテーブルupsert/updateエラー:", {
-        error: upsertError,
-        message: errorMessage,
-        code: errorCode,
-        details: errorDetails,
-        hint: errorHint,
-        userId: authUser.user.id,
-        profileExists,
-        profileData,
-      });
+      logger.error({ action: "createAdminUser", err: upsertError, errorMessage, code: errorCode, details: errorDetails, hint: errorHint, userId: authUser.user.id, profileExists, profileData }, "プロファイルのupsert/updateに失敗しました");
       
       // より詳細なエラーメッセージを構築
       let detailedMessage = `プロファイル情報の更新に失敗しました: ${errorMessage}`;
@@ -154,7 +146,7 @@ export async function createAdminUser(email: string, password: string) {
       password: finalPassword,
     };
   } catch (error: unknown) {
-    console.error("管理者アカウント作成エラー:", error);
+    logger.error({ action: "createAdminUser", err: error }, "管理者アカウント作成に失敗しました");
     return {
       success: false,
       error:
@@ -194,7 +186,7 @@ export async function resetUserPassword(userId: string) {
       password: newPassword,
     };
   } catch (error: unknown) {
-    console.error("パスワードリセットエラー:", error);
+    logger.error({ action: "resetUserPassword", err: error }, "パスワードリセットに失敗しました");
     return {
       success: false,
       error:
@@ -230,7 +222,7 @@ export async function deleteUser(userId: string) {
       error: null,
     };
   } catch (error: unknown) {
-    console.error("ユーザー削除エラー:", error);
+    logger.error({ action: "deleteUser", err: error }, "ユーザー削除に失敗しました");
     return {
       success: false,
       error:
@@ -283,7 +275,7 @@ export async function createRecruiterUser(
         createError = new Error("ユーザーオブジェクトが取得できませんでした");
       }
     } catch (error) {
-      console.error("auth.users作成で例外発生:", error);
+      logger.error({ action: "createRecruiterUser", err: error }, "auth.usersの作成で例外が発生しました");
       createError = error;
     }
 
@@ -297,14 +289,7 @@ export async function createRecruiterUser(
         ? String((createError as { code: string }).code)
         : 'unknown';
       
-      console.error("auth.users作成エラー:", {
-        error: createError,
-        message: errorMessage,
-        code: errorCode,
-        email,
-        hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-        serviceKeyLength: process.env.SUPABASE_SERVICE_ROLE_KEY?.length,
-      });
+      logger.error({ action: "createRecruiterUser", err: createError, errorMessage, code: errorCode, email }, "auth.usersの作成に失敗しました");
       
       // エラーメッセージを構築
       let detailedMessage = `ユーザー作成に失敗しました: ${errorMessage}`;
@@ -326,7 +311,7 @@ export async function createRecruiterUser(
     }
 
     if (!userId) {
-      console.error("auth.users作成エラー: userIdが取得できませんでした");
+      logger.error({ action: "createRecruiterUser" }, "auth.users作成後にuserIdを取得できませんでした");
       return {
         success: false,
         error: "ユーザー作成に失敗しました（ユーザーIDが取得できませんでした）",
@@ -348,7 +333,7 @@ export async function createRecruiterUser(
         .single();
       
       if (checkError && checkError.code !== 'PGRST116') {
-        console.error("profilesレコード確認エラー:", checkError);
+        logger.error({ action: "createRecruiterUser", err: checkError, userId }, "profilesレコードの確認に失敗しました");
       }
       
       if (existingProfile) {
@@ -404,7 +389,7 @@ export async function createRecruiterUser(
         .eq("id", userId);
       upsertError = error;
       if (error) {
-        console.error("profilesテーブル更新エラー:", error);
+        logger.error({ action: "createRecruiterUser", err: error, userId }, "profilesテーブルの更新に失敗しました");
       } else {
         console.log("profilesテーブル更新成功");
       }
@@ -418,7 +403,7 @@ export async function createRecruiterUser(
         });
       upsertError = error;
       if (error) {
-        console.error("profilesテーブルupsertエラー:", error);
+        logger.error({ action: "createRecruiterUser", err: error, userId }, "profilesテーブルのupsertに失敗しました");
       } else {
         console.log("profilesテーブルupsert成功");
       }
@@ -439,16 +424,7 @@ export async function createRecruiterUser(
         ? String(upsertError.hint)
         : '';
       
-      console.error("profilesテーブルupsert/updateエラー:", {
-        error: upsertError,
-        message: errorMessage,
-        code: errorCode,
-        details: errorDetails,
-        hint: errorHint,
-        userId: userId,
-        profileExists,
-        profileData,
-      });
+      logger.error({ action: "createRecruiterUser", err: upsertError, errorMessage, code: errorCode, details: errorDetails, hint: errorHint, userId, profileExists, profileData }, "リクルーターのプロファイルupsert/updateに失敗しました");
       
       // より詳細なエラーメッセージを構築
       let detailedMessage = `プロファイル情報の更新に失敗しました: ${errorMessage}`;
@@ -493,13 +469,7 @@ export async function createRecruiterUser(
         ? error
         : { raw: error };
     
-    console.error("リクルーターアカウント作成エラー（catch）:", {
-      error,
-      errorMessage,
-      errorDetails,
-      email,
-      companyId,
-    });
+    logger.error({ action: "createRecruiterUser", err: error, errorMessage, errorDetails, email, companyId }, "リクルーターアカウント作成中に予期しないエラーが発生しました");
     
     return {
       success: false,
@@ -537,12 +507,7 @@ export async function updateRecruiterProfile(
           ? String(error.message) 
           : JSON.stringify(error));
       
-      console.error("リクルーター更新エラー:", {
-        error,
-        message: errorMessage,
-        recruiterId,
-        updateData,
-      });
+      logger.error({ action: "updateRecruiterProfile", err: error, errorMessage, recruiterId, updateData }, "リクルーター情報の更新に失敗しました");
 
       return {
         success: false,
@@ -555,7 +520,7 @@ export async function updateRecruiterProfile(
       error: null,
     };
   } catch (error) {
-    console.error("リクルーター更新エラー:", error);
+    logger.error({ action: "updateRecruiterProfile", err: error }, "リクルーター情報の更新中に予期しないエラーが発生しました");
     return {
       success: false,
       error: error instanceof Error ? error.message : "リクルーター情報の更新に失敗しました",
@@ -636,7 +601,7 @@ export async function createAuthAccountForRecruiter(recruiterId: string) {
 
     return result;
   } catch (error: unknown) {
-    console.error("既存リクルーターアカウント作成エラー:", error);
+    logger.error({ action: "createAuthAccountForRecruiter", err: error }, "既存リクルーターへのアカウント作成に失敗しました");
     return {
       success: false,
       error:

@@ -1,20 +1,21 @@
 "use server";
 
+import { logger } from "@/lib/logger";
 import { supabaseSelect } from "./supabase-actions";
 import { Database } from "@/types";
 
-type MasterArea = Database["public"]["Tables"]["master_areas"]["Row"];
-type MasterGraduationYear = Database["public"]["Tables"]["master_graduation_years"]["Row"];
-type MasterEventType = Database["public"]["Tables"]["master_event_types"]["Row"];
+type EventArea = Database["public"]["Tables"]["event_areas"]["Row"];
+type EventGraduationYear = Database["public"]["Tables"]["event_graduation_years"]["Row"];
+type EventType = Database["public"]["Tables"]["event_types"]["Row"];
 
 /**
  * エリアマスタを取得（すべて取得、is_activeに関係なく）
  */
-export async function getMasterAreas(): Promise<MasterArea[]> {
-  const { data, error } = await supabaseSelect<"master_areas">("master_areas");
+export async function getEventAreas(): Promise<EventArea[]> {
+  const { data, error } = await supabaseSelect<"event_areas">("event_areas");
 
   if (error || !data) {
-    console.error("エリアマスタの取得に失敗しました:", error);
+    logger.error({ action: "getEventAreas", err: error }, "エリアマスタの取得に失敗しました");
     return [];
   }
 
@@ -25,13 +26,13 @@ export async function getMasterAreas(): Promise<MasterArea[]> {
 /**
  * 卒年度マスタを取得（すべて取得、is_activeに関係なく）
  */
-export async function getMasterGraduationYears(): Promise<MasterGraduationYear[]> {
-  const { data, error } = await supabaseSelect<"master_graduation_years">(
-    "master_graduation_years"
+export async function getEventGraduationYears(): Promise<EventGraduationYear[]> {
+  const { data, error } = await supabaseSelect<"event_graduation_years">(
+    "event_graduation_years"
   );
 
   if (error || !data) {
-    console.error("卒年度マスタの取得に失敗しました:", error);
+    logger.error({ action: "getEventGraduationYears", err: error }, "卒年度マスタの取得に失敗しました");
     return [];
   }
 
@@ -42,13 +43,13 @@ export async function getMasterGraduationYears(): Promise<MasterGraduationYear[]
 /**
  * イベントタイプマスタを取得（すべて取得、is_activeに関係なく）
  */
-export async function getMasterEventTypes(): Promise<MasterEventType[]> {
-  const { data, error } = await supabaseSelect<"master_event_types">(
-    "master_event_types"
+export async function getEventTypes(): Promise<EventType[]> {
+  const { data, error } = await supabaseSelect<"event_types">(
+    "event_types"
   );
 
   if (error || !data) {
-    console.error("イベントタイプマスタの取得に失敗しました:", error);
+    logger.error({ action: "getEventTypes", err: error }, "イベントタイプマスタの取得に失敗しました");
     return [];
   }
 

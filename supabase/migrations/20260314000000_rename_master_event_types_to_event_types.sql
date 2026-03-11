@@ -1,0 +1,4 @@
+ALTER TABLE master_event_types RENAME TO event_types;
+ALTER INDEX IF EXISTS master_event_types_pkey RENAME TO event_types_pkey;
+ALTER TABLE event_types RENAME CONSTRAINT master_event_types_area_fkey TO event_types_area_fkey;
+ALTER TABLE event_types RENAME CONSTRAINT master_event_types_target_graduation_year_fkey TO event_types_target_graduation_year_fkey;

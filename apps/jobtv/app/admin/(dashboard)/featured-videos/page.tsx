@@ -6,6 +6,8 @@ import Tabs from "@/components/studio/molecules/Tabs";
 import LoadingSpinner from "@/components/studio/atoms/LoadingSpinner";
 import ErrorMessage from "@/components/studio/atoms/ErrorMessage";
 import EmptyState from "@/components/studio/atoms/EmptyState";
+import HeroItemsContent from "@/components/admin/HeroItemsContent";
+import BannersContent from "@/components/admin/BannersContent";
 import {
   getEligibleVideosForTopPage,
   getFeaturedVideosForTopPage,
@@ -35,14 +37,16 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-type TabKind = TopPageVideoKind;
+type TabId = "hero" | "banner" | TopPageVideoKind;
 
 interface VideoWithCompany extends Omit<Video, "display_order"> {
   company_name: string | null;
   display_order?: number;
 }
 
-const TAB_OPTIONS: { id: TabKind; label: string }[] = [
+const TAB_OPTIONS: { id: TabId; label: string }[] = [
+  { id: "hero", label: "トップ動画" },
+  { id: "banner", label: "バナー" },
   { id: "short", label: "就活Shorts" },
   { id: "documentary", label: "就活ドキュメンタリー" }
 ];
@@ -116,16 +120,9 @@ function SortableFeaturedItem({
   );
 }
 
-export default function FeaturedVideosPage() {
-  const searchParams = useSearchParams();
-  const tabFromUrl = (searchParams.get("tab") as TabKind) || "short";
-  const [activeTab, setActiveTab] = useState<TabKind>(tabFromUrl);
-
-  const [featuredShort, setFeaturedShort] = useState<VideoWithCompany[]>([]);
-  const [featuredDoc, setFeaturedDoc] = useState<VideoWithCompany[]>([]);
-  const [eligibleShort, setEligibleShort] = useState<VideoWithCompany[]>([]);
-  const [eligibleDoc, setEligibleDoc] = useState<VideoWithCompany[]>([]);
-
+function FeaturedVideosContent({ kind }: { kind: TopPageVideoKind }) {
+  const [featured, setFeatured] = useState<VideoWithCompany[]>([]);
+  const [eligible, setEligible] = useState<VideoWithCompany[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -137,44 +134,32 @@ export default function FeaturedVideosPage() {
     setError(null);
     setActionError(null);
     try {
-      const [fs, fd, es, ed] = await Promise.all([
-        getFeaturedVideosForTopPage("short"),
-        getFeaturedVideosForTopPage("documentary"),
-        getEligibleVideosForTopPage("short"),
-        getEligibleVideosForTopPage("documentary")
+      const [f, e] = await Promise.all([
+        getFeaturedVideosForTopPage(kind),
+        getEligibleVideosForTopPage(kind)
       ]);
-      if (fs.error) throw new Error(fs.error);
-      if (fd.error) throw new Error(fd.error);
-      if (es.error) throw new Error(es.error);
-      if (ed.error) throw new Error(ed.error);
-      setFeaturedShort(fs.data ?? []);
-      setFeaturedDoc(fd.data ?? []);
-      setEligibleShort(es.data ?? []);
-      setEligibleDoc(ed.data ?? []);
+      if (f.error) throw new Error(f.error);
+      if (e.error) throw new Error(e.error);
+      setFeatured(f.data ?? []);
+      setEligible(e.data ?? []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "取得に失敗しました");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [kind]);
 
   useEffect(() => {
     fetchAll();
   }, [fetchAll]);
 
-  const currentFeatured = activeTab === "short" ? featuredShort : featuredDoc;
-
   useEffect(() => {
-    setSortedFeatured(activeTab === "short" ? featuredShort : featuredDoc);
-  }, [activeTab, featuredShort, featuredDoc]);
+    setSortedFeatured(featured);
+  }, [featured]);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 8 }
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates
-    })
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -191,30 +176,24 @@ export default function FeaturedVideosPage() {
     setIsReordering(true);
     setActionError(null);
     const res = await reorderFeaturedVideosForTopPage(
-      activeTab,
+      kind,
       newOrder.map((v) => v.id)
     );
     setIsReordering(false);
     if (res.error) {
       setActionError(res.error);
-      setSortedFeatured(currentFeatured);
+      setSortedFeatured(featured);
       return;
     }
     await fetchAll();
   };
 
-  const featuredIds = new Set([
-    ...featuredShort.map((v) => v.id),
-    ...featuredDoc.map((v) => v.id)
-  ]);
-  const eligibleToAdd =
-    activeTab === "short"
-      ? eligibleShort.filter((v) => !featuredIds.has(v.id))
-      : eligibleDoc.filter((v) => !featuredIds.has(v.id));
+  const featuredIds = new Set(featured.map((v) => v.id));
+  const eligibleToAdd = eligible.filter((v) => !featuredIds.has(v.id));
 
   const handleAdd = async (videoId: string) => {
     setActionError(null);
-    const res = await addFeaturedVideoForTopPage(videoId, activeTab);
+    const res = await addFeaturedVideoForTopPage(videoId, kind);
     if (res.error) {
       setActionError(res.error);
       return;
@@ -224,17 +203,12 @@ export default function FeaturedVideosPage() {
 
   const handleRemove = async (videoId: string) => {
     setActionError(null);
-    const res = await removeFeaturedVideoForTopPage(videoId, activeTab);
+    const res = await removeFeaturedVideoForTopPage(videoId, kind);
     if (res.error) {
       setActionError(res.error);
       return;
     }
     await fetchAll();
-  };
-
-  const handleTabChange = (tabId: string) => {
-    setActiveTab(tabId as TabKind);
-    setActionError(null);
   };
 
   if (loading) {
@@ -243,21 +217,8 @@ export default function FeaturedVideosPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">トップ掲載</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          トップページの「就活Shorts」「就活ドキュメンタリー」に表示する動画を選択・並び替えできます。選択した動画のみがトップに表示されます。
-        </p>
-      </div>
-
       {error && <ErrorMessage message={error} />}
       {actionError && <ErrorMessage message={actionError} />}
-
-      <Tabs
-        tabs={TAB_OPTIONS}
-        activeTab={activeTab}
-        onTabChange={handleTabChange}
-      />
 
       {isReordering && (
         <div className="flex items-center justify-center py-2 rounded-lg border border-blue-100 bg-blue-50 text-blue-600 text-xs font-bold animate-pulse">
@@ -351,6 +312,38 @@ export default function FeaturedVideosPage() {
           )}
         </section>
       </div>
+    </div>
+  );
+}
+
+export default function FeaturedVideosPage() {
+  const searchParams = useSearchParams();
+  const tabFromUrl = (searchParams.get("tab") as TabId) || "hero";
+  const [activeTab, setActiveTab] = useState<TabId>(tabFromUrl);
+
+  const handleTabChange = (tabId: string) => {
+    setActiveTab(tabId as TabId);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">トップ掲載</h1>
+        <p className="mt-1 text-sm text-gray-500">
+          トップページに表示するコンテンツを管理できます。
+        </p>
+      </div>
+
+      <Tabs
+        tabs={TAB_OPTIONS}
+        activeTab={activeTab}
+        onTabChange={handleTabChange}
+      />
+
+      {activeTab === "hero" && <HeroItemsContent />}
+      {activeTab === "banner" && <BannersContent />}
+      {activeTab === "short" && <FeaturedVideosContent kind="short" />}
+      {activeTab === "documentary" && <FeaturedVideosContent kind="documentary" />}
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { checkAdminPermission } from "@/lib/actions/admin-actions";
 import type { Tables } from "@jobtv-app/shared/types";
+import { logger } from "@/lib/logger";
 
 type EmailLog = Tables<"email_logs">;
 
@@ -39,12 +40,12 @@ export async function getEmailLogs(options?: {
     const { data, error } = await query;
 
     if (error) {
-      console.error("getEmailLogs error:", error);
+      logger.error({ action: "getEmailLogs", err: error }, "送付ログの取得に失敗");
       return { data: null, error: error.message };
     }
     return { data: data ?? [], error: null };
   } catch (e) {
-    console.error("getEmailLogs error:", e);
+    logger.error({ action: "getEmailLogs", err: e }, "送付ログの取得に失敗");
     return { data: null, error: "送付ログの取得に失敗しました" };
   }
 }
@@ -70,7 +71,7 @@ export async function getEmailLogStats(): Promise<{
       .select("status, template_name");
 
     if (error) {
-      console.error("getEmailLogStats error:", error);
+      logger.error({ action: "getEmailLogStats", err: error }, "送付ログ統計の取得に失敗");
       return { data: null, error: error.message };
     }
 
@@ -96,7 +97,7 @@ export async function getEmailLogStats(): Promise<{
 
     return { data: stats, error: null };
   } catch (e) {
-    console.error("getEmailLogStats error:", e);
+    logger.error({ action: "getEmailLogStats", err: e }, "送付ログ統計の取得に失敗");
     return { data: null, error: "統計の取得に失敗しました" };
   }
 }

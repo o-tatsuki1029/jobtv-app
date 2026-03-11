@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { logger } from "@/lib/logger";
 import { RATING_NUMBER_MAP } from "@/types/rating.types";
 
 export type ScoreSheetData = {
@@ -34,7 +35,7 @@ export async function getScoreSheetData(eventId: string, candidateId: string) {
     // イベント情報を取得
     const { data: eventData, error: eventError } = await supabase
       .from("events")
-      .select("event_date, master_event_types(name)")
+      .select("event_date, event_types(name)")
       .eq("id", eventId)
       .single();
 
@@ -45,13 +46,13 @@ export async function getScoreSheetData(eventId: string, candidateId: string) {
       };
     }
 
-    const eventName = (eventData.master_event_types as any)?.name || "イベント";
+    const eventName = (eventData.event_types as any)?.name || "イベント";
     const eventDate = eventData.event_date;
 
-    // 学生情報を取得
+    // 学生情報を取得（名前は profiles から）
     const { data: candidate, error: candidateError } = await supabase
       .from("candidates")
-      .select("id, last_name, first_name, last_name_kana, first_name_kana")
+      .select("id, profiles!profiles_candidate_id_fkey(last_name, first_name, last_name_kana, first_name_kana)")
       .eq("id", candidateId)
       .single();
 
@@ -61,6 +62,9 @@ export async function getScoreSheetData(eventId: string, candidateId: string) {
         error: "学生情報が見つかりません",
       };
     }
+
+    const profilesRaw = candidate.profiles as unknown;
+    const candidateProfile = (Array.isArray(profilesRaw) ? profilesRaw[0] : profilesRaw) as { last_name: string; first_name: string; last_name_kana: string; first_name_kana: string } | null;
 
     // 席番号を取得
     const { data: reservation } = await supabase
@@ -187,8 +191,8 @@ export async function getScoreSheetData(eventId: string, candidateId: string) {
       success: true,
       data: {
         candidateId: candidate.id,
-        candidateName: `${candidate.last_name} ${candidate.first_name}`,
-        candidateKana: `${candidate.last_name_kana} ${candidate.first_name_kana}`,
+        candidateName: candidateProfile ? `${candidateProfile.last_name} ${candidateProfile.first_name}` : "不明",
+        candidateKana: candidateProfile ? `${candidateProfile.last_name_kana} ${candidateProfile.first_name_kana}` : "不明",
         seatNumber,
         eventName: eventName,
         eventDate: eventDate,
@@ -196,7 +200,7 @@ export async function getScoreSheetData(eventId: string, candidateId: string) {
       } as ScoreSheetData,
     };
   } catch (error: unknown) {
-    console.error("スコアシートデータ取得エラー:", error);
+    logger.error({ action: "getScoreSheetData", err: error, eventId, candidateId }, "スコアシートデータの取得に失敗しました");
     return {
       success: false,
       error:
@@ -222,10 +226,7 @@ export async function getEventCandidates(eventId: string) {
         seat_number,
         candidates (
           id,
-          last_name,
-          first_name,
-          last_name_kana,
-          first_name_kana
+          profiles!profiles_candidate_id_fkey(last_name, first_name, last_name_kana, first_name_kana)
         )
       `
       )
@@ -240,19 +241,23 @@ export async function getEventCandidates(eventId: string) {
       };
     }
 
-    const candidates = (reservations || []).map((r: any) => ({
-      id: r.candidate_id,
-      name: `${r.candidates.last_name} ${r.candidates.first_name}`,
-      kana: `${r.candidates.last_name_kana} ${r.candidates.first_name_kana}`,
-      seatNumber: r.seat_number,
-    }));
+    const candidates = (reservations || []).map((r: any) => {
+      const pRaw = r.candidates?.profiles;
+      const p = Array.isArray(pRaw) ? pRaw[0] : pRaw;
+      return {
+        id: r.candidate_id,
+        name: p ? `${p.last_name} ${p.first_name}` : "不明",
+        kana: p ? `${p.last_name_kana} ${p.first_name_kana}` : "不明",
+        seatNumber: r.seat_number,
+      };
+    });
 
     return {
       success: true,
       candidates,
     };
   } catch (error: unknown) {
-    console.error("学生リスト取得エラー:", error);
+    logger.error({ action: "getEventCandidates", err: error, eventId }, "学生リストの取得に失敗しました");
     return {
       success: false,
       error: "予期しないエラーが発生しました",
@@ -290,7 +295,7 @@ export async function getCandidateIdsFromMatchingSession(
       candidateIds,
     };
   } catch (error: unknown) {
-    console.error("学生ID取得エラー:", error);
+    logger.error({ action: "getCandidateIdsFromMatchingSession", err: error, matchingSessionId }, "学生IDの取得に失敗しました");
     return {
       success: false,
       error:

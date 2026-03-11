@@ -84,11 +84,7 @@ export default function SpecialInterviewModal({
           seat_number,
           candidates (
             id,
-            last_name,
-            first_name,
-            last_name_kana,
-            first_name_kana,
-            email
+            profiles!profiles_candidate_id_fkey(last_name, first_name, last_name_kana, first_name_kana, email)
           )
         `
         )
@@ -112,22 +108,31 @@ export default function SpecialInterviewModal({
       };
       const candidateMap = new Map<string, CandidateItem>();
 
+      type ProfileItem = {
+        last_name: string;
+        first_name: string;
+        last_name_kana: string;
+        first_name_kana: string;
+        email: string;
+      };
       type ReservationItem = {
         candidate_id: string;
         seat_number: string | null;
         candidates: {
           id: string;
-          last_name: string;
-          first_name: string;
-          last_name_kana: string;
-          first_name_kana: string;
-          email: string;
+          profiles: ProfileItem | ProfileItem[] | null;
         } | null;
       };
       ((data || []) as unknown as ReservationItem[]).forEach((item) => {
         if (item.candidates && !candidateMap.has(item.candidate_id)) {
+          const p = Array.isArray(item.candidates.profiles) ? item.candidates.profiles[0] : item.candidates.profiles;
           candidateMap.set(item.candidate_id, {
-            ...item.candidates,
+            id: item.candidates.id,
+            last_name: p?.last_name || "",
+            first_name: p?.first_name || "",
+            last_name_kana: p?.last_name_kana || "",
+            first_name_kana: p?.first_name_kana || "",
+            email: p?.email || "",
             seat_number: item.seat_number,
           });
         }

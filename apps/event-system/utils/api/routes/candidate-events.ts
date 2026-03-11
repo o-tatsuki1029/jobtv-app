@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@jobtv-app/shared/supabase/admin";
 import { Event } from "@/types/event.types";
+import { logger } from "@/lib/logger";
 
 type EventWithName = Event & {
   event_name: string;
@@ -27,7 +28,7 @@ export async function getCandidateEvents(candidateId?: string | null) {
           start_time,
           end_time,
           event_type_id,
-          master_event_types (
+          event_types (
             name,
             area
           ),
@@ -40,14 +41,7 @@ export async function getCandidateEvents(candidateId?: string | null) {
       .eq("attended", true);
 
     if (error) {
-      console.error("Supabase error fetching event reservations:", {
-        error,
-        candidateId,
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code,
-      });
+      logger.error({ action: "getCandidateEvents", err: error, candidateId }, "イベント予約の取得に失敗しました");
       throw new Error(
         `イベントの取得に失敗しました: ${error.message || "不明なエラー"}`
       );
@@ -60,7 +54,7 @@ export async function getCandidateEvents(candidateId?: string | null) {
       start_time: string;
       end_time: string;
       event_type_id?: string | null;
-      master_event_types?: { name: string; area: string | null } | { name: string; area: string | null }[] | null;
+      event_types?: { name: string; area: string | null } | { name: string; area: string | null }[] | null;
       created_at: string | null;
       updated_at: string | null;
     };
@@ -74,10 +68,10 @@ export async function getCandidateEvents(candidateId?: string | null) {
         const event = Array.isArray(item.events) ? item.events[0] : item.events;
         if (!event) return null;
         
-        // master_event_typesからevent_nameとareaを取得
-        const eventType = Array.isArray(event.master_event_types) 
-          ? event.master_event_types[0] 
-          : event.master_event_types;
+        // event_typesからevent_nameとareaを取得
+        const eventType = Array.isArray(event.event_types) 
+          ? event.event_types[0] 
+          : event.event_types;
         const eventName = eventType?.name || "";
         const eventArea = eventType?.area || "";
         
@@ -105,7 +99,7 @@ export async function getCandidateEvents(candidateId?: string | null) {
         start_time, 
         end_time, 
         event_type_id,
-        master_event_types (
+        event_types (
           name,
           area
         ),
@@ -114,33 +108,27 @@ export async function getCandidateEvents(candidateId?: string | null) {
       `);
 
     if (error) {
-      console.error("Supabase error fetching events:", {
-        error,
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code,
-      });
+      logger.error({ action: "getCandidateEvents", err: error }, "全イベントの取得に失敗しました");
       throw new Error(
         `イベントの取得に失敗しました: ${error.message || "不明なエラー"}`
       );
     }
 
-    // データを整形（master_event_typesからevent_nameとareaを取得）
+    // データを整形（event_typesからevent_nameとareaを取得）
     type EventData = {
       id: string;
       event_date: string;
       start_time: string;
       end_time: string;
       event_type_id?: string | null;
-      master_event_types?: { name: string; area: string | null } | { name: string; area: string | null }[] | null;
+      event_types?: { name: string; area: string | null } | { name: string; area: string | null }[] | null;
       created_at: string | null;
       updated_at: string | null;
     };
     events = (data || []).map((event: EventData) => {
-      const eventType = Array.isArray(event.master_event_types) 
-        ? event.master_event_types[0] 
-        : event.master_event_types;
+      const eventType = Array.isArray(event.event_types) 
+        ? event.event_types[0] 
+        : event.event_types;
       const eventName = eventType?.name || "";
       const eventArea = eventType?.area || "";
       

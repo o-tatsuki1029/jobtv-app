@@ -60,27 +60,29 @@ export default function ProgramSection({
           {(title || description) && (
             <div className={cn("border-b mb-4", classes.sectionBorder)} />
           )}
-          <HorizontalScrollContainer>
-            <div className="flex gap-4 min-w-max md:px-4 pb-6">
-              {programs.map((program) => (
-                <div
-                  key={program.id}
-                  className="w-[120px] sm:w-[140px] md:w-[160px] flex-shrink-0"
-                  onClick={() => onProgramClick?.(program)}
-                >
-                  <ProgramCard
-                    title={program.title}
-                    thumbnail={program.thumbnail}
-                    channel={program.channel}
-                    time={program.time}
-                    viewers={program.viewers}
-                    isLive={program.isLive}
-                    vertical={vertical}
-                  />
-                </div>
-              ))}
-            </div>
-          </HorizontalScrollContainer>
+          <div className="-mx-4 md:mx-0">
+            <HorizontalScrollContainer>
+              <div className="flex gap-4 min-w-max pl-4 md:px-4 pb-6">
+                {programs.map((program) => (
+                  <div
+                    key={program.id}
+                    className="w-[120px] sm:w-[140px] md:w-[160px] flex-shrink-0"
+                    onClick={() => onProgramClick?.(program)}
+                  >
+                    <ProgramCard
+                      title={program.title}
+                      thumbnail={program.thumbnail}
+                      channel={program.channel}
+                      time={program.time}
+                      viewers={program.viewers}
+                      isLive={program.isLive}
+                      vertical={vertical}
+                    />
+                  </div>
+                ))}
+              </div>
+            </HorizontalScrollContainer>
+          </div>
         </div>
       </section>
     );

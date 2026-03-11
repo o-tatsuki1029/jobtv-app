@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import ErrorMessage from "@/components/studio/atoms/ErrorMessage";
 import LoadingSpinner from "@/components/studio/atoms/LoadingSpinner";
@@ -19,6 +19,7 @@ import {
   getAllSessionsForReview,
   getAllCompanyInfoForReview,
   getAllCompaniesForReview,
+  getReviewCounts,
   approveJob,
   rejectJob,
   approveSession,
@@ -28,8 +29,7 @@ import {
   approveCompanyPage,
   rejectCompanyPage
 } from "@/lib/actions/admin-actions";
-import { getAllVideosDraft, approveVideo, rejectVideo } from "@/lib/actions/admin-video-actions";
-import { checkAndUpdateConversionStatus } from "@/lib/actions/video-actions";
+import { getAllVideosDraft, approveVideo, rejectVideo, checkConversionStatusBatchAdmin } from "@/lib/actions/admin-video-actions";
 import { getJobDraftByProductionId, getJobDraftById } from "@/lib/actions/job-actions";
 import { getSessionDraftByProductionId, getSessionDraftById } from "@/lib/actions/session-actions";
 import { getCompanyPageDraftByIdAdmin } from "@/lib/actions/company-page-actions";
@@ -68,6 +68,7 @@ interface SessionWithCompany extends Session {
 }
 
 type TabType = "company-info" | "company-pages" | "jobs" | "sessions" | "videos";
+type TabLoadState = "idle" | "loading" | "loaded" | "error";
 
 export default function ReviewPage() {
   const router = useRouter();
@@ -81,8 +82,29 @@ export default function ReviewPage() {
   const [companyPages, setCompanyPages] = useState<Company[]>([]);
   const [videos, setVideos] = useState<ReviewVideo[]>([]);
 
-  const [loading, setLoading] = useState(true);
+  // タブごとのカウント（badge 表示用）
+  const [counts, setCounts] = useState<Record<TabType, number>>({
+    "company-info": 0,
+    "company-pages": 0,
+    jobs: 0,
+    sessions: 0,
+    videos: 0
+  });
+
+  // タブごとの読み込み状態
+  const [tabStates, setTabStates] = useState<Record<TabType, TabLoadState>>({
+    "company-info": "idle",
+    "company-pages": "idle",
+    jobs: "idle",
+    sessions: "idle",
+    videos: "idle"
+  });
+
+  const [countsLoading, setCountsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // 初回マウントフラグ
+  const initializedRef = useRef(false);
 
   // プレビューモーダル用のstate
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -97,12 +119,12 @@ export default function ReviewPage() {
   const [isDiffOpen, setIsDiffOpen] = useState(false);
   const [diffData, setDiffData] = useState<{
     title: string;
-    fields: { label: string; old: any; new: any; isChanged: boolean }[];
+    fields: { label: string; old: any; new: any; isChanged: boolean; fieldType?: "image" | "video" }[];
   } | null>(null);
 
   // 差分を表示
   const handleShowDiff = (item: any, type: TabType) => {
-    let fields: { label: string; key: string }[] = [];
+    let fields: { label: string; key: string; fieldType?: "image" | "video" }[] = [];
     const production = item.production_data || {};
     const draft = item;
 
@@ -118,7 +140,8 @@ export default function ReviewPage() {
           { label: "応募資格", key: "requirements" },
           { label: "福利厚生", key: "benefits" },
           { label: "選考プロセス", key: "selection_process" },
-          { label: "カバー画像URL", key: "cover_image_url" }
+          { label: "募集ステータス", key: "available_statuses" },
+          { label: "カバー画像", key: "cover_image_url", fieldType: "image" }
         ];
         break;
       case "sessions":
@@ -128,41 +151,47 @@ export default function ReviewPage() {
           { label: "場所", key: "location_type" },
           { label: "詳細住所", key: "location_detail" },
           { label: "定員", key: "capacity" },
+          { label: "卒業年", key: "graduation_year" },
           { label: "説明会内容", key: "description" },
-          { label: "カバー画像URL", key: "cover_image_url" }
+          { label: "カバー画像", key: "cover_image_url", fieldType: "image" }
         ];
         break;
       case "company-pages":
         fields = [
           { label: "タグライン", key: "tagline" },
           { label: "企業紹介文", key: "description" },
-          { label: "カバー画像URL", key: "cover_image_url" },
-          { label: "メイン動画URL", key: "main_video_url" },
+          { label: "カバー画像", key: "cover_image_url", fieldType: "image" },
+          { label: "メイン動画", key: "main_video_url", fieldType: "video" },
           { label: "SNS (X)", key: "sns_x_url" },
           { label: "SNS (Instagram)", key: "sns_instagram_url" },
           { label: "SNS (TikTok)", key: "sns_tiktok_url" },
           { label: "SNS (YouTube)", key: "sns_youtube_url" },
-          { label: "特典情報", key: "benefits" }
+          { label: "特典情報", key: "benefits" },
+          { label: "ショート動画", key: "short_videos" },
+          { label: "ドキュメンタリー動画", key: "documentary_videos" },
+          { label: "企業動画", key: "company_videos" }
         ];
         break;
       case "videos":
         fields = [
           { label: "タイトル", key: "title" },
           { label: "カテゴリー", key: "category" },
-          { label: "動画URL", key: "video_url" },
-          { label: "サムネイルURL", key: "thumbnail_url" },
+          { label: "動画", key: "video_url", fieldType: "video" },
+          { label: "サムネイル", key: "thumbnail_url", fieldType: "image" },
+          { label: "自動生成サムネイル", key: "auto_thumbnail_url", fieldType: "image" },
+          { label: "ストリーミングURL", key: "streaming_url", fieldType: "video" },
           { label: "表示順序", key: "display_order" }
         ];
         break;
       case "company-info":
         fields = [
           { label: "会社名", key: "name" },
-          { label: "ロゴURL", key: "logo_url" },
+          { label: "ロゴ", key: "logo_url", fieldType: "image" },
+          { label: "サムネイル", key: "thumbnail_url", fieldType: "image" },
           { label: "Webサイト", key: "website" },
           { label: "業界", key: "industry" },
           { label: "従業員数", key: "employees" },
-          { label: "拠点", key: "location" },
-          { label: "住所", key: "address" },
+          { label: "都道府県", key: "prefecture" },
           { label: "住所1", key: "address_line1" },
           { label: "住所2", key: "address_line2" },
           { label: "代表者", key: "representative" },
@@ -175,7 +204,7 @@ export default function ReviewPage() {
     const diffFields = fields.map((f) => {
       const oldValue = production[f.key];
       const newValue = draft[f.key];
-      
+
       // 文字列化して比較
       const oldStr = oldValue === null || oldValue === undefined ? "" : String(oldValue);
       const newStr = newValue === null || newValue === undefined ? "" : String(newValue);
@@ -184,7 +213,8 @@ export default function ReviewPage() {
         label: f.label,
         old: oldValue,
         new: newValue,
-        isChanged: oldStr !== newStr
+        isChanged: oldStr !== newStr,
+        fieldType: f.fieldType
       };
     });
 
@@ -195,74 +225,142 @@ export default function ReviewPage() {
     setIsDiffOpen(true);
   };
 
-  // データを取得
-  useEffect(() => {
-    loadAllData();
-  }, []);
-
-  const loadAllData = async () => {
-    setLoading(true);
+  // タブ単位のデータ読み込み
+  const loadTabData = useCallback(async (tab: TabType) => {
+    setTabStates((prev) => ({ ...prev, [tab]: "loading" }));
     setError(null);
 
-    const [jobsResult, sessionsResult, companyInfoResult, companyPagesResult, videosResult] = await Promise.all([
-      getAllJobsForReview(),
-      getAllSessionsForReview(),
-      getAllCompanyInfoForReview(),
-      getAllCompaniesForReview(),
-      getAllVideosDraft({ draft_status: "submitted" })
-    ]);
+    try {
+      switch (tab) {
+        case "company-info": {
+          const result = await getAllCompanyInfoForReview();
+          if (result.error) {
+            setError(result.error);
+            setTabStates((prev) => ({ ...prev, [tab]: "error" }));
+          } else {
+            setCompanyInfo(result.data || []);
+            setCounts((prev) => ({ ...prev, [tab]: result.data?.length ?? 0 }));
+            setTabStates((prev) => ({ ...prev, [tab]: "loaded" }));
+          }
+          break;
+        }
+        case "company-pages": {
+          const result = await getAllCompaniesForReview();
+          if (result.error) {
+            setError(result.error);
+            setTabStates((prev) => ({ ...prev, [tab]: "error" }));
+          } else {
+            setCompanyPages((result.data || []) as Company[]);
+            setCounts((prev) => ({ ...prev, [tab]: result.data?.length ?? 0 }));
+            setTabStates((prev) => ({ ...prev, [tab]: "loaded" }));
+          }
+          break;
+        }
+        case "jobs": {
+          const result = await getAllJobsForReview();
+          if (result.error) {
+            setError(result.error);
+            setTabStates((prev) => ({ ...prev, [tab]: "error" }));
+          } else {
+            setJobs((result.data || []) as Job[]);
+            setCounts((prev) => ({ ...prev, [tab]: result.data?.length ?? 0 }));
+            setTabStates((prev) => ({ ...prev, [tab]: "loaded" }));
+          }
+          break;
+        }
+        case "sessions": {
+          const result = await getAllSessionsForReview();
+          if (result.error) {
+            setError(result.error);
+            setTabStates((prev) => ({ ...prev, [tab]: "error" }));
+          } else {
+            setSessions((result.data || []) as SessionWithCompany[]);
+            setCounts((prev) => ({ ...prev, [tab]: result.data?.length ?? 0 }));
+            setTabStates((prev) => ({ ...prev, [tab]: "loaded" }));
+          }
+          break;
+        }
+        case "videos": {
+          const result = await getAllVideosDraft({ draft_status: "submitted" });
+          if (result.error) {
+            console.error("Videos load error:", result.error);
+            setTabStates((prev) => ({ ...prev, [tab]: "error" }));
+          } else {
+            let videoList = result.data || [];
+            setVideos(videoList);
 
-    if (jobsResult.error) {
-      setError(jobsResult.error);
-    } else if (jobsResult.data) {
-      setJobs(jobsResult.data as Job[]);
-    }
+            // 変換中の動画を一括チェック
+            const processingIds = videoList
+              .filter(
+                (v: any) =>
+                  v.conversion_status === "processing" || v.conversion_status === "pending"
+              )
+              .map((v: any) => v.id);
 
-    if (sessionsResult.error) {
-      setError(sessionsResult.error);
-    } else if (sessionsResult.data) {
-      setSessions(sessionsResult.data as SessionWithCompany[]);
-    }
+            if (processingIds.length > 0) {
+              const { updatedIds } = await checkConversionStatusBatchAdmin(processingIds);
+              if (updatedIds.length > 0) {
+                // 更新があった場合のみ再取得
+                const refreshed = await getAllVideosDraft({ draft_status: "submitted" });
+                if (refreshed.data) {
+                  videoList = refreshed.data;
+                  setVideos(videoList);
+                }
+              }
+            }
 
-    if (companyInfoResult.error) {
-      setError(companyInfoResult.error);
-    } else if (companyInfoResult.data) {
-      setCompanyInfo(companyInfoResult.data);
-    }
-
-    if (companyPagesResult.error) {
-      setError(companyPagesResult.error);
-    } else if (companyPagesResult.data) {
-      setCompanyPages(companyPagesResult.data);
-    }
-
-    if (videosResult.error) {
-      console.error("Videos load error:", videosResult.error);
-    } else if (videosResult.data) {
-      const videoList = videosResult.data;
-      setVideos(videoList);
-      const processingIds = videoList
-        .filter(
-          (v: any) =>
-            v.conversion_status === "processing" || v.conversion_status === "pending"
-        )
-        .map((v: any) => v.id);
-      if (processingIds.length > 0) {
-        await Promise.all(
-          processingIds.map((id: string) => checkAndUpdateConversionStatus(id))
-        );
-        const refreshed = await getAllVideosDraft({ draft_status: "submitted" });
-        if (refreshed.data) setVideos(refreshed.data);
+            setCounts((prev) => ({ ...prev, [tab]: videoList.length }));
+            setTabStates((prev) => ({ ...prev, [tab]: "loaded" }));
+          }
+          break;
+        }
       }
+    } catch (err) {
+      console.error(`Error loading tab ${tab}:`, err);
+      setError("データの読み込みに失敗しました");
+      setTabStates((prev) => ({ ...prev, [tab]: "error" }));
     }
+  }, []);
 
-    setLoading(false);
+  // 初期表示: カウント取得 + アクティブタブのデータ読み込み
+  useEffect(() => {
+    if (initializedRef.current) return;
+    initializedRef.current = true;
+
+    const init = async () => {
+      // カウントとアクティブタブのデータを並行取得
+      const [countsResult] = await Promise.all([
+        getReviewCounts(),
+        loadTabData(activeTab)
+      ]);
+
+      if (countsResult.data) {
+        setCounts(countsResult.data);
+      }
+      setCountsLoading(false);
+    };
+
+    init();
+  }, [activeTab, loadTabData]);
+
+  // タブ切り替え時に未読み込みなら読み込む
+  const handleTabChange = (tabId: TabType) => {
+    setActiveTab(tabId);
+    router.push(`/admin/review?tab=${tabId}`);
+
+    const state = tabStates[tabId];
+    if (state === "idle" || state === "error") {
+      loadTabData(tabId);
+    }
   };
+
+  // --- 承認/却下ハンドラー（楽観的更新） ---
 
   const handleApproveJob = async (jobId: string) => {
     const result = await approveJob(jobId);
     if (!result.error) {
-      await loadAllData();
+      setJobs((prev) => prev.filter((j) => j.id !== jobId));
+      setCounts((prev) => ({ ...prev, jobs: Math.max(0, prev.jobs - 1) }));
     }
     return result;
   };
@@ -270,7 +368,8 @@ export default function ReviewPage() {
   const handleRejectJob = async (jobId: string) => {
     const result = await rejectJob(jobId);
     if (!result.error) {
-      await loadAllData();
+      setJobs((prev) => prev.filter((j) => j.id !== jobId));
+      setCounts((prev) => ({ ...prev, jobs: Math.max(0, prev.jobs - 1) }));
     }
     return result;
   };
@@ -278,7 +377,8 @@ export default function ReviewPage() {
   const handleApproveSession = async (sessionId: string) => {
     const result = await approveSession(sessionId);
     if (!result.error) {
-      await loadAllData();
+      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+      setCounts((prev) => ({ ...prev, sessions: Math.max(0, prev.sessions - 1) }));
     }
     return result;
   };
@@ -286,7 +386,8 @@ export default function ReviewPage() {
   const handleRejectSession = async (sessionId: string) => {
     const result = await rejectSession(sessionId);
     if (!result.error) {
-      await loadAllData();
+      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+      setCounts((prev) => ({ ...prev, sessions: Math.max(0, prev.sessions - 1) }));
     }
     return result;
   };
@@ -294,7 +395,11 @@ export default function ReviewPage() {
   const handleApproveCompanyInfo = async (draftId: string) => {
     const result = await approveCompanyInfo(draftId);
     if (!result.error) {
-      await loadAllData();
+      setCompanyInfo((prev) => prev.filter((c) => {
+        const cDraftId = (c as any).draft_id;
+        return cDraftId !== draftId && c.id !== draftId;
+      }));
+      setCounts((prev) => ({ ...prev, "company-info": Math.max(0, prev["company-info"] - 1) }));
     }
     return result;
   };
@@ -302,7 +407,11 @@ export default function ReviewPage() {
   const handleRejectCompanyInfo = async (draftId: string) => {
     const result = await rejectCompanyInfo(draftId);
     if (!result.error) {
-      await loadAllData();
+      setCompanyInfo((prev) => prev.filter((c) => {
+        const cDraftId = (c as any).draft_id;
+        return cDraftId !== draftId && c.id !== draftId;
+      }));
+      setCounts((prev) => ({ ...prev, "company-info": Math.max(0, prev["company-info"] - 1) }));
     }
     return result;
   };
@@ -310,7 +419,11 @@ export default function ReviewPage() {
   const handleApproveCompanyPage = async (draftId: string) => {
     const result = await approveCompanyPage(draftId);
     if (!result.error) {
-      await loadAllData();
+      setCompanyPages((prev) => prev.filter((c) => {
+        const cDraftId = (c as any).draft_id;
+        return cDraftId !== draftId && c.id !== draftId;
+      }));
+      setCounts((prev) => ({ ...prev, "company-pages": Math.max(0, prev["company-pages"] - 1) }));
     }
     return result;
   };
@@ -318,7 +431,11 @@ export default function ReviewPage() {
   const handleRejectCompanyPage = async (draftId: string) => {
     const result = await rejectCompanyPage(draftId);
     if (!result.error) {
-      await loadAllData();
+      setCompanyPages((prev) => prev.filter((c) => {
+        const cDraftId = (c as any).draft_id;
+        return cDraftId !== draftId && c.id !== draftId;
+      }));
+      setCounts((prev) => ({ ...prev, "company-pages": Math.max(0, prev["company-pages"] - 1) }));
     }
     return result;
   };
@@ -326,7 +443,8 @@ export default function ReviewPage() {
   const handleApproveVideo = async (draftId: string) => {
     const result = await approveVideo(draftId);
     if (!result.error) {
-      await loadAllData();
+      setVideos((prev) => prev.filter((v) => v.id !== draftId));
+      setCounts((prev) => ({ ...prev, videos: Math.max(0, prev.videos - 1) }));
     }
     return result;
   };
@@ -334,7 +452,8 @@ export default function ReviewPage() {
   const handleRejectVideo = async (draftId: string) => {
     const result = await rejectVideo(draftId);
     if (!result.error) {
-      await loadAllData();
+      setVideos((prev) => prev.filter((v) => v.id !== draftId));
+      setCounts((prev) => ({ ...prev, videos: Math.max(0, prev.videos - 1) }));
     }
     return result;
   };
@@ -342,41 +461,19 @@ export default function ReviewPage() {
   // プレビューを開く（求人）
   const handlePreviewJob = async (jobId: string) => {
     try {
-      console.log("=== handlePreviewJob START ===");
-      console.log("jobId:", jobId);
-      console.log("jobs array length:", jobs.length);
-      console.log("jobs array sample:", jobs.slice(0, 2));
-
-      // jobIdは実際にはdraft_idまたはproduction_job_id
-      // まず、jobs配列から該当するjobを取得
       const job = jobs.find((j) => j.id === jobId || (j as any).draft_id === jobId);
-      console.log("Found job:", job);
-      console.log("Job details:", {
-        id: job?.id,
-        draft_id: (job as any)?.draft_id,
-        production_job_id: (job as any)?.production_job_id,
-        title: job?.title
-      });
-
       const draftId = (job as any)?.draft_id;
       const productionJobId = (job as any)?.production_job_id;
-
-      console.log("Using draftId:", draftId, "productionJobId:", productionJobId, "jobId:", jobId);
 
       let draft;
       let error;
 
-      // draft_idを優先的に使用
       if (draftId) {
-        // draft_idで直接取得（管理者用）
-        console.log("Trying to get draft by draftId:", draftId);
         const result = await getJobDraftById(draftId);
         draft = result.data;
         error = result.error;
 
-        // draft_idで見つからない場合、production_job_idを試す
         if (error || !draft) {
-          console.log("Draft not found by draftId, trying productionJobId:", productionJobId);
           if (productionJobId) {
             const result2 = await getJobDraftByProductionId(productionJobId);
             draft = result2.data;
@@ -384,29 +481,16 @@ export default function ReviewPage() {
           }
         }
       } else if (productionJobId) {
-        // production_job_idがある場合
-        console.log("Trying to get draft by productionJobId:", productionJobId);
         const result = await getJobDraftByProductionId(productionJobId);
         draft = result.data;
         error = result.error;
       } else {
-        // フォールバック: jobIdをdraft_idとして使用
-        console.log("Trying to get draft by jobId (fallback):", jobId);
         const result = await getJobDraftById(jobId);
         draft = result.data;
         error = result.error;
       }
 
-      console.log("Draft result:", {
-        hasDraft: !!draft,
-        draftId: draft?.id,
-        error,
-        errorMessage: error
-      });
-
       if (error || !draft) {
-        console.error("Get job draft error:", error);
-        console.error("Error details:", { error, draft, jobId, draftId });
         alert(`プレビューデータの取得に失敗しました: ${error || "下書きが見つかりません"}`);
         return;
       }
@@ -444,41 +528,19 @@ export default function ReviewPage() {
   // プレビューを開く（説明会）
   const handlePreviewSession = async (sessionId: string) => {
     try {
-      console.log("=== handlePreviewSession START ===");
-      console.log("sessionId:", sessionId);
-      console.log("sessions array length:", sessions.length);
-      console.log("sessions array sample:", sessions.slice(0, 2));
-
-      // sessionIdは実際にはdraft_idまたはproduction_session_id
-      // まず、sessions配列から該当するsessionを取得
       const session = sessions.find((s) => s.id === sessionId || (s as any).draft_id === sessionId);
-      console.log("Found session:", session);
-      console.log("Session details:", {
-        id: session?.id,
-        draft_id: (session as any)?.draft_id,
-        production_session_id: (session as any)?.production_session_id,
-        title: session?.title
-      });
-
       const draftId = (session as any)?.draft_id;
       const productionSessionId = (session as any)?.production_session_id;
-
-      console.log("Using draftId:", draftId, "productionSessionId:", productionSessionId, "sessionId:", sessionId);
 
       let draft;
       let error;
 
-      // draft_idを優先的に使用
       if (draftId) {
-        // draft_idで直接取得（管理者用）
-        console.log("Trying to get draft by draftId:", draftId);
         const result = await getSessionDraftById(draftId);
         draft = result.data;
         error = result.error;
 
-        // draft_idで見つからない場合、production_session_idを試す
         if (error || !draft) {
-          console.log("Draft not found by draftId, trying productionSessionId:", productionSessionId);
           if (productionSessionId) {
             const result2 = await getSessionDraftByProductionId(productionSessionId);
             draft = result2.data;
@@ -486,29 +548,16 @@ export default function ReviewPage() {
           }
         }
       } else if (productionSessionId) {
-        // production_session_idがある場合
-        console.log("Trying to get draft by productionSessionId:", productionSessionId);
         const result = await getSessionDraftByProductionId(productionSessionId);
         draft = result.data;
         error = result.error;
       } else {
-        // フォールバック: sessionIdをdraft_idとして使用
-        console.log("Trying to get draft by sessionId (fallback):", sessionId);
         const result = await getSessionDraftById(sessionId);
         draft = result.data;
         error = result.error;
       }
 
-      console.log("Draft result:", {
-        hasDraft: !!draft,
-        draftId: draft?.id,
-        error,
-        errorMessage: error
-      });
-
       if (error || !draft) {
-        console.error("Get session draft error:", error);
-        console.error("Error details:", { error, draft, sessionId, draftId });
         alert(`プレビューデータの取得に失敗しました: ${error || "下書きが見つかりません"}`);
         return;
       }
@@ -535,61 +584,36 @@ export default function ReviewPage() {
   // プレビューを開く（企業）
   const handlePreviewCompany = async (companyId: string) => {
     try {
-      console.log("=== handlePreviewCompany START ===");
-      console.log("companyId (should be draft_id):", companyId);
-      console.log("companyPages array length:", companyPages.length);
-      console.log("companyPages array:", companyPages);
-
       if (!companyId) {
-        console.error("companyId is empty!");
         alert("ドラフトIDが指定されていません");
         return;
       }
 
-      // companyIdは実際にはdraft_id
-      console.log("Calling getCompanyPageDraftByIdAdmin with:", companyId);
       const { data: draft, error } = await getCompanyPageDraftByIdAdmin(companyId);
-      console.log("getCompanyPageDraftByIdAdmin result:", {
-        hasDraft: !!draft,
-        draftId: draft?.id,
-        error,
-        errorMessage: error
-      });
 
       if (error || !draft) {
-        console.error("Get company page draft error:", error);
-        console.error("Error details:", { error, draft, companyId });
         alert(`プレビューデータの取得に失敗しました: ${error || "下書きが見つかりません"}`);
         return;
       }
 
-      // 企業情報を取得（companiesテーブルから）
-      // companyIdはdraft_idなので、companyPages配列からdraft_idで検索
       const company = companyPages.find((c) => (c as any).draft_id === companyId);
-      console.log("Found company by draft_id:", company);
 
       if (!company) {
-        // draft_idで見つからない場合、company_idで検索
         const companyByCompanyId = companyPages.find((c) => c.id === draft.company_id);
-        console.log("Found company by company_id:", companyByCompanyId);
 
         if (!companyByCompanyId) {
-          console.error("Company not found. draft.company_id:", draft.company_id, "draftId:", companyId);
           alert(`企業情報が見つかりません。company_id: ${draft.company_id}`);
           return;
         }
 
-        // companyByCompanyIdを使用
-        const companyToUse = companyByCompanyId;
-
         setPreviewData({
-          id: companyToUse.id,
-          name: companyToUse.name,
-          description: draft.description || companyToUse.description || "",
-          logo: companyToUse.logo_url,
-          coverImage: draft.cover_image_url || companyToUse.cover_image_url,
-          tagline: draft.tagline || companyToUse.tagline,
-          companyInfo: companyToUse.company_info,
+          id: companyByCompanyId.id,
+          name: companyByCompanyId.name,
+          description: draft.description || companyByCompanyId.description || "",
+          logo: companyByCompanyId.logo_url,
+          coverImage: draft.cover_image_url || companyByCompanyId.cover_image_url,
+          tagline: draft.tagline || companyByCompanyId.tagline,
+          companyInfo: companyByCompanyId.company_info,
           mainVideo: draft.main_video_url,
           snsUrls: {
             x: draft.sns_x_url,
@@ -633,26 +657,14 @@ export default function ReviewPage() {
     }
   };
 
-  // 場所テキストを生成（説明会用）
-  const getLocationText = (locationType: string | null, locationDetail: string | null) => {
-    if (!locationType && !locationDetail) return null;
-    if (locationType && locationDetail) {
-      return `${locationType} / ${locationDetail}`;
-    }
-    return locationType || locationDetail || null;
-  };
-
-  const handleTabChange = (tabId: TabType) => {
-    setActiveTab(tabId);
-    router.push(`/admin/review?tab=${tabId}`);
-  };
+  const isTabLoading = tabStates[activeTab] === "loading" || tabStates[activeTab] === "idle";
 
   const tabs = [
-    { id: "company-info" as TabType, label: "企業情報", count: companyInfo.length, color: "black" as const },
-    { id: "company-pages" as TabType, label: "企業ページ", count: companyPages.length, color: "red" as const },
-    { id: "jobs" as TabType, label: "求人", count: jobs.length, color: "blue" as const },
-    { id: "sessions" as TabType, label: "説明会", count: sessions.length, color: "green" as const },
-    { id: "videos" as TabType, label: "動画", count: videos.length, color: "purple" as const }
+    { id: "company-info" as TabType, label: "企業情報", count: counts["company-info"], color: "black" as const },
+    { id: "company-pages" as TabType, label: "企業ページ", count: counts["company-pages"], color: "red" as const },
+    { id: "jobs" as TabType, label: "求人", count: counts.jobs, color: "blue" as const },
+    { id: "sessions" as TabType, label: "説明会", count: counts.sessions, color: "green" as const },
+    { id: "videos" as TabType, label: "動画", count: counts.videos, color: "purple" as const }
   ];
 
   return (
@@ -693,7 +705,7 @@ export default function ReviewPage() {
 
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           <div className="p-6">
-            {loading ? (
+            {isTabLoading ? (
               <LoadingSpinner />
             ) : (
               <>

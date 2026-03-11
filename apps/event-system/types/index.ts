@@ -31,7 +31,7 @@ export type {
 export { ROLE_LABELS } from "@jobtv-app/shared/auth/client";
 
 // アプリ固有型定義を再エクスポート
-export type { Event, EventFormData, EventWithMasterEventType } from "./event.types";
+export type { Event, EventFormData, EventWithEventType } from "./event.types";
 export type { Company, CompanyFormData } from "./company.types";
 export type { Candidate, CandidateFormData, JobSeeker, JobSeekerFormData } from "./candidate.types";
 export type { Rating, RatingInsert, RatingUpdate, RatingFormData, RatingGrade, RATING_GRADE_MAP, RATING_NUMBER_MAP } from "./rating.types";

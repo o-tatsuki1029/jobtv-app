@@ -1,3 +1,5 @@
+import { logger } from "@/lib/logger";
+
 /**
  * LINE Login: code を access_token に交換し、プロフィールから userId を取得する。
  * コールバック API から使用。サーバー専用（client_id/secret を使用）。
@@ -10,7 +12,7 @@ export async function exchangeCodeForLineUserId(
   const clientSecret = process.env.LINE_LOGIN_CHANNEL_SECRET;
 
   if (!clientId || !clientSecret) {
-    console.error("LINE_LOGIN_CHANNEL_ID or LINE_LOGIN_CHANNEL_SECRET is not set");
+    logger.error({ action: "exchangeCodeForLineUserId" }, "LINE_LOGIN_CHANNEL_IDまたはLINE_LOGIN_CHANNEL_SECRETが未設定");
     return { error: "LINE 連携の設定がありません。" };
   }
 
@@ -28,7 +30,7 @@ export async function exchangeCodeForLineUserId(
 
   if (!tokenRes.ok) {
     const errBody = await tokenRes.text();
-    console.error("LINE token exchange error:", tokenRes.status, errBody);
+    logger.error({ action: "exchangeCodeForLineUserId", status: tokenRes.status, body: errBody }, "LINEトークン交換に失敗");
     return { error: "LINE 認証に失敗しました。もう一度お試しください。" };
   }
 
@@ -39,7 +41,7 @@ export async function exchangeCodeForLineUserId(
 
   const accessToken = tokenData.access_token;
   if (!accessToken) {
-    console.error("LINE token response missing access_token");
+    logger.error({ action: "exchangeCodeForLineUserId" }, "LINEトークンレスポンスにaccess_tokenが含まれていない");
     return { error: "LINE 認証に失敗しました。" };
   }
 
@@ -49,14 +51,14 @@ export async function exchangeCodeForLineUserId(
 
   if (!profileRes.ok) {
     const errBody = await profileRes.text();
-    console.error("LINE profile error:", profileRes.status, errBody);
+    logger.error({ action: "exchangeCodeForLineUserId", status: profileRes.status, body: errBody }, "LINEプロフィールの取得に失敗");
     return { error: "LINE プロフィールの取得に失敗しました。" };
   }
 
   const profile = (await profileRes.json()) as { userId?: string };
   const userId = profile.userId;
   if (!userId) {
-    console.error("LINE profile missing userId");
+    logger.error({ action: "exchangeCodeForLineUserId" }, "LINEプロフィールにuserIdが含まれていない");
     return { error: "LINE ユーザー情報の取得に失敗しました。" };
   }
 

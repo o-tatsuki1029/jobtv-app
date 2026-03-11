@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { logger } from "@/lib/logger";
 import { insertRecord, updateRecord, queryTable } from "./supabase-actions";
 import type { Tables, TablesInsert } from "@jobtv-app/shared/types";
 
@@ -36,7 +37,7 @@ export async function getCompany(id: string) {
     .single();
 
   if (error) {
-    console.error("Get company error:", error);
+    logger.error({ action: "getCompany", err: error, companyId: id }, "企業の取得に失敗しました");
     return { data: null, error: error.message };
   }
 
@@ -56,7 +57,7 @@ export async function getCompanyJobs(companyId: string) {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Get company jobs error:", error);
+    logger.error({ action: "getCompanyJobs", err: error, companyId }, "企業の求人一覧の取得に失敗しました");
     return { data: null, error: error.message };
   }
 

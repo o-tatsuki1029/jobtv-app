@@ -46,8 +46,8 @@ export function useBulkRegistration(): UseBulkRegistrationReturn {
     // 必要なカラムのみを取得（パフォーマンス最適化）
     const { data, error } = await supabase
       .from("candidates")
-      .select("id, last_name, first_name, last_name_kana, first_name_kana, phone, school_name, profiles!profiles_candidate_id_fkey(email)")
-      .order("last_name_kana", { ascending: true });
+      .select("id, phone, school_name, profiles!profiles_candidate_id_fkey(email, last_name, first_name, last_name_kana, first_name_kana)")
+      .order("id");
 
     // エラーがある場合のみ処理（空のオブジェクトは無視）
     // Supabaseのエラーオブジェクトは通常、messageまたはcodeプロパティを持つ
@@ -68,19 +68,22 @@ export function useBulkRegistration(): UseBulkRegistrationReturn {
       }
     }
 
-    // データをCandidateWithEmail型に変換（profilesからemailを取得）
+    // データをCandidateWithEmail型に変換（profilesから名前とemailを取得）
     type DataRow = (NonNullable<typeof data>)[number];
-    const profileEmail = (item: DataRow) => {
-      const p = (item as { profiles?: { email: string | null } | { email: string | null }[] | null }).profiles;
-      return Array.isArray(p) ? p[0]?.email ?? null : p?.email ?? null;
+    type ProfileData = { email: string | null; last_name: string | null; first_name: string | null; last_name_kana: string | null; first_name_kana: string | null };
+    const getProfile = (item: DataRow): ProfileData | null => {
+      const p = (item as { profiles?: ProfileData | ProfileData[] | null }).profiles;
+      return Array.isArray(p) ? p[0] ?? null : p ?? null;
     };
-    const candidates = (data || []).map((item) => ({
+    const candidates = (data || []).map((item) => {
+      const prof = getProfile(item);
+      return {
       id: item.id,
-      last_name: item.last_name || "",
-      first_name: item.first_name || "",
-      last_name_kana: item.last_name_kana || "",
-      first_name_kana: item.first_name_kana || "",
-      email: profileEmail(item) ?? "",
+      last_name: prof?.last_name || "",
+      first_name: prof?.first_name || "",
+      last_name_kana: prof?.last_name_kana || "",
+      first_name_kana: prof?.first_name_kana || "",
+      email: prof?.email ?? "",
       phone: item.phone || null,
       school_name: item.school_name || null,
       assigned_to: null,
@@ -99,7 +102,7 @@ export function useBulkRegistration(): UseBulkRegistrationReturn {
       utm_medium: null,
       utm_source: null,
       utm_term: null,
-    })) as unknown as CandidateWithEmail[];
+    };}) as unknown as CandidateWithEmail[];
 
     setAllJobSeekers(candidates);
   }, []);

@@ -17,7 +17,7 @@ export default async function FeedbackListPage({ params }: PageProps) {
   const supabase = await createClient();
   const { data: eventData } = await supabase
     .from("events")
-    .select("event_date, master_event_types(name)")
+    .select("event_date, event_types(name)")
     .eq("id", eventId)
     .single();
 
@@ -25,7 +25,7 @@ export default async function FeedbackListPage({ params }: PageProps) {
     return notFound();
   }
 
-  const eventName = (eventData.master_event_types as any)?.name || "イベント";
+  const eventName = (eventData.event_types as any)?.name || "イベント";
   const eventDate = eventData.event_date;
 
   const result = await getEventCandidates(eventId);

@@ -13,34 +13,10 @@ import { getFullSiteUrl } from "@jobtv-app/shared/utils/dev-config";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendTemplatedEmail } from "@/lib/email/send-templated-email";
-
-/** 会員登録で RPC に渡す payload の型 */
-export interface SignUpCandidatePayload {
-  email: string;
-  last_name: string;
-  first_name: string;
-  last_name_kana: string;
-  first_name_kana: string;
-  gender: string;
-  desired_work_location: string;
-  date_of_birth: string;
-  phone: string;
-  school_type: string;
-  school_name: string;
-  school_kcode?: string | null;
-  faculty_name: string;
-  department_name: string;
-  major_field: string;
-  graduation_year: number;
-  desired_industry: string[];
-  desired_job_type: string[];
-  referrer?: string | null;
-  utm_source?: string | null;
-  utm_medium?: string | null;
-  utm_campaign?: string | null;
-  utm_content?: string | null;
-  utm_term?: string | null;
-}
+import { sendSignupSlackNotification } from "@/lib/email/slack";
+import { appendCandidateToSheet } from "@/lib/google/sheets";
+import { logger } from "@/lib/logger";
+import type { SignUpCandidatePayload } from "@/lib/types/signup";
 
 /**
  * サインアップ処理。認証作成後、同一セッションで candidates 作成と profiles.candidate_id 紐付けを RPC で実行する。
@@ -68,12 +44,13 @@ export async function signUp(formData: FormData) {
   }
 
   const payload = buildCandidatePayloadFromFormData(formData, email);
+  payload.user_id = authData.user?.id ?? null;
   const { error: rpcError } = await supabase.rpc("create_candidate_and_link_profile", {
     payload: payload as unknown as Record<string, unknown>
   });
 
   if (rpcError) {
-    console.error("create_candidate_and_link_profile RPC error:", rpcError);
+    logger.error({ action: "signUp", err: rpcError }, "候補者作成RPCの実行に失敗しました");
     return { error: "登録情報の保存に失敗しました。しばらく経ってから再度お試しください。" };
   }
 
@@ -86,7 +63,15 @@ export async function signUp(formData: FormData) {
       last_name:  payload.last_name,
       site_url:   getFullSiteUrl(3000),
     },
-  }).catch((e) => console.error("candidate_welcome メール送信エラー:", e));
+  }).catch((e) => logger.error({ action: "signUp", err: e }, "候補者ウェルカムメールの送信に失敗しました"));
+
+  // Slack 通知・Google Sheets 転記（失敗してもサインアップは成功とする）
+  sendSignupSlackNotification(payload).catch((e) =>
+    logger.error({ action: "signUp", err: e }, "Slack会員登録通知の送信に失敗しました")
+  );
+  appendCandidateToSheet(payload).catch((e) =>
+    logger.error({ action: "signUp", err: e }, "Google Sheets転記に失敗しました")
+  );
 
   revalidatePath("/", "layout");
   return { success: true };
@@ -119,7 +104,7 @@ export async function checkEmailForSignup(email: string): Promise<CheckEmailForS
       .maybeSingle();
 
     if (error) {
-      console.error("checkEmailForSignup profiles error:", error);
+      logger.error({ action: "checkEmailForSignup", err: error }, "メールアドレスの重複確認に失敗しました");
       return { status: "error", error: "確認に失敗しました。しばらく経ってからお試しください。" };
     }
 
@@ -137,7 +122,7 @@ export async function checkEmailForSignup(email: string): Promise<CheckEmailForS
 
     return { status: "available" };
   } catch (e) {
-    console.error("checkEmailForSignup error:", e);
+    logger.error({ action: "checkEmailForSignup", err: e }, "メールアドレスのサインアップ確認に失敗しました");
     return { status: "error", error: "確認に失敗しました。しばらく経ってからお試しください。" };
   }
 }
@@ -157,9 +142,7 @@ function buildCandidatePayloadFromFormData(
     return Number.isFinite(n) ? n : 0;
   };
   const getArray = (key: string) => {
-    const v = formData.get(key);
-    if (typeof v === "string") return v ? [v] : [];
-    return formData.getAll(key).filter((x): x is string => typeof x === "string");
+    return formData.getAll(key).filter((x): x is string => typeof x === "string" && x !== "");
   };
 
   return {
@@ -306,7 +289,7 @@ export async function getCurrentUserRole(): Promise<{
       profile?.role === "recruiter" || profile?.role === "admin" ? profile.role : null;
     return { data: role, error: null };
   } catch (e) {
-    console.error("getCurrentUserRole error:", e);
+    logger.error({ action: "getCurrentUserRole", err: e }, "ユーザーロールの取得に失敗しました");
     return { data: null, error: "ロールの取得に失敗しました" };
   }
 }
@@ -361,7 +344,7 @@ export async function getRecruiterMenuInfo(): Promise<{
       error: null
     };
   } catch (e) {
-    console.error("getRecruiterMenuInfo error:", e);
+    logger.error({ action: "getRecruiterMenuInfo", err: e }, "リクルーターメニュー情報の取得に失敗しました");
     return { data: null, error: "情報の取得に失敗しました" };
   }
 }
@@ -437,7 +420,7 @@ export async function getHeaderAuthInfo(): Promise<
       error: null
     };
   } catch (e) {
-    console.error("getHeaderAuthInfo error:", e);
+    logger.error({ action: "getHeaderAuthInfo", err: e }, "ヘッダー認証情報の取得に失敗しました");
     return { data: null, error: "ヘッダー情報の取得に失敗しました" };
   }
 }

@@ -129,11 +129,7 @@ export default function MembersSettingsPage() {
                 >
                   <div className="flex items-center gap-4 flex-1">
                     <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
-                      {member.avatar_url ? (
-                        <img src={member.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover" />
-                      ) : (
-                        <User className="w-5 h-5 text-gray-400" />
-                      )}
+                      <User className="w-5 h-5 text-gray-400" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-gray-900 truncate">{getMemberName(member)}</p>

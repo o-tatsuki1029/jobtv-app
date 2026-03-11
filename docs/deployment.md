@@ -1,5 +1,67 @@
 # デプロイ・運用
 
+## 環境構成
+
+### 環境の種類と現状
+
+このプロジェクトは現在 **ローカル** と **ステージング（STG）** の 2 環境のみ存在する。
+本番（Production）は未作成。
+
+```
+ローカル（localhost）  ┐
+                       ├── 同じ Supabase STG / AWS STG を参照
+ステージング（Vercel） ┘
+
+本番（未作成）         → 将来、別の Supabase プロジェクト・AWS リソースを用意する
+```
+
+### ローカルとステージングの違い
+
+| 項目 | ローカル | ステージング（Vercel） |
+|------|---------|----------------------|
+| Supabase URL / キー | STG と同じ | STG |
+| AWS S3 バケット | `jobtv-videos-stg` | `jobtv-videos-stg` |
+| CloudFront URL | STG と同じ | STG |
+| `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` | `https://jobtv-app-jobtv.vercel.app` |
+| Basic 認証 | あり（開発用 user/pass） | あり |
+| `NODE_TLS_REJECT_UNAUTHORIZED=0` | あり（ローカル専用） | **設定しない** |
+| `SKIP_ZEROTRUST_CHECK=true` | あり（ローカル専用） | **設定しない** |
+| Cloudflare Zero Trust | スキップ | 有効 |
+
+> **重要**: ローカルで開発しながら書き込んだデータは STG DB にそのまま反映される。
+> ローカル ↔ STG はデータを完全共有しているため、テストデータの書き込みや削除は STG にも影響する。
+
+### 環境変数ファイルの配置
+
+```
+.env.local                     # ルート共通（Supabase URL など最小限）
+apps/jobtv/.env.local          # jobtv ローカル用（フル設定）
+apps/jobtv/.env.staging        # jobtv STG 用（Vercel のビルド時に読み込まれる）
+.env.test                      # E2E テスト用（gitignore 済み）
+```
+
+`.env.local` は Next.js の規約でローカル優先で読み込まれる。
+STG・本番では Vercel の Environment Variables に直接設定する。
+
+### 本番環境を作るときに変える必要がある項目
+
+本番環境を作成する際は、以下をすべて本番用の値に差し替える。
+
+| 項目 | 現在（STG） | 本番時 |
+|------|-----------|--------|
+| `NEXT_PUBLIC_SUPABASE_URL` | `tdewumilkltljbqryjpg.supabase.co` | 本番 Supabase プロジェクトの URL |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | STG 公開キー | 本番公開キー |
+| `SUPABASE_SERVICE_ROLE_KEY` | STG サービスロールキー | 本番サービスロールキー |
+| `SUPABASE_JWT_SECRET` | STG JWT シークレット | 本番 JWT シークレット |
+| `SUPABASE_HOOK_SECRET` | STG 用の値 | 本番 Supabase Dashboard → Auth → Hooks で設定した値 |
+| `AWS_S3_BUCKET` | `jobtv-videos-stg` | 本番用バケット名 |
+| `AWS_CLOUDFRONT_URL` | `d3ulvrrnhlrak2.cloudfront.net` | `d11xeybks927fj.cloudfront.net`（本番用） |
+| `NEXT_PUBLIC_SITE_URL` | `https://jobtv-app-jobtv.vercel.app` | 本番ドメイン |
+| `NODE_TLS_REJECT_UNAUTHORIZED` | 0（ローカルのみ） | **設定しない** |
+| `SKIP_ZEROTRUST_CHECK` | `true`（ローカルのみ） | **設定しない** |
+
+---
+
 ## デプロイ先
 
 - **JobTV アプリ（jobtv）**: [Vercel](https://vercel.com) にデプロイする。

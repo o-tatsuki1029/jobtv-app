@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { SITE_URL } from "@/constants/site";
 import { createClient } from "@/lib/supabase/server";
+import { logger } from "@/lib/logger";
 
 /**
  * 公開ページのサイトマップを生成（クロール効率化のため動的URLを追加）
@@ -65,7 +66,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     return [...base, ...companyUrls, ...sessionUrls, ...jobUrls];
   } catch (e) {
-    console.error("Sitemap generation error:", e);
+    logger.error({ action: "sitemap", err: e }, "サイトマップの生成に失敗しました");
     return base;
   }
 }

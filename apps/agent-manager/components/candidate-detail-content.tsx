@@ -69,10 +69,6 @@ export async function CandidateDetailContent({
           <CandidateInfoDisplay
             candidate={{
               id: candidate.id,
-              first_name: candidate.first_name,
-              last_name: candidate.last_name,
-              first_name_kana: candidate.first_name_kana,
-              last_name_kana: candidate.last_name_kana,
               profiles: candidate.profiles,
               phone: candidate.phone,
               notes: candidate.notes,

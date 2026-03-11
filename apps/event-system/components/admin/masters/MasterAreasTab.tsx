@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/types";
 import MasterAreaFormModal from "./MasterAreaFormModal";
 
-type MasterArea = Database["public"]["Tables"]["master_areas"]["Row"];
+type MasterArea = Database["public"]["Tables"]["event_areas"]["Row"];
 
 type MasterAreasTabProps = {
   areas: MasterArea[];
@@ -52,7 +52,7 @@ export default function MasterAreasTab({
       try {
         const supabase = createClient();
         const { error } = await supabase
-          .from("master_areas")
+          .from("event_areas")
           .delete()
           .eq("id", area.id);
 
@@ -75,7 +75,7 @@ export default function MasterAreasTab({
       try {
         const supabase = createClient();
         const { error } = await supabase
-          .from("master_areas")
+          .from("event_areas")
           .update({ is_active: !area.is_active })
           .eq("id", area.id);
 

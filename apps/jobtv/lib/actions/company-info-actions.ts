@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import type { Tables, TablesInsert, TablesUpdate } from "@jobtv-app/shared/types";
 import { getUserCompanyId, checkCompanyEditPermission } from "@jobtv-app/shared/actions/company-utils";
+import { logger } from "@/lib/logger";
 
 type CompanyRow = Tables<"companies">;
 type CompanyUpdate = TablesUpdate<"companies">;
@@ -142,7 +143,7 @@ export async function saveCompanyInfo(formData: CompanyInfoFormData): Promise<{
 
     return { data: result, error: null };
   } catch (error) {
-    console.error("Save company info error:", error);
+    logger.error({ action: "saveCompanyInfo", err: error }, "企業基本情報の保存に失敗しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "企業基本情報の保存に失敗しました"
@@ -197,7 +198,7 @@ export async function createCompanyInfoDraft(
   const { data: result, error } = await supabase.from("companies_draft").insert(draftData).select().single();
 
   if (error) {
-    console.error("Create company info draft error:", error);
+    logger.error({ action: "createCompanyInfoDraft", err: error }, "企業情報ドラフトの作成に失敗しました");
     return { data: null, error: error.message };
   }
 
@@ -234,7 +235,7 @@ export async function updateCompanyInfoDraft(
     .single();
 
   if (fetchError) {
-    console.error("Get company info draft error:", fetchError);
+    logger.error({ action: "updateCompanyInfoDraft", err: fetchError, draftId: id }, "企業情報ドラフトの取得に失敗しました");
     return { data: null, error: fetchError.message };
   }
 
@@ -263,7 +264,7 @@ export async function updateCompanyInfoDraft(
     .single();
 
   if (error) {
-    console.error("Update company info draft error:", error);
+    logger.error({ action: "updateCompanyInfoDraft", err: error, draftId: id }, "企業情報ドラフトの更新に失敗しました");
     return { data: null, error: error.message };
   }
 
@@ -323,7 +324,7 @@ export async function getCompanyInfoDraft(id?: string) {
         .maybeSingle();
 
       if (latestDraftError) {
-        console.error("Get company info draft error:", latestDraftError);
+        logger.error({ action: "getCompanyInfoDraft", err: latestDraftError }, "企業情報ドラフトの取得に失敗しました");
         return { data: null, error: latestDraftError.message };
       }
 
@@ -346,7 +347,7 @@ export async function getCompanyInfoDraft(id?: string) {
       .maybeSingle();
 
     if (latestDraftError) {
-      console.error("Get company info draft error:", latestDraftError);
+      logger.error({ action: "getCompanyInfoDraft", err: latestDraftError }, "企業情報ドラフトの取得に失敗しました");
       return { data: null, error: latestDraftError.message };
     }
 
@@ -395,16 +396,13 @@ export async function submitCompanyInfoForReview(draftId: string) {
     .single();
 
   if (updateError) {
-    console.error("Update draft status error:", updateError);
+    logger.error({ action: "submitCompanyInfoForReview", err: updateError, draftId }, "ドラフトステータスの更新に失敗しました");
     return { data: null, error: updateError.message };
   }
 
   // 更新後の状態を確認
   if (updatedDraft?.draft_status !== "submitted") {
-    console.error("submitCompanyInfoForReview: Draft status was not updated to 'submitted'", {
-      expected: "submitted",
-      actual: updatedDraft?.draft_status
-    });
+    logger.error({ action: "submitCompanyInfoForReview", draftId, expected: "submitted", actual: updatedDraft?.draft_status }, "ドラフトステータスがsubmittedに更新されませんでした");
     return { data: null, error: "ドラフトステータスの更新に失敗しました" };
   }
 

@@ -1,11 +1,12 @@
 "use server";
 
-import { createCompany, createCompanyWithRecruiter } from "@/lib/actions/company-account-actions";
+import { createCompany } from "@/lib/actions/company-account-actions";
 import { checkAdminPermission } from "@/lib/actions/admin-actions";
+import { logAudit } from "@jobtv-app/shared/utils/audit";
 import { INDUSTRIES, EMPLOYEE_RANGES } from "@/constants/company-options";
 import { PREFECTURES } from "@/constants/prefectures";
 import { REPRESENTATIVE_NAME_MAX_LENGTH, COMPANY_INFO_MAX_LENGTH } from "@/constants/validation";
-import { validateEmail, validateUrlWithProtocol, validateKatakana } from "@jobtv-app/shared/utils/validation";
+import { validateUrlWithProtocol } from "@jobtv-app/shared/utils/validation";
 import { revalidatePath } from "next/cache";
 
 const CSV_MAX_ROWS = 200;
@@ -85,23 +86,6 @@ function validateCsvRow(row: string[], headerMap: Map<string, number>, rowIndex:
     return `${rowIndex}行目: 企業情報は${COMPANY_INFO_MAX_LENGTH}文字以内です`;
   const status = getCell(row, headerMap, "ステータス");
   if (status && status !== "active" && status !== "closed") return `${rowIndex}行目: ステータスは active または closed です`;
-  const email = getCell(row, headerMap, "メールアドレス");
-  const lastName = getCell(row, headerMap, "姓");
-  const firstName = getCell(row, headerMap, "名");
-  const lastNameKana = getCell(row, headerMap, "姓カナ");
-  const firstNameKana = getCell(row, headerMap, "名カナ");
-  const hasRecruiter = email !== "" && lastName !== "" && firstName !== "" && lastNameKana !== "" && firstNameKana !== "";
-  const partialRecruiter = [email, lastName, firstName, lastNameKana, firstNameKana].filter((s) => s !== "").length > 0;
-  if (partialRecruiter && !hasRecruiter)
-    return `${rowIndex}行目: リクルーターを登録する場合はメールアドレス・姓・名・姓カナ・名カナをすべて入力してください`;
-  if (hasRecruiter) {
-    const emailErr = validateEmail(email);
-    if (emailErr) return `${rowIndex}行目: ${emailErr}`;
-    const lnErr = validateKatakana(lastNameKana, "姓（カナ）");
-    if (lnErr) return `${rowIndex}行目: ${lnErr}`;
-    const fnErr = validateKatakana(firstNameKana, "名（カナ）");
-    if (fnErr) return `${rowIndex}行目: ${fnErr}`;
-  }
   return null;
 }
 
@@ -111,6 +95,11 @@ export async function createCompaniesFromCsv(formData: FormData): Promise<{
 }> {
   const { isAdmin } = await checkAdminPermission();
   if (!isAdmin) return { data: null, error: "管理者権限が必要です" };
+
+  const { createClient } = await import("@/lib/supabase/server");
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
   const file = formData.get("file");
   if (!file || !(file instanceof File)) return { data: null, error: "CSVファイルを選択してください" };
   let text: string;
@@ -160,35 +149,27 @@ export async function createCompaniesFromCsv(formData: FormData): Promise<{
       company_info: getCell(row, headerMap, "企業情報") || null,
       status: (getCell(row, headerMap, "ステータス") === "closed" ? "closed" : "active") as "active" | "closed",
     };
-    const email = getCell(row, headerMap, "メールアドレス");
-    const hasRecruiter =
-      email !== "" &&
-      getCell(row, headerMap, "姓") !== "" &&
-      getCell(row, headerMap, "名") !== "" &&
-      getCell(row, headerMap, "姓カナ") !== "" &&
-      getCell(row, headerMap, "名カナ") !== "";
     try {
-      if (hasRecruiter) {
-        const result = await createCompanyWithRecruiter(companyData, {
-          email,
-          last_name: getCell(row, headerMap, "姓"),
-          first_name: getCell(row, headerMap, "名"),
-          last_name_kana: getCell(row, headerMap, "姓カナ"),
-          first_name_kana: getCell(row, headerMap, "名カナ"),
-        });
-        if (result.error) errors.push({ row: rowIndex, message: result.error });
-        else created++;
-      } else {
-        const result = await createCompany(companyData);
-        if (result.error) errors.push({ row: rowIndex, message: result.error });
-        else created++;
-      }
+      const result = await createCompany(companyData, { withDraft: true });
+      if (result.error) errors.push({ row: rowIndex, message: result.error });
+      else created++;
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "作成処理でエラーが発生しました";
       errors.push({ row: rowIndex, message });
     }
   }
+  if (user) {
+    logAudit({
+      userId: user.id,
+      action: "company.csv_import",
+      category: "account",
+      resourceType: "companies",
+      app: "jobtv",
+      metadata: { count: dataRows.length, successCount: created, errorCount: errors.length },
+    });
+  }
+
   revalidatePath("/admin/company-accounts");
   return { data: { created, errors }, error: null };
 }

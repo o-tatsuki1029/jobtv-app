@@ -5,7 +5,7 @@ export type Event = Database["public"]["Tables"]["events"]["Row"];
 type EventInsert = TablesInsert<"events">;
 export type EventFormData = Omit<EventInsert, "id" | "created_at" | "updated_at">;
 
-// master_event_typesを含むEvent型（JOINクエリの結果用）
-export type EventWithMasterEventType = Event & {
-  master_event_types: Database["public"]["Tables"]["master_event_types"]["Row"] | null;
+// event_typesを含むEvent型（JOINクエリの結果用）
+export type EventWithEventType = Event & {
+  event_types: Database["public"]["Tables"]["event_types"]["Row"] | null;
 };

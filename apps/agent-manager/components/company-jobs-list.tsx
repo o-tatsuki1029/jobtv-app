@@ -44,7 +44,6 @@ import type { Tables } from "@jobtv-app/shared/types";
 type Job = Tables<"job_postings">;
 type Company = Tables<"companies">;
 type ApplicationRow = Tables<"applications">;
-type Candidate = Tables<"candidates">;
 
 interface CompanyJobsListProps {
   companyId: string;
@@ -53,10 +52,10 @@ interface CompanyJobsListProps {
 }
 
 interface ApplicationWithCandidate extends ApplicationRow {
-  candidates: Pick<
-    Candidate,
-    "id" | "last_name" | "first_name" | "last_name_kana" | "first_name_kana"
-  > | null;
+  candidates: {
+    id: string;
+    profiles?: { last_name: string; first_name: string; last_name_kana: string; first_name_kana: string } | null;
+  } | null;
 }
 
 interface JobWithStatuses {
@@ -282,10 +281,10 @@ function JobApplications({ jobId }: JobApplicationsProps) {
 type JobPosting = Tables<"job_postings">;
 
 interface ApplicationWithCandidateAndJob extends ApplicationRow {
-  candidates: Pick<
-    Candidate,
-    "id" | "last_name" | "first_name" | "last_name_kana" | "first_name_kana"
-  > | null;
+  candidates: {
+    id: string;
+    profiles?: { last_name: string; first_name: string; last_name_kana: string; first_name_kana: string } | null;
+  } | null;
   job_postings: Pick<JobPosting, "id" | "title" | "available_statuses"> | null;
 }
 

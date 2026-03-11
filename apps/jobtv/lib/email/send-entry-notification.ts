@@ -1,6 +1,7 @@
 // エントリー・予約通知メール送信ヘルパー
 // Server Actions から fire-and-forget で呼び出す
 
+import { logger } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendTemplatedEmail } from "./send-templated-email";
 
@@ -35,23 +36,23 @@ export async function sendJobApplicationNotification(
       .in("id", jobPostingIds);
 
     if (jobsError || !jobs || jobs.length === 0) {
-      console.error("[sendJobApplicationNotification] 求人取得エラー:", jobsError);
+      logger.error({ action: "sendJobApplicationNotification", err: jobsError, jobPostingIds }, "求人の取得に失敗しました");
       return;
     }
 
-    // 候補者名を取得
-    const { data: candidate, error: candidateError } = await supabase
-      .from("candidates")
+    // 候補者名を取得（名前は profiles に集約）
+    const { data: candidateProfile, error: candidateProfileError } = await supabase
+      .from("profiles")
       .select("last_name, first_name")
-      .eq("id", candidateId)
+      .eq("candidate_id", candidateId)
       .single();
 
-    if (candidateError || !candidate) {
-      console.error("[sendJobApplicationNotification] 候補者取得エラー:", candidateError);
+    if (candidateProfileError || !candidateProfile) {
+      logger.error({ action: "sendJobApplicationNotification", err: candidateProfileError, candidateId }, "候補者プロフィールの取得に失敗しました");
       return;
     }
 
-    const candidateName = `${candidate.last_name} ${candidate.first_name}`;
+    const candidateName = `${candidateProfile.last_name} ${candidateProfile.first_name}`;
     const appliedAt = formatJstDateTime(new Date().toISOString());
 
     // company_id でグルーピング
@@ -70,7 +71,7 @@ export async function sendJobApplicationNotification(
         .single();
 
       if (companyError || !company) {
-        console.error("[sendJobApplicationNotification] 企業取得エラー:", companyError);
+        logger.error({ action: "sendJobApplicationNotification", err: companyError, companyId }, "企業情報の取得に失敗しました");
         continue;
       }
 
@@ -83,7 +84,7 @@ export async function sendJobApplicationNotification(
         .not("email", "is", null);
 
       if (recruitersError) {
-        console.error("[sendJobApplicationNotification] リクルーター取得エラー:", recruitersError);
+        logger.error({ action: "sendJobApplicationNotification", err: recruitersError, companyId }, "リクルーターの取得に失敗しました");
         continue;
       }
 
@@ -107,7 +108,7 @@ export async function sendJobApplicationNotification(
       }
     }
   } catch (err) {
-    console.error("[sendJobApplicationNotification] 予期しないエラー:", err);
+    logger.error({ action: "sendJobApplicationNotification", err }, "予期しないエラーが発生しました");
   }
 }
 
@@ -130,7 +131,7 @@ export async function sendSessionReservationNotification(
       .single();
 
     if (sessionDateError || !sessionDate) {
-      console.error("[sendSessionReservationNotification] 日程取得エラー:", sessionDateError);
+      logger.error({ action: "sendSessionReservationNotification", err: sessionDateError, sessionDateId }, "日程情報の取得に失敗しました");
       return;
     }
 
@@ -139,19 +140,19 @@ export async function sendSessionReservationNotification(
       : sessionDate.sessions;
 
     if (!session?.company_id || !session?.title) {
-      console.error("[sendSessionReservationNotification] 説明会情報が不完全です");
+      logger.error({ action: "sendSessionReservationNotification", sessionDateId }, "説明会情報が不完全です");
       return;
     }
 
-    // 候補者名を取得
-    const { data: candidate, error: candidateError } = await supabase
-      .from("candidates")
+    // 候補者名を取得（名前は profiles に集約）
+    const { data: candidateProfile, error: candidateProfileError } = await supabase
+      .from("profiles")
       .select("last_name, first_name")
-      .eq("id", candidateId)
+      .eq("candidate_id", candidateId)
       .single();
 
-    if (candidateError || !candidate) {
-      console.error("[sendSessionReservationNotification] 候補者取得エラー:", candidateError);
+    if (candidateProfileError || !candidateProfile) {
+      logger.error({ action: "sendSessionReservationNotification", err: candidateProfileError, candidateId }, "候補者プロフィールの取得に失敗しました");
       return;
     }
 
@@ -163,7 +164,7 @@ export async function sendSessionReservationNotification(
       .single();
 
     if (companyError || !company) {
-      console.error("[sendSessionReservationNotification] 企業取得エラー:", companyError);
+      logger.error({ action: "sendSessionReservationNotification", err: companyError, companyId: session.company_id }, "企業情報の取得に失敗しました");
       return;
     }
 
@@ -176,11 +177,11 @@ export async function sendSessionReservationNotification(
       .not("email", "is", null);
 
     if (recruitersError || !recruiters || recruiters.length === 0) {
-      console.error("[sendSessionReservationNotification] リクルーター取得エラー:", recruitersError);
+      logger.error({ action: "sendSessionReservationNotification", err: recruitersError, companyId: session.company_id }, "リクルーターの取得に失敗しました");
       return;
     }
 
-    const candidateName = `${candidate.last_name} ${candidate.first_name}`;
+    const candidateName = `${candidateProfile.last_name} ${candidateProfile.first_name}`;
     const reservedAt = formatJstDateTime(new Date().toISOString());
 
     for (const recruiter of recruiters) {
@@ -201,6 +202,6 @@ export async function sendSessionReservationNotification(
       });
     }
   } catch (err) {
-    console.error("[sendSessionReservationNotification] 予期しないエラー:", err);
+    logger.error({ action: "sendSessionReservationNotification", err }, "予期しないエラーが発生しました");
   }
 }

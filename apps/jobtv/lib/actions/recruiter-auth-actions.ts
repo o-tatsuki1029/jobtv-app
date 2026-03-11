@@ -8,6 +8,8 @@ import {
 } from "@jobtv-app/shared/actions/auth";
 import { getFullSiteUrl } from "@jobtv-app/shared/utils/dev-config";
 import { createClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
+import { PROXY_ORIGINAL_ADMIN_ID_COOKIE } from "@/lib/actions/proxy-login-constants";
 
 /**
  * 企業担当者専用ログイン処理
@@ -76,6 +78,11 @@ export async function recruiterResetPassword(formData: FormData) {
  * 企業担当者用パスワード更新
  */
 export async function recruiterUpdatePassword(formData: FormData) {
+  const cookieStore = await cookies();
+  if (cookieStore.get(PROXY_ORIGINAL_ADMIN_ID_COOKIE)?.value) {
+    return { error: "代理ログイン中はパスワードを変更できません" };
+  }
+
   const password = formData.get("password") as string;
   const result = await baseUpdatePassword(password);
 

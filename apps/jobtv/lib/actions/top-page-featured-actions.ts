@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getUserInfo } from "@jobtv-app/shared/auth";
 import type { Video } from "@/types/video.types";
 import type { TopPageVideoKind } from "@/lib/actions/video-actions";
+import { logger } from "@/lib/logger";
 
 async function requireAdmin(): Promise<{ error: string } | null> {
   const userInfo = await getUserInfo();
@@ -39,7 +40,7 @@ export async function getEligibleVideosForTopPage(kind: TopPageVideoKind): Promi
     }));
     return { data: list, error: null };
   } catch (e) {
-    console.error("getEligibleVideosForTopPage error:", e);
+    logger.error({ action: "getEligibleVideosForTopPage", err: e, kind }, "トップページ対象動画の取得に失敗しました");
     return {
       data: null,
       error: e instanceof Error ? e.message : "取得に失敗しました"
@@ -84,7 +85,7 @@ export async function getFeaturedVideosForTopPage(kind: TopPageVideoKind): Promi
     list.sort((a, b) => a.display_order - b.display_order);
     return { data: list, error: null };
   } catch (e) {
-    console.error("getFeaturedVideosForTopPage error:", e);
+    logger.error({ action: "getFeaturedVideosForTopPage", err: e, kind }, "トップページ注目動画の取得に失敗しました");
     return {
       data: null,
       error: e instanceof Error ? e.message : "取得に失敗しました"
@@ -129,13 +130,13 @@ export async function addFeaturedVideoForTopPage(
     });
 
     if (error) {
-      console.error("addFeaturedVideoForTopPage error:", error);
+      logger.error({ action: "addFeaturedVideoForTopPage", err: error, videoId, kind }, "トップページ注目動画の追加に失敗しました");
       return { data: null, error: error.message };
     }
     revalidatePath("/");
     return { data: true, error: null };
   } catch (e) {
-    console.error("addFeaturedVideoForTopPage error:", e);
+    logger.error({ action: "addFeaturedVideoForTopPage", err: e, videoId, kind }, "トップページ注目動画の追加に失敗しました");
     return {
       data: null,
       error: e instanceof Error ? e.message : "追加に失敗しました"
@@ -160,13 +161,13 @@ export async function removeFeaturedVideoForTopPage(
       .eq("kind", kind);
 
     if (error) {
-      console.error("removeFeaturedVideoForTopPage error:", error);
+      logger.error({ action: "removeFeaturedVideoForTopPage", err: error, videoId, kind }, "トップページ注目動画の削除に失敗しました");
       return { data: null, error: error.message };
     }
     revalidatePath("/");
     return { data: true, error: null };
   } catch (e) {
-    console.error("removeFeaturedVideoForTopPage error:", e);
+    logger.error({ action: "removeFeaturedVideoForTopPage", err: e, videoId, kind }, "トップページ注目動画の削除に失敗しました");
     return {
       data: null,
       error: e instanceof Error ? e.message : "削除に失敗しました"
@@ -194,14 +195,14 @@ export async function reorderFeaturedVideosForTopPage(
         .eq("kind", kind);
 
       if (error) {
-        console.error("reorderFeaturedVideosForTopPage error:", error);
+        logger.error({ action: "reorderFeaturedVideosForTopPage", err: error, kind }, "トップページ注目動画の並び替えに失敗しました");
         return { data: null, error: error.message };
       }
     }
     revalidatePath("/");
     return { data: true, error: null };
   } catch (e) {
-    console.error("reorderFeaturedVideosForTopPage error:", e);
+    logger.error({ action: "reorderFeaturedVideosForTopPage", err: e, kind }, "トップページ注目動画の並び替えに失敗しました");
     return {
       data: null,
       error: e instanceof Error ? e.message : "並び替えに失敗しました"

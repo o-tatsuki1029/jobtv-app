@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { signUp, checkEmailForSignup } from "@/lib/actions/auth-actions";
 import { searchSchoolNames, searchFacultyNames, searchDepartmentNames } from "@/lib/actions/school-actions";
 import SuggestInput from "@/components/common/SuggestInput";
@@ -70,9 +70,9 @@ function validateKana(value: string): string | null {
 
 function SignUpPageContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const next = searchParams.get("next") ?? "";
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
   const [referrer, setReferrer] = useState("");
   const [utm, setUtm] = useState({
@@ -132,7 +132,7 @@ function SignUpPageContent() {
     if (result.error) {
       setError(result.error);
     } else if (result.success) {
-      setSuccess(true);
+      router.push('/auth/signup/thanks');
     }
   }
 
@@ -166,51 +166,12 @@ function SignUpPageContent() {
     }
   }
 
-  if (success) {
-    return (
-      <div className="flex items-center justify-center px-2 py-20 sm:px-4 bg-white">
-        <div className="max-w-md w-full bg-white p-8 rounded-xl border border-gray-200 text-center max-sm:border-0 max-sm:rounded-none">
-          <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-            <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">登録が完了しました</h1>
-          <p className="text-gray-600 mb-8">登録が完了しました。ログインしてご利用ください。</p>
-
-          <div className="mb-8 rounded-lg border border-[#06C755] bg-[#f0fff4] p-5 text-left">
-            <p className="mb-1 font-bold text-gray-900">LINEと連携して就活情報をいち早くゲット！</p>
-            <p className="mb-4 text-sm text-gray-600">企業からの新着求人・説明会情報をLINEでお知らせします。</p>
-            <Link
-              href="/auth/login?next=%2Fapi%2Fline%2Fauthorize"
-              className="inline-block rounded-md bg-[#06C755] px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#05b34d]"
-            >
-              LINEと連携する（ログイン後）
-            </Link>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link
-              href={next ? `/auth/login?next=${encodeURIComponent(next)}` : "/auth/login"}
-              className="text-red-500 hover:text-red-400 font-semibold transition-colors"
-            >
-              ログインする
-            </Link>
-            <Link href="/" className="text-gray-600 hover:text-gray-900 font-medium transition-colors">
-              トップページに戻る
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex items-center justify-center px-2 py-8 sm:px-4 bg-white">
       <div className="w-full max-w-xl">
         <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-1">JOBTVに無料登録</h1>
-          <p className="text-gray-600 text-xs">動画で始める、新しい就活スタイル</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-1">必要情報</h1>
+          <p className="text-gray-600 text-xs">を入力してください</p>
         </div>
 
         <>
@@ -522,7 +483,7 @@ function SignUpPageContent() {
                       className={inputClass}
                       value={schoolType}
                       onChange={(e) => {
-                        setSchoolType(e.target.value);
+                        setSchoolType(e.target.value as typeof schoolType);
                         setSchoolName("");
                         setSchoolKcode(null);
                         setFacultyName("");

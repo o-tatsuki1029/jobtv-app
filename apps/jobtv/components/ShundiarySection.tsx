@@ -47,24 +47,26 @@ export default function ShundiarySection({
           <p className={cn("text-sm mb-3", classes.textSecondary)}>{description}</p>
         )}
         <div className={cn("border-b mb-4", classes.sectionBorder)} />
-        <HorizontalScrollContainer>
-          <div className="flex gap-5 min-w-max">
-            {list.map((item) => (
-              <div
-                key={item.id}
-                className={cn(HORIZONTAL_CARD_WIDTH.video, "flex-shrink-0")}
-                onClick={() => onItemClick?.(item)}
-              >
-                <ProgramCard
-                  title={item.title}
-                  thumbnail={item.thumbnail}
-                  channel={item.channel ?? "しゅんダイアリー"}
-                  vertical={false}
-                />
-              </div>
-            ))}
-          </div>
-        </HorizontalScrollContainer>
+        <div className="-mx-4 md:mx-0">
+          <HorizontalScrollContainer>
+            <div className="flex gap-5 min-w-max pl-4 md:pl-0">
+              {list.map((item) => (
+                <div
+                  key={item.id}
+                  className={cn(HORIZONTAL_CARD_WIDTH.video, "flex-shrink-0")}
+                  onClick={() => onItemClick?.(item)}
+                >
+                  <ProgramCard
+                    title={item.title}
+                    thumbnail={item.thumbnail}
+                    channel={item.channel ?? "しゅんダイアリー"}
+                    vertical={false}
+                  />
+                </div>
+              ))}
+            </div>
+          </HorizontalScrollContainer>
+        </div>
       </div>
     </section>
   );

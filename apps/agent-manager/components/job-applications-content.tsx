@@ -49,10 +49,8 @@ export async function JobApplicationsContent({
       *,
       candidates (
         id,
-        first_name,
-        last_name,
         phone,
-        profiles!profiles_candidate_id_fkey (email)
+        profiles!profiles_candidate_id_fkey (email, first_name, last_name)
       )
     `,
     )
@@ -96,8 +94,8 @@ export async function JobApplicationsContent({
   interface ApplicationWithCandidate extends ApplicationRow {
     candidates: (Pick<
       Candidate,
-      "id" | "first_name" | "last_name" | "phone"
-    > & { profiles: { email: string | null } | null }) | null;
+      "id" | "phone"
+    > & { profiles: { email: string | null; first_name: string; last_name: string } | null }) | null;
   }
 
   const groupedApplications =

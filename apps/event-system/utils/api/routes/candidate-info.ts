@@ -17,20 +17,20 @@ export async function getCandidateInfo() {
   // 学生情報を取得（RLSポリシーで自分のデータのみアクセス可能）
   const { data: candidate, error: candidateError } = await supabase
     .from("candidates")
-    .select("id, last_name, first_name, profiles!profiles_candidate_id_fkey(email)")
+    .select("id, profiles!profiles_candidate_id_fkey(email, last_name, first_name)")
     .eq("id", candidateId)
     .single();
 
   // RLSポリシーでアクセスできない場合は、管理者クライアントを使用（フォールバック）
   let finalCandidate = candidate;
   let finalSupabase = supabase;
-  
+
   if (candidateError || !candidate) {
     // RLSポリシーが適切に設定されていない場合のフォールバック
     const adminSupabase = getAdminClient();
     const { data: adminCandidate, error: adminError } = await adminSupabase
       .from("candidates")
-      .select("id, last_name, first_name, profiles!profiles_candidate_id_fkey(email)")
+      .select("id, profiles!profiles_candidate_id_fkey(email, last_name, first_name)")
       .eq("id", candidateId)
       .single();
     
@@ -62,13 +62,13 @@ export async function getCandidateInfo() {
     throw new Error("学生情報の取得に失敗しました");
   }
 
-  // 名前の取得（last_name + first_name）
-  const name = finalCandidate.last_name && finalCandidate.first_name
-    ? `${finalCandidate.last_name} ${finalCandidate.first_name}`
-    : finalCandidate.last_name || finalCandidate.first_name || "未設定";
-
-  const row = finalCandidate as { id: string; last_name: string | null; first_name: string | null; profiles: { email: string | null } | { email: string | null }[] | null };
+  const row = finalCandidate as { id: string; profiles: { email: string | null; last_name: string | null; first_name: string | null } | { email: string | null; last_name: string | null; first_name: string | null }[] | null };
   const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+
+  // 名前の取得（profiles.last_name + profiles.first_name）
+  const name = profile?.last_name && profile?.first_name
+    ? `${profile.last_name} ${profile.first_name}`
+    : profile?.last_name || profile?.first_name || "未設定";
   return {
     candidate: {
       id: row.id,

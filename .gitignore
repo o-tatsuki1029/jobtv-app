@@ -5,6 +5,8 @@ node_modules/
 
 # Testing
 coverage/
+playwright-report/
+test-results/
 
 # Next.js
 .next/
@@ -30,6 +32,8 @@ yarn-error.log*
 .env*.local
 .env
 .env.staging
+.env.test
+e2e/.auth/
 
 # Vercel
 .vercel
@@ -39,6 +43,10 @@ yarn-error.log*
 
 # TypeScript
 *.tsbuildinfo
+
+# MCP
+.mcp.json
+.claude/.mcp.json
 
 # IDE
 .vscode/

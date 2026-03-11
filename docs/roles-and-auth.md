@@ -81,6 +81,35 @@
 
 ---
 
+## 代理ログイン（Proxy Login）
+
+管理者が企業リクルーターに代わって操作する機能。
+
+### フロー
+
+1. **開始** (`proxyLoginAsCompany`): 管理者が対象企業のリクルーターのマジックリンクを生成し、そのトークンでセッションを切り替える。切り替え前に管理者のアクセストークン・リフレッシュトークンをクッキーに保存しておく。
+2. **代理中**: `checkProxyLoginStatus()` でクッキーの有無・タイムアウト（120分）を確認し、プロキシ状態かどうかを判定する。
+3. **終了** (`exitProxyLogin`): 保存しておいた管理者トークンで `supabase.auth.setSession()` を呼び、元のAAL2セッションに復帰する。マジックリンクは使わないため、AAL2が維持され再TOTP検証は不要。
+
+### クッキー仕様
+
+| クッキー名 | 内容 | 用途 |
+|---|---|---|
+| `proxy_original_admin_id` | 管理者のユーザーID | プロキシ状態の判定・終了時の確認 |
+| `proxy_login_started_at` | 開始時刻（UNIXミリ秒） | タイムアウト判定（120分） |
+| `proxy_admin_access_token` | 管理者のアクセストークン | 終了時のセッション復帰 |
+| `proxy_admin_refresh_token` | 管理者のリフレッシュトークン | 終了時のセッション復帰（期限切れ対応） |
+
+すべて `httpOnly: true`, `sameSite: lax`, `maxAge: 7200`（120分）で設定。
+
+### 制約
+
+- 代理ログイン中はリクルーターのパスワード変更不可（`recruiterUpdatePassword` でガード）
+- `access_token` が期限切れでも `refresh_token` があればSupabaseが自動更新し、元のAALを引き継ぐ
+- 実装: `apps/jobtv/lib/actions/proxy-login-actions.ts`
+
+---
+
 ## 参照実装（jobtv）
 
 - **認証情報取得・配布**: `apps/jobtv/app/(main)/layout.tsx`（`getHeaderAuthInfo()` を await → `HeaderAuthProvider`）、`HeaderAuthContext`（`onAuthStateChange` で更新）、各 UI は `useHeaderAuth()` で参照

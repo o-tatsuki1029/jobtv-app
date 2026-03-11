@@ -186,9 +186,50 @@ export type Database = {
           },
         ]
       }
-      candidates: {
+      candidate_management: {
         Row: {
           assigned_to: string | null
+          candidate_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          candidate_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          candidate_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_management_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_management_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: true
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      candidates: {
+        Row: {
           created_at: string
           date_of_birth: string | null
           department_name: string | null
@@ -197,17 +238,12 @@ export type Database = {
           desired_work_location: string | null
           entry_channel: string | null
           faculty_name: string | null
-          first_name: string
-          first_name_kana: string
           gender: string | null
           graduation_year: number | null
           id: string
           jobtv_id: string | null
-          last_name: string
-          last_name_kana: string
           line_user_id: string | null
           major_field: string | null
-          notes: string | null
           phone: string | null
           referrer: string | null
           school_kcode: string | null
@@ -221,7 +257,6 @@ export type Database = {
           utm_term: string | null
         }
         Insert: {
-          assigned_to?: string | null
           created_at?: string
           date_of_birth?: string | null
           department_name?: string | null
@@ -230,17 +265,12 @@ export type Database = {
           desired_work_location?: string | null
           entry_channel?: string | null
           faculty_name?: string | null
-          first_name: string
-          first_name_kana: string
           gender?: string | null
           graduation_year?: number | null
           id?: string
           jobtv_id?: string | null
-          last_name: string
-          last_name_kana: string
           line_user_id?: string | null
           major_field?: string | null
-          notes?: string | null
           phone?: string | null
           referrer?: string | null
           school_kcode?: string | null
@@ -254,7 +284,6 @@ export type Database = {
           utm_term?: string | null
         }
         Update: {
-          assigned_to?: string | null
           created_at?: string
           date_of_birth?: string | null
           department_name?: string | null
@@ -263,17 +292,12 @@ export type Database = {
           desired_work_location?: string | null
           entry_channel?: string | null
           faculty_name?: string | null
-          first_name?: string
-          first_name_kana?: string
           gender?: string | null
           graduation_year?: number | null
           id?: string
           jobtv_id?: string | null
-          last_name?: string
-          last_name_kana?: string
           line_user_id?: string | null
           major_field?: string | null
-          notes?: string | null
           phone?: string | null
           referrer?: string | null
           school_kcode?: string | null
@@ -286,15 +310,7 @@ export type Database = {
           utm_source?: string | null
           utm_term?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "candidates_assigned_to_fkey"
-            columns: ["assigned_to"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       comment_templates: {
         Row: {
@@ -721,6 +737,30 @@ export type Database = {
         }
         Relationships: []
       }
+      event_areas: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       event_companies: {
         Row: {
           company_id: string
@@ -759,6 +799,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      event_graduation_years: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          year?: number
+        }
+        Relationships: []
       }
       event_matching_sessions: {
         Row: {
@@ -1063,6 +1127,51 @@ export type Database = {
           },
         ]
       }
+      event_types: {
+        Row: {
+          area: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          target_graduation_year: number | null
+          updated_at: string
+        }
+        Insert: {
+          area?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          target_graduation_year?: number | null
+          updated_at?: string
+        }
+        Update: {
+          area?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          target_graduation_year?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_types_area_fkey"
+            columns: ["area"]
+            isOneToOne: false
+            referencedRelation: "event_areas"
+            referencedColumns: ["name"]
+          },
+          {
+            foreignKeyName: "event_types_target_graduation_year_fkey"
+            columns: ["target_graduation_year"]
+            isOneToOne: false
+            referencedRelation: "event_graduation_years"
+            referencedColumns: ["year"]
+          },
+        ]
+      }
       events: {
         Row: {
           created_at: string | null
@@ -1099,7 +1208,7 @@ export type Database = {
             foreignKeyName: "events_event_type_id_fkey"
             columns: ["event_type_id"]
             isOneToOne: false
-            referencedRelation: "master_event_types"
+            referencedRelation: "event_types"
             referencedColumns: ["id"]
           },
         ]
@@ -1274,99 +1383,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      master_areas: {
-        Row: {
-          created_at: string
-          id: string
-          is_active: boolean
-          name: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          name: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          name?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      master_event_types: {
-        Row: {
-          area: string | null
-          created_at: string
-          id: string
-          is_active: boolean
-          name: string
-          target_graduation_year: number | null
-          updated_at: string
-        }
-        Insert: {
-          area?: string | null
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          name: string
-          target_graduation_year?: number | null
-          updated_at?: string
-        }
-        Update: {
-          area?: string | null
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          name?: string
-          target_graduation_year?: number | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "master_event_types_area_fkey"
-            columns: ["area"]
-            isOneToOne: false
-            referencedRelation: "master_areas"
-            referencedColumns: ["name"]
-          },
-          {
-            foreignKeyName: "master_event_types_target_graduation_year_fkey"
-            columns: ["target_graduation_year"]
-            isOneToOne: false
-            referencedRelation: "master_graduation_years"
-            referencedColumns: ["year"]
-          },
-        ]
-      }
-      master_graduation_years: {
-        Row: {
-          created_at: string
-          id: string
-          is_active: boolean
-          updated_at: string
-          year: number
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          updated_at?: string
-          year: number
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          updated_at?: string
-          year?: number
-        }
-        Relationships: []
       }
       matching_results: {
         Row: {
@@ -1656,7 +1672,6 @@ export type Database = {
       }
       profiles: {
         Row: {
-          avatar_url: string | null
           candidate_id: string | null
           company_id: string | null
           created_at: string
@@ -1669,11 +1684,8 @@ export type Database = {
           last_name_kana: string | null
           role: Database["public"]["Enums"]["user_role"] | null
           updated_at: string | null
-          username: string | null
-          website: string | null
         }
         Insert: {
-          avatar_url?: string | null
           candidate_id?: string | null
           company_id?: string | null
           created_at?: string
@@ -1686,11 +1698,8 @@ export type Database = {
           last_name_kana?: string | null
           role?: Database["public"]["Enums"]["user_role"] | null
           updated_at?: string | null
-          username?: string | null
-          website?: string | null
         }
         Update: {
-          avatar_url?: string | null
           candidate_id?: string | null
           company_id?: string | null
           created_at?: string
@@ -1703,14 +1712,12 @@ export type Database = {
           last_name_kana?: string | null
           role?: Database["public"]["Enums"]["user_role"] | null
           updated_at?: string | null
-          username?: string | null
-          website?: string | null
         }
         Relationships: [
           {
             foreignKeyName: "profiles_candidate_id_fkey"
             columns: ["candidate_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "candidates"
             referencedColumns: ["id"]
           },
@@ -2110,6 +2117,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      top_page_hero_items: {
+        Row: {
+          auto_thumbnail_url: string | null
+          created_at: string
+          display_order: number
+          id: string
+          is_converted: boolean
+          is_pr: boolean
+          link_url: string | null
+          mediaconvert_job_id: string | null
+          thumbnail_url: string | null
+          title: string
+          updated_at: string
+          video_url: string | null
+        }
+        Insert: {
+          auto_thumbnail_url?: string | null
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_converted?: boolean
+          is_pr?: boolean
+          link_url?: string | null
+          mediaconvert_job_id?: string | null
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string
+          video_url?: string | null
+        }
+        Update: {
+          auto_thumbnail_url?: string | null
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_converted?: boolean
+          is_pr?: boolean
+          link_url?: string | null
+          mediaconvert_job_id?: string | null
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string
+          video_url?: string | null
+        }
+        Relationships: []
       }
       videos: {
         Row: {

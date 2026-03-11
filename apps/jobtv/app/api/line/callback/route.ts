@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { exchangeCodeForLineUserId, getLineCallbackRedirectUri } from "@/lib/line";
+import { logger } from "@/lib/logger";
 
 const LINE_LINK_STATE_COOKIE = "line_link_state";
 const SETTINGS_LINE_PATH = "/settings/line";
@@ -71,7 +72,7 @@ export async function GET(request: NextRequest) {
     if (updateError.code === "23505") {
       return clearCookieAndRedirect(new URLSearchParams({ error: "already_linked" }));
     }
-    console.error("LINE callback update candidates error:", updateError);
+    logger.error({ action: "GET", endpoint: "line/callback", err: updateError }, "LINE連携の候補者情報更新に失敗しました");
     return clearCookieAndRedirect(new URLSearchParams({ error: "update_failed" }));
   }
 

@@ -4,14 +4,14 @@ import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/types";
 
-type MasterArea = Database["public"]["Tables"]["master_areas"]["Row"];
-type MasterGraduationYear = Database["public"]["Tables"]["master_graduation_years"]["Row"];
-type MasterEventType = Database["public"]["Tables"]["master_event_types"]["Row"];
+type EventArea = Database["public"]["Tables"]["event_areas"]["Row"];
+type EventGraduationYear = Database["public"]["Tables"]["event_graduation_years"]["Row"];
+type EventType = Database["public"]["Tables"]["event_types"]["Row"];
 
 type UseMasterDataReturn = {
-  areas: MasterArea[];
-  graduationYears: MasterGraduationYear[];
-  eventTypes: MasterEventType[];
+  areas: EventArea[];
+  graduationYears: EventGraduationYear[];
+  eventTypes: EventType[];
   isLoading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
@@ -21,9 +21,9 @@ type UseMasterDataReturn = {
  * マスタデータを取得するカスタムフック
  */
 export function useMasterData(): UseMasterDataReturn {
-  const [areas, setAreas] = useState<MasterArea[]>([]);
-  const [graduationYears, setGraduationYears] = useState<MasterGraduationYear[]>([]);
-  const [eventTypes, setEventTypes] = useState<MasterEventType[]>([]);
+  const [areas, setAreas] = useState<EventArea[]>([]);
+  const [graduationYears, setGraduationYears] = useState<EventGraduationYear[]>([]);
+  const [eventTypes, setEventTypes] = useState<EventType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,7 +36,7 @@ export function useMasterData(): UseMasterDataReturn {
 
       // エリアマスタを取得（すべて取得、is_activeに関係なく）
       const { data: areasData, error: areasError } = await supabase
-        .from("master_areas")
+        .from("event_areas")
         .select("*")
         .order("name", { ascending: true });
 
@@ -46,7 +46,7 @@ export function useMasterData(): UseMasterDataReturn {
 
       // 卒年度マスタを取得（すべて取得、is_activeに関係なく）
       const { data: yearsData, error: yearsError } = await supabase
-        .from("master_graduation_years")
+        .from("event_graduation_years")
         .select("*")
         .order("year", { ascending: true });
 
@@ -56,7 +56,7 @@ export function useMasterData(): UseMasterDataReturn {
 
       // イベントタイプマスタを取得（すべて取得、is_activeに関係なく）
       const { data: eventTypesData, error: eventTypesError } = await supabase
-        .from("master_event_types")
+        .from("event_types")
         .select("*")
         .order("name", { ascending: true });
 

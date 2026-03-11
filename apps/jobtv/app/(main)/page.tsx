@@ -3,9 +3,11 @@ import VideoObjectListJsonLd from "@/components/seo/VideoObjectListJsonLd";
 import { getCompaniesByIndustry, type CompanyWithPage } from "@/lib/actions/company-list-actions";
 import { getPublicVideosForTopPage } from "@/lib/actions/video-actions";
 import { getTopPageBanners } from "@/lib/actions/top-page-banner-actions";
+import { getTopPageHeroItems } from "@/lib/actions/top-page-hero-actions";
 import { INDUSTRIES } from "@/constants/company-options";
 import { SITE_TITLE, SITE_DESCRIPTION } from "@/constants/site";
 import type { Metadata } from "next";
+import type { HeroItem } from "@/components/HeroSection";
 
 /** トップページのSEO用メタデータ（明示的に title / description を設定） */
 export const metadata: Metadata = {
@@ -13,16 +15,6 @@ export const metadata: Metadata = {
   description: SITE_DESCRIPTION
 };
 
-
-const heroProgram = {
-  title: "動画就活で理想の企業と出会う",
-  description:
-    "テキストだけではわからない採用企業の姿を、動画コンテンツでお届け。企業密着、社員インタビュー、職場見学など、リアルな情報を無料で視聴できます。",
-  thumbnail: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1200&h=600&fit=crop",
-  videoUrl: "https://contents.jobtv.jp/movie/f45f4fe1-55b6-45bb-804b-00d1bdde6b71_h264.mp4",
-  channel: "JOBTV",
-  viewers: 12543
-};
 
 const accounts = [
   {
@@ -130,13 +122,15 @@ export default async function Home() {
   }> = [];
 
   let banners: Array<{ id: string; title: string; image: string; link?: string }> = [];
+  let heroPrograms: HeroItem[] = [];
 
   try {
-    const [companiesResult, shortResult, documentaryResult, bannersResult] = await Promise.all([
+    const [companiesResult, shortResult, documentaryResult, bannersResult, heroResult] = await Promise.all([
       getCompaniesByIndustry(),
       getPublicVideosForTopPage("short"),
       getPublicVideosForTopPage("documentary"),
-      getTopPageBanners()
+      getTopPageBanners(),
+      getTopPageHeroItems()
     ]);
 
     const companiesByIndustry = companiesResult.data ?? new Map<string, CompanyWithPage[]>();
@@ -183,6 +177,14 @@ export default async function Home() {
       image: b.image_url,
       link: b.link_url ?? undefined
     }));
+
+    heroPrograms = (heroResult.data ?? []).map((h) => ({
+      thumbnail: h.thumbnail_url || h.auto_thumbnail_url || "",
+      videoUrl: h.video_url ?? undefined,
+      isPR: h.is_pr,
+      moreLink: h.link_url ?? undefined,
+      title: h.title
+    }));
   } catch (e) {
     console.error("Home: data fetch error", e);
   }
@@ -191,7 +193,7 @@ export default async function Home() {
     <>
       <VideoObjectListJsonLd videos={[...shortVideos, ...documentaryPrograms]} />
       <MainPageContent
-        heroProgram={heroProgram}
+        heroPrograms={heroPrograms}
         banners={banners}
         shortVideos={shortVideos}
         accounts={accounts}

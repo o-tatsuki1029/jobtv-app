@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { logger } from "@/lib/logger";
 
 /**
  * ログイン中の候補者プロフィール（candidates + email）を取得
@@ -16,7 +17,7 @@ export async function getMyCandidateProfile() {
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("candidate_id, role")
+    .select("candidate_id, role, last_name, first_name, last_name_kana, first_name_kana")
     .eq("id", user.id)
     .single();
 
@@ -27,8 +28,7 @@ export async function getMyCandidateProfile() {
   const { data: candidate, error: candidateError } = await supabase
     .from("candidates")
     .select(
-      `id, last_name, first_name, last_name_kana, first_name_kana,
-       gender, date_of_birth, phone,
+      `id, gender, date_of_birth, phone,
        school_type, school_name, school_kcode, faculty_name, department_name, major_field, graduation_year,
        desired_work_location, desired_industry, desired_job_type`
     )
@@ -42,6 +42,10 @@ export async function getMyCandidateProfile() {
   return {
     data: {
       ...candidate,
+      last_name: profile.last_name,
+      first_name: profile.first_name,
+      last_name_kana: profile.last_name_kana,
+      first_name_kana: profile.first_name_kana,
       email: user.email ?? null
     },
     error: null
@@ -89,13 +93,27 @@ export async function updateMyCandidateProfile(data: UpdateCandidateProfileData)
     return { error: "候補者プロフィールを取得できませんでした" };
   }
 
-  const { error: updateError } = await supabase
-    .from("candidates")
+  // 名前は profiles に更新
+  const { error: profileUpdateError } = await supabase
+    .from("profiles")
     .update({
       last_name: data.last_name,
       first_name: data.first_name,
       last_name_kana: data.last_name_kana,
       first_name_kana: data.first_name_kana,
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", user.id);
+
+  if (profileUpdateError) {
+    logger.error({ action: "updateMyCandidateProfile", err: profileUpdateError }, "プロフィール名の更新に失敗");
+    return { error: "プロフィールの更新に失敗しました" };
+  }
+
+  // その他のフィールドは candidates に更新
+  const { error: updateError } = await supabase
+    .from("candidates")
+    .update({
       phone: data.phone || null,
       gender: data.gender || null,
       date_of_birth: data.date_of_birth || null,
@@ -114,7 +132,7 @@ export async function updateMyCandidateProfile(data: UpdateCandidateProfileData)
     .eq("id", profile.candidate_id);
 
   if (updateError) {
-    console.error("Update candidate profile error:", updateError);
+    logger.error({ action: "updateMyCandidateProfile", err: updateError }, "候補者プロフィールの更新に失敗");
     return { error: "プロフィールの更新に失敗しました" };
   }
 
@@ -155,7 +173,7 @@ export async function getMyApplications({ limit = 50, offset = 0 }: { limit?: nu
     .range(offset, offset + limit - 1);
 
   if (error) {
-    console.error("Get my applications error:", error);
+    logger.error({ action: "getMyApplications", err: error }, "エントリー一覧の取得に失敗");
     return { data: null, error: "エントリー一覧の取得に失敗しました" };
   }
 
@@ -194,7 +212,7 @@ export async function getMyReservations() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Get my reservations error:", error);
+    logger.error({ action: "getMyReservations", err: error }, "予約一覧の取得に失敗");
     return { data: null, error: "予約一覧の取得に失敗しました" };
   }
 

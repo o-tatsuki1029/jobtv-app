@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import type { Tables } from "@jobtv-app/shared/types";
+import { logger } from "@/lib/logger";
 
 type CompanyRow = Tables<"companies">;
 type CompanyPageRow = Tables<"company_pages">;
@@ -33,7 +34,7 @@ export async function getCompaniesByIndustry(): Promise<{
       .eq("status", "active");
 
     if (pagesError) {
-      console.error("Get active company pages error:", pagesError);
+      logger.error({ action: "getCompaniesByIndustry", err: pagesError }, "アクティブな企業ページの取得に失敗");
       return { data: null, error: pagesError.message };
     }
 
@@ -52,7 +53,7 @@ export async function getCompaniesByIndustry(): Promise<{
       .order("updated_at", { ascending: false });
 
     if (companiesError) {
-      console.error("Get companies by industry error:", companiesError);
+      logger.error({ action: "getCompaniesByIndustry", err: companiesError }, "業界別企業一覧の取得に失敗");
       return { data: null, error: companiesError.message };
     }
 
@@ -68,7 +69,7 @@ export async function getCompaniesByIndustry(): Promise<{
       .eq("status", "active");
 
     if (companyPagesError) {
-      console.error("Get company pages error:", companyPagesError);
+      logger.error({ action: "getCompaniesByIndustry", err: companyPagesError }, "企業ページ情報の取得に失敗");
       // エラーでも企業情報は返す
     }
 
@@ -111,7 +112,7 @@ export async function getCompaniesByIndustry(): Promise<{
 
     return { data: companiesByIndustry, error: null };
   } catch (error) {
-    console.error("Get companies by industry error:", error);
+    logger.error({ action: "getCompaniesByIndustry", err: error }, "業界別企業一覧の取得に失敗");
     return {
       data: null,
       error: error instanceof Error ? error.message : "企業一覧の取得に失敗しました"

@@ -26,7 +26,7 @@ export default function EventCSVExport({
 
       // イベントタイプマスタを取得
       const { data: eventTypes, error: eventTypesError } = await supabase
-        .from("master_event_types")
+        .from("event_types")
         .select("*");
 
       if (eventTypesError) {
@@ -45,7 +45,7 @@ export default function EventCSVExport({
         .select(
           `
           *,
-          master_event_types (
+          event_types (
             name,
             target_graduation_year,
             area
@@ -82,7 +82,7 @@ export default function EventCSVExport({
         event_date: string;
         start_time: string;
         end_time: string;
-        master_event_types: {
+        event_types: {
           name: string;
           target_graduation_year: number | null;
           area: string | null;
@@ -92,13 +92,13 @@ export default function EventCSVExport({
       let filteredData = (data || []) as EventWithMaster[];
       if (filters.area) {
         filteredData = filteredData.filter((event: EventWithMaster) => {
-          const eventType = event.master_event_types;
+          const eventType = event.event_types;
           return eventType?.area === filters.area;
         });
       }
       if (filters.graduationYear !== "") {
         filteredData = filteredData.filter((event: EventWithMaster) => {
-          const eventType = event.master_event_types;
+          const eventType = event.event_types;
           return (
             String(eventType?.target_graduation_year) === filters.graduationYear
           );
@@ -117,7 +117,7 @@ export default function EventCSVExport({
 
       // CSVデータ行
       const rows = filteredData.map((event: EventWithMaster) => {
-        const eventType = event.master_event_types;
+        const eventType = event.event_types;
         return [
           eventType?.name || "",
           eventType?.target_graduation_year || "",

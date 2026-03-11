@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { logger } from "@/lib/logger";
 
 export interface SchoolSuggestItem {
   school_name: string;
@@ -48,7 +49,7 @@ export async function searchSchoolNames(
   const { data, error } = await req;
 
   if (error) {
-    console.error("searchSchoolNames error:", error);
+    logger.error({ action: "searchSchoolNames", err: error }, "学校名の検索に失敗");
     return { data: [], error: "学校名の取得に失敗しました" };
   }
 
@@ -98,7 +99,7 @@ export async function searchFacultyNames(
   const { data, error } = await q;
 
   if (error) {
-    console.error("searchFacultyNames error:", error);
+    logger.error({ action: "searchFacultyNames", err: error }, "学部名の検索に失敗");
     return { data: [], error: "学部名の取得に失敗しました" };
   }
 
@@ -143,7 +144,7 @@ export async function searchDepartmentNames(
   const { data, error } = await q;
 
   if (error) {
-    console.error("searchDepartmentNames error:", error);
+    logger.error({ action: "searchDepartmentNames", err: error }, "学科名の検索に失敗");
     return { data: [], error: "学科名の取得に失敗しました" };
   }
 

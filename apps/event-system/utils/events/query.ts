@@ -41,7 +41,7 @@ export function buildEventDataQuery(
     .select(
       `
       *,
-      master_event_types (
+      event_types (
         name,
         target_graduation_year,
         area

@@ -4,6 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import type { Video, VideoDraft, VideoInsert } from "@/types/video.types";
+import { getMediaConvertJobStatus } from "@/lib/aws/mediaconvert-client";
+import { getHlsManifestUrl, getMediaConvertThumbnailUrl } from "@/lib/aws/cloudfront-client";
+import { logger } from "@/lib/logger";
+import { logAudit } from "@jobtv-app/shared/utils/audit";
 
 /**
  * 全企業の審査待ち動画を取得（管理者用）
@@ -62,7 +66,7 @@ export async function getAllVideosDraft(filters?: {
     const { data, error } = await query;
 
     if (error) {
-      console.error("Get all videos draft error:", error);
+      logger.error({ action: "getAllVideosDraft", err: error }, "審査待ち動画一覧の取得に失敗しました");
       return { data: null, error: error.message };
     }
 
@@ -75,7 +79,7 @@ export async function getAllVideosDraft(filters?: {
 
     return { data: draftsWithCompany || [], error: null };
   } catch (error) {
-    console.error("Get all videos draft error:", error);
+    logger.error({ action: "getAllVideosDraft", err: error }, "審査待ち動画一覧の取得に失敗しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "審査待ち動画一覧の取得に失敗しました"
@@ -210,7 +214,7 @@ export async function approveVideo(draftId: string): Promise<{
 
       if (updateError) {
         console.log("[Approval] NG: update production video error=" + updateError.message);
-        console.error("Update production video error:", updateError);
+        logger.error({ action: "approveVideo", err: updateError, draftId }, "本番動画の更新に失敗しました");
         return { data: null, error: updateError.message };
       }
 
@@ -238,7 +242,7 @@ export async function approveVideo(draftId: string): Promise<{
 
       if (insertError) {
         console.log("[Approval] NG: insert production video error=" + insertError.message);
-        console.error("Insert production video error:", insertError);
+        logger.error({ action: "approveVideo", err: insertError, draftId }, "本番動画の作成に失敗しました");
         return { data: null, error: insertError.message };
       }
 
@@ -262,11 +266,22 @@ export async function approveVideo(draftId: string): Promise<{
 
     if (updateDraftError) {
       console.log("[Approval] NG: update draft status error=" + updateDraftError.message);
-      console.error("Update draft status error:", updateDraftError);
+      logger.error({ action: "approveVideo", err: updateDraftError, draftId }, "ドラフトステータスの更新に失敗しました");
       return { data: null, error: updateDraftError.message };
     }
 
     console.log("[Approval] OK: draftId=" + draftId);
+
+    logAudit({
+      userId: user.id,
+      action: "video.approve",
+      category: "content_review",
+      resourceType: "videos_draft",
+      resourceId: draftId,
+      app: "jobtv",
+      metadata: { companyId: draft.company_id, videoTitle: draft.title },
+    });
+
     revalidatePath("/admin/review");
     revalidatePath("/studio/videos");
     revalidatePath(`/company/${draft.company_id}`);
@@ -274,7 +289,7 @@ export async function approveVideo(draftId: string): Promise<{
   } catch (error) {
     const msg = error instanceof Error ? error.message : "動画の承認に失敗しました";
     console.log("[Approval] NG: " + msg);
-    console.error("Approve video error:", error);
+    logger.error({ action: "approveVideo", err: error, draftId }, "動画の承認に失敗しました");
     return {
       data: null,
       error: msg
@@ -344,15 +359,25 @@ export async function rejectVideo(
       .single();
 
     if (updateError) {
-      console.error("Reject video error:", updateError);
+      logger.error({ action: "rejectVideo", err: updateError, draftId }, "動画の却下に失敗しました");
       return { data: null, error: updateError.message };
     }
+
+    logAudit({
+      userId: user.id,
+      action: "video.reject",
+      category: "content_review",
+      resourceType: "videos_draft",
+      resourceId: draftId,
+      app: "jobtv",
+      metadata: { companyId: draft.company_id, reason },
+    });
 
     revalidatePath("/admin/review");
     revalidatePath("/studio/videos");
     return { data: updatedDraft, error: null };
   } catch (error) {
-    console.error("Reject video error:", error);
+    logger.error({ action: "rejectVideo", err: error, draftId }, "動画の却下に失敗しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "動画の却下に失敗しました"
@@ -403,7 +428,7 @@ export async function getVideoDraftByIdAdmin(draftId: string): Promise<{
       .single();
 
     if (error) {
-      console.error("Get video draft by id (admin) error:", error);
+      logger.error({ action: "getVideoDraftByIdAdmin", err: error, draftId }, "下書き動画の取得に失敗しました");
       return { data: null, error: error.message };
     }
 
@@ -416,11 +441,76 @@ export async function getVideoDraftByIdAdmin(draftId: string): Promise<{
 
     return { data: draftWithCompany, error: null };
   } catch (error) {
-    console.error("Get video draft by id (admin) error:", error);
+    logger.error({ action: "getVideoDraftByIdAdmin", err: error, draftId }, "下書き動画の取得に失敗しました");
     return {
       data: null,
       error: error instanceof Error ? error.message : "下書き動画の取得に失敗しました"
     };
   }
+}
+
+/**
+ * 変換ステータスを一括チェック・更新（管理者用、getUserCompanyId に依存しない）
+ */
+export async function checkConversionStatusBatchAdmin(
+  draftIds: string[]
+): Promise<{ updatedIds: string[]; error: string | null }> {
+  if (draftIds.length === 0) return { updatedIds: [], error: null };
+
+  const supabaseAdmin = createAdminClient();
+
+  // 対象ドラフトを一括取得
+  const { data: drafts, error: fetchError } = await supabaseAdmin
+    .from("videos_draft")
+    .select("id, company_id, mediaconvert_job_id, conversion_status, aspect_ratio, streaming_url")
+    .in("id", draftIds)
+    .in("conversion_status", ["processing", "pending"]);
+
+  if (fetchError) {
+    return { updatedIds: [], error: fetchError.message };
+  }
+
+  if (!drafts || drafts.length === 0) return { updatedIds: [], error: null };
+
+  const updatedIds: string[] = [];
+
+  await Promise.all(
+    drafts.map(async (draft) => {
+      if (!draft.mediaconvert_job_id) return;
+
+      const jobStatus = await getMediaConvertJobStatus(draft.mediaconvert_job_id);
+      if (jobStatus.error) return;
+
+      const status = jobStatus.status || "";
+
+      if (status === "COMPLETE") {
+        const updatePayload: Record<string, any> = {
+          conversion_status: "completed",
+          updated_at: new Date().toISOString()
+        };
+
+        if (draft.streaming_url == null && draft.aspect_ratio) {
+          try {
+            const ar = draft.aspect_ratio === "portrait" ? "portrait" : "landscape";
+            updatePayload.streaming_url = await getHlsManifestUrl(draft.company_id, draft.id, ar);
+            updatePayload.auto_thumbnail_url = await getMediaConvertThumbnailUrl(draft.company_id, draft.id, ar);
+          } catch {
+            // CloudFront未設定時はスキップ
+          }
+        }
+
+        await supabaseAdmin.from("videos_draft").update(updatePayload).eq("id", draft.id);
+        updatedIds.push(draft.id);
+      } else if (status === "ERROR" || status === "CANCELED") {
+        await supabaseAdmin
+          .from("videos_draft")
+          .update({ conversion_status: "failed", updated_at: new Date().toISOString() })
+          .eq("id", draft.id);
+        updatedIds.push(draft.id);
+      }
+    })
+  );
+
+  return { updatedIds, error: null };
 }
 

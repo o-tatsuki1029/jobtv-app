@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { logger } from "@/lib/logger";
 import type { Tables } from "@jobtv-app/shared/types";
 
 export type ManagerData = Tables<"profiles">;
@@ -20,7 +21,7 @@ export async function getManagers() {
     .order("email");
 
   if (error) {
-    console.error("Get managers error:", error);
+    logger.error({ action: "getManagers", err: error }, "管理者一覧の取得に失敗しました");
     return { data: null, error: error.message };
   }
 
@@ -54,7 +55,7 @@ export async function updateManager(
     .eq("id", id);
 
   if (error) {
-    console.error("Update manager error:", error);
+    logger.error({ action: "updateManager", err: error, managerId: id }, "管理者の更新に失敗しました");
     return { data: null, error: error.message };
   }
 

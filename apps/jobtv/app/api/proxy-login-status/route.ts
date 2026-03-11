@@ -1,5 +1,6 @@
 import { checkProxyLoginStatus } from "@/lib/actions/proxy-login-actions";
 import { NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
 
 export async function GET() {
   try {
@@ -11,7 +12,7 @@ export async function GET() {
 
     return NextResponse.json(result.data);
   } catch (error) {
-    console.error("Get proxy login status error:", error);
+    logger.error({ action: "GET", endpoint: "proxy-login-status", err: error }, "プロキシログイン状態の取得に失敗しました");
     return NextResponse.json(
       { error: "プロキシログイン状態の取得に失敗しました" },
       { status: 500 }

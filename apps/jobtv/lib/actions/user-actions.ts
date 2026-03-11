@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { logger } from "@/lib/logger";
 
 /**
  * ログイン中のユーザー名と企業名を取得
@@ -54,7 +55,7 @@ export async function getUserInfo(): Promise<{
 
     return { userName, companyName, error: null };
   } catch (error) {
-    console.error("Get user info error:", error);
+    logger.error({ action: "getUserInfo", err: error }, "ユーザー情報の取得に失敗");
     return {
       userName: null,
       companyName: null,

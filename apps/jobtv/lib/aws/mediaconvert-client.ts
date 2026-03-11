@@ -1,6 +1,7 @@
 "use server";
 
 import { MediaConvertClient, CreateJobCommand, GetJobCommand } from "@aws-sdk/client-mediaconvert";
+import { logger } from "@/lib/logger";
 
 /**
  * MediaConvertクライアントを作成（内部関数）
@@ -43,9 +44,7 @@ export async function createMediaConvertJob(config: MediaConvertJobConfig): Prom
   error?: string;
 }> {
   try {
-    console.log(
-      "[MediaConvert] Job create start: videoId=" + config.videoId + ", sourceS3Key=" + config.sourceS3Key
-    );
+    logger.info({ action: "createMediaConvertJob", videoId: config.videoId, sourceS3Key: config.sourceS3Key }, "MediaConvertジョブ作成開始");
     const client = createMediaConvertClient();
     const bucket = process.env.AWS_S3_BUCKET || "jobtv-videos-stg";
     const roleArn = process.env.AWS_MEDIACONVERT_ROLE_ARN;
@@ -53,14 +52,14 @@ export async function createMediaConvertJob(config: MediaConvertJobConfig): Prom
     const templatePortrait = process.env.AWS_MEDIACONVERT_TEMPLATE_PORTRAIT;
 
     if (!roleArn) {
-      console.log("[MediaConvert] Job create NG: missing env (role/template)");
+      logger.error({ action: "createMediaConvertJob", videoId: config.videoId }, "AWS_MEDIACONVERT_ROLE_ARNが未設定");
       return { error: "AWS_MEDIACONVERT_ROLE_ARNが設定されていません" };
     }
 
     const templateArn = config.aspectRatio === "portrait" ? templatePortrait : templateLandscape;
 
     if (!templateArn) {
-      console.log("[MediaConvert] Job create NG: missing env (role/template)");
+      logger.error({ action: "createMediaConvertJob", videoId: config.videoId, aspectRatio: config.aspectRatio }, "MediaConvertテンプレートARNが未設定");
       return {
         error: `AWS_MEDIACONVERT_TEMPLATE_${config.aspectRatio.toUpperCase()}が設定されていません`
       };
@@ -124,19 +123,106 @@ export async function createMediaConvertJob(config: MediaConvertJobConfig): Prom
     const response = await client.send(command);
 
     if (!response.Job?.Id) {
-      console.log("[MediaConvert] Job create NG: no job Id in response");
+      logger.error({ action: "createMediaConvertJob", videoId: config.videoId }, "MediaConvertジョブIDがレスポンスに含まれていない");
       return { error: "ジョブの作成に失敗しました" };
     }
 
-    console.log("[MediaConvert] Job create OK: jobId=" + response.Job.Id);
+    logger.info({ action: "createMediaConvertJob", videoId: config.videoId, jobId: response.Job.Id }, "MediaConvertジョブ作成成功");
     return { jobId: response.Job.Id };
   } catch (error) {
     const msg = error instanceof Error ? error.message : "ジョブの作成に失敗しました";
-    console.log("[MediaConvert] Job create NG: " + msg);
-    console.error("MediaConvert job creation error:", error);
+    logger.error({ action: "createMediaConvertJob", videoId: config.videoId, err: error }, "MediaConvertジョブ作成失敗");
     return {
       error: msg
     };
+  }
+}
+
+/**
+ * ヒーローアイテム用MediaConvertジョブを作成（landscape固定）
+ */
+export async function createHeroMediaConvertJob(
+  heroItemId: string,
+  sourceS3Key: string
+): Promise<{ jobId?: string; error?: string }> {
+  try {
+    logger.info({ action: "createHeroMediaConvertJob", heroItemId, sourceS3Key }, "ヒーローMediaConvertジョブ作成開始");
+    const client = createMediaConvertClient();
+    const bucket = process.env.AWS_S3_BUCKET || "jobtv-videos-stg";
+    const roleArn = process.env.AWS_MEDIACONVERT_ROLE_ARN;
+    const templateArn = process.env.AWS_MEDIACONVERT_TEMPLATE_LANDSCAPE;
+
+    if (!roleArn) {
+      logger.error({ action: "createHeroMediaConvertJob", heroItemId }, "AWS_MEDIACONVERT_ROLE_ARNが未設定");
+      return { error: "AWS_MEDIACONVERT_ROLE_ARNが設定されていません" };
+    }
+    if (!templateArn) {
+      logger.error({ action: "createHeroMediaConvertJob", heroItemId }, "AWS_MEDIACONVERT_TEMPLATE_LANDSCAPEが未設定");
+      return { error: "AWS_MEDIACONVERT_TEMPLATE_LANDSCAPEが設定されていません" };
+    }
+
+    const snsTopicArn = process.env.AWS_SNS_TOPIC_ARN;
+    const destinationS3Key = `admin/hero-items/${heroItemId}/hls/landscape/`;
+
+    const jobSettings: any = {
+      Role: roleArn,
+      JobTemplate: templateArn,
+      Settings: {
+        Inputs: [
+          {
+            FileInput: `s3://${bucket}/${sourceS3Key}`
+          }
+        ],
+        OutputGroups: [
+          {
+            Name: "Apple HLS",
+            OutputGroupSettings: {
+              Type: "HLS_GROUP_SETTINGS" as const,
+              HlsGroupSettings: {
+                Destination: `s3://${bucket}/${destinationS3Key}`
+              }
+            }
+          },
+          {
+            Name: "File Group",
+            OutputGroupSettings: {
+              Type: "FILE_GROUP_SETTINGS" as const,
+              FileGroupSettings: {
+                Destination: `s3://${bucket}/${destinationS3Key}`
+              }
+            }
+          }
+        ]
+      },
+      UserMetadata: {
+        heroItemId,
+        aspectRatio: "landscape",
+        sourceKey: sourceS3Key
+      },
+      StatusUpdateInterval: "SECONDS_60" as const
+    };
+
+    if (snsTopicArn) {
+      jobSettings.EventNotification = {
+        CompleteTopicArn: snsTopicArn,
+        ErrorTopicArn: snsTopicArn
+      };
+    }
+
+    const command = new CreateJobCommand(jobSettings);
+    const response = await client.send(command);
+
+    if (!response.Job?.Id) {
+      logger.error({ action: "createHeroMediaConvertJob", heroItemId }, "ヒーローMediaConvertジョブIDがレスポンスに含まれていない");
+      return { error: "ジョブの作成に失敗しました" };
+    }
+
+    logger.info({ action: "createHeroMediaConvertJob", heroItemId, jobId: response.Job.Id }, "ヒーローMediaConvertジョブ作成成功");
+    return { jobId: response.Job.Id };
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "ジョブの作成に失敗しました";
+    logger.error({ action: "createHeroMediaConvertJob", heroItemId, err: error }, "ヒーローMediaConvertジョブ作成失敗");
+    return { error: msg };
   }
 }
 
@@ -163,7 +249,7 @@ export async function getMediaConvertJobStatus(jobId: string): Promise<{
       percentComplete: response.Job.JobPercentComplete ?? 0
     };
   } catch (error) {
-    console.error("Get MediaConvert job status error:", error);
+    logger.error({ action: "getMediaConvertJobStatus", jobId, err: error }, "MediaConvertジョブステータス取得失敗");
     return {
       error: error instanceof Error ? error.message : "ジョブステータスの取得に失敗しました"
     };

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getUserCompanyId } from "@jobtv-app/shared/actions/company-utils";
 import type { Tables, TablesInsert } from "@jobtv-app/shared/types";
 import { sendSessionReservationNotification } from "@/lib/email/send-entry-notification";
+import { logger } from "@/lib/logger";
 
 type SessionReservation = Tables<"session_reservations">;
 type SessionReservationInsert = TablesInsert<"session_reservations">;
@@ -46,7 +47,7 @@ export interface ReservationWithCandidate extends SessionReservation {
     desired_industry: string[] | null;
     desired_job_type: string[] | null;
     assigned_to: string | null;
-    profiles: { email: string | null } | null;
+    profiles: { email: string | null; last_name?: string | null; first_name?: string | null; last_name_kana?: string | null; first_name_kana?: string | null } | null;
   } | null;
 }
 
@@ -63,7 +64,7 @@ export async function getSessionDateReservationCount(sessionDateId: string) {
     .eq("status", "reserved");
 
   if (error) {
-    console.error("Get session date reservation count error:", error);
+    logger.error({ action: "getSessionDateReservationCount", err: error, sessionDateId }, "日程別予約数の取得に失敗しました");
     return { data: null, error: error.message };
   }
 
@@ -85,7 +86,7 @@ export async function getSessionDateReservationCounts(sessionDateIds: string[]) 
   });
 
   if (error) {
-    console.error("Get session date reservation counts error:", error);
+    logger.error({ action: "getSessionDateReservationCounts", err: error }, "日程別予約数の一括取得に失敗しました");
     return { data: null, error: error.message };
   }
 
@@ -115,7 +116,7 @@ export async function getSessionReservationCount(sessionId: string) {
     .eq("session_id", sessionId);
 
   if (datesError) {
-    console.error("Get session dates error:", datesError);
+    logger.error({ action: "getSessionReservationCount", err: datesError, sessionId }, "説明会日程の取得に失敗しました");
     return { data: null, error: datesError.message };
   }
 
@@ -133,7 +134,7 @@ export async function getSessionReservationCount(sessionId: string) {
     .eq("status", "reserved");
 
   if (error) {
-    console.error("Get session reservation count error:", error);
+    logger.error({ action: "getSessionReservationCount", err: error, sessionId }, "説明会予約数の取得に失敗しました");
     return { data: null, error: error.message };
   }
 
@@ -152,15 +153,11 @@ export async function getSessionDateReservations(sessionDateId: string) {
       `
       *,
       candidates (
-        last_name,
-        first_name,
-        last_name_kana,
-        first_name_kana,
         phone,
         school_name,
         gender,
         graduation_year,
-        profiles!profiles_candidate_id_fkey (email)
+        profiles!profiles_candidate_id_fkey (email, last_name, first_name, last_name_kana, first_name_kana)
       )
     `
     )
@@ -168,7 +165,7 @@ export async function getSessionDateReservations(sessionDateId: string) {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Get session date reservations error:", error);
+    logger.error({ action: "getSessionDateReservations", err: error, sessionDateId }, "日程別予約一覧の取得に失敗しました");
     return { data: null, error: error.message };
   }
 
@@ -190,7 +187,7 @@ export async function getSessionReservations(sessionId: string) {
     .order("start_time", { ascending: true });
 
   if (datesError) {
-    console.error("Get session dates error:", datesError);
+    logger.error({ action: "getSessionReservations", err: datesError, sessionId }, "説明会日程の取得に失敗しました");
     return { data: null, error: datesError.message };
   }
 
@@ -207,15 +204,11 @@ export async function getSessionReservations(sessionId: string) {
       `
       *,
       candidates (
-        last_name,
-        first_name,
-        last_name_kana,
-        first_name_kana,
         phone,
         school_name,
         gender,
         graduation_year,
-        profiles!profiles_candidate_id_fkey (email)
+        profiles!profiles_candidate_id_fkey (email, last_name, first_name, last_name_kana, first_name_kana)
       )
     `
     )
@@ -223,7 +216,7 @@ export async function getSessionReservations(sessionId: string) {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Get session reservations error:", error);
+    logger.error({ action: "getSessionReservations", err: error, sessionId }, "説明会予約一覧の取得に失敗しました");
     return { data: null, error: error.message };
   }
 
@@ -271,7 +264,7 @@ export async function getAllReservations({
   const { data: sessions, error: sessionsError } = await sessionsQuery;
 
   if (sessionsError) {
-    console.error("Get sessions error:", sessionsError);
+    logger.error({ action: "getAllReservations", err: sessionsError }, "説明会一覧の取得に失敗しました");
     return { data: null, count: null, error: sessionsError.message };
   }
   if (!sessions || sessions.length === 0) {
@@ -313,7 +306,7 @@ export async function getAllReservations({
   const { data: reservationsRaw, count: totalCount, error: reservationsError } = await reservationsQuery;
 
   if (reservationsError) {
-    console.error("Get all reservations error:", reservationsError);
+    logger.error({ action: "getAllReservations", err: reservationsError }, "全予約一覧の取得に失敗しました");
     return { data: null, count: null, error: reservationsError.message };
   }
   if (!reservationsRaw || reservationsRaw.length === 0) {
@@ -364,25 +357,24 @@ export async function getAllReservations({
     }
   });
 
-  // 4. 候補者IDをまとめて、候補者＋メールを一括取得（求人の応募数と同様に単体テーブルで取得）
+  // 4. 候補者IDをまとめて、候補者＋メール＋名前を一括取得（名前は profiles に集約）
   const candidateIds = [...new Set(reservations.map((r) => r.candidate_id))];
   const { data: candidatesRows, error: candidatesError } = await supabase
     .from("candidates")
     .select(
       `
       id,
-      last_name, first_name, last_name_kana, first_name_kana,
       gender, date_of_birth, phone,
       school_name, school_type, faculty_name, department_name, major_field, graduation_year,
       desired_work_location, desired_industry, desired_job_type,
-      assigned_to,
-      profiles!profiles_candidate_id_fkey (email)
+      candidate_management(assigned_to),
+      profiles!profiles_candidate_id_fkey (email, last_name, first_name, last_name_kana, first_name_kana)
     `
     )
     .in("id", candidateIds);
 
   if (candidatesError) {
-    console.error("Get candidates for reservations error:", candidatesError);
+    logger.error({ action: "getAllReservations", err: candidatesError }, "予約候補者情報の取得に失敗しました");
     return { data: null, count: null, error: candidatesError.message };
   }
 
@@ -410,11 +402,15 @@ export async function getAllReservations({
     }
   >();
   (candidatesRows ?? []).forEach((c: Record<string, unknown>) => {
+    const prof = Array.isArray(c.profiles) && c.profiles.length > 0
+      ? c.profiles[0] as { email: string | null; last_name: string | null; first_name: string | null; last_name_kana: string | null; first_name_kana: string | null }
+      : c.profiles as { email: string | null; last_name: string | null; first_name: string | null; last_name_kana: string | null; first_name_kana: string | null } | null;
+    const mgmt = Array.isArray(c.candidate_management) ? (c.candidate_management as { assigned_to?: string | null }[])[0] : c.candidate_management as { assigned_to?: string | null } | null;
     candidateMap.set(c.id as string, {
-      last_name: (c.last_name as string) ?? "",
-      first_name: (c.first_name as string) ?? "",
-      last_name_kana: (c.last_name_kana as string) ?? "",
-      first_name_kana: (c.first_name_kana as string) ?? "",
+      last_name: prof?.last_name ?? "",
+      first_name: prof?.first_name ?? "",
+      last_name_kana: prof?.last_name_kana ?? "",
+      first_name_kana: prof?.first_name_kana ?? "",
       phone: (c.phone as string | null) ?? null,
       school_name: (c.school_name as string | null) ?? null,
       school_type: (c.school_type as string | null) ?? null,
@@ -427,10 +423,8 @@ export async function getAllReservations({
       desired_work_location: (c.desired_work_location as string | null) ?? null,
       desired_industry: (c.desired_industry as string[] | null) ?? null,
       desired_job_type: (c.desired_job_type as string[] | null) ?? null,
-      assigned_to: (c.assigned_to as string | null) ?? null,
-      profiles: Array.isArray(c.profiles) && c.profiles.length > 0
-        ? { email: (c.profiles[0] as { email: string | null }).email }
-        : null
+      assigned_to: mgmt?.assigned_to ?? null,
+      profiles: prof ? { email: prof.email } : null
     });
   });
 
@@ -469,14 +463,10 @@ export async function createSessionReservation(sessionDateId: string, candidateD
     let candidateId: string | null = profileByEmail?.candidate_id ?? null;
 
     if (candidateId) {
-      // 既存の候補者を更新
+      // 既存の候補者を更新（名前は profiles に）
       const { error: updateError } = await supabase
         .from("candidates")
         .update({
-          last_name: candidateData.last_name,
-          first_name: candidateData.first_name,
-          last_name_kana: candidateData.last_name_kana,
-          first_name_kana: candidateData.first_name_kana,
           phone: candidateData.phone,
           school_name: candidateData.school_name || null,
           gender: candidateData.gender || null,
@@ -486,18 +476,30 @@ export async function createSessionReservation(sessionDateId: string, candidateD
         .eq("id", candidateId);
 
       if (updateError) {
-        console.error("Update candidate error:", updateError);
+        logger.error({ action: "createSessionReservation", err: updateError, candidateId }, "候補者情報の更新に失敗しました");
         return { data: null, error: "候補者情報の更新に失敗しました" };
       }
-    } else {
-      // 新規候補者を作成（email は candidates に持たない。予約時点では profile 未作成のため、候補者のみ作成）
-      const { data: newCandidate, error: candidateError } = await supabase
-        .from("candidates")
-        .insert({
+
+      // profiles の名前を更新
+      const { error: profileUpdateError } = await supabase
+        .from("profiles")
+        .update({
           last_name: candidateData.last_name,
           first_name: candidateData.first_name,
           last_name_kana: candidateData.last_name_kana,
           first_name_kana: candidateData.first_name_kana,
+          updated_at: new Date().toISOString()
+        })
+        .eq("candidate_id", candidateId);
+
+      if (profileUpdateError) {
+        logger.error({ action: "createSessionReservation", err: profileUpdateError, candidateId }, "プロフィール名の更新に失敗しました");
+      }
+    } else {
+      // 新規候補者を作成（名前は profiles に保存）
+      const { data: newCandidate, error: candidateError } = await supabase
+        .from("candidates")
+        .insert({
           phone: candidateData.phone,
           school_name: candidateData.school_name || null,
           gender: candidateData.gender || null,
@@ -507,11 +509,14 @@ export async function createSessionReservation(sessionDateId: string, candidateD
         .single();
 
       if (candidateError || !newCandidate) {
-        console.error("Create candidate error:", candidateError);
+        logger.error({ action: "createSessionReservation", err: candidateError }, "候補者の作成に失敗しました");
         return { data: null, error: "候補者の作成に失敗しました" };
       }
 
       candidateId = newCandidate.id;
+
+      // NOTE: 予約時点ではまだ profiles が存在しない場合がある（未ログインユーザー）。
+      // 名前は後で profiles に紐付く際に設定される。
     }
 
     // 2. 定員チェック（日程 or 説明会の定員を超えていたら予約不可）
@@ -560,14 +565,14 @@ export async function createSessionReservation(sessionDateId: string, candidateD
       .single();
 
     if (reservationError || !reservation) {
-      console.error("Create reservation error:", reservationError);
+      logger.error({ action: "createSessionReservation", err: reservationError, sessionDateId, candidateId }, "予約の作成に失敗しました");
       return { data: null, error: "予約の作成に失敗しました" };
     }
 
     revalidatePath("/studio/sessions");
     return { data: reservation, error: null };
   } catch (error) {
-    console.error("Create session reservation error:", error);
+    logger.error({ action: "createSessionReservation", err: error, sessionDateId }, "予約作成で予期しないエラーが発生しました");
     return { data: null, error: "予約の作成に失敗しました" };
   }
 }
@@ -593,7 +598,7 @@ export async function createSessionReservationForLoggedInCandidate(sessionDateId
     .single();
 
   if (profileError || !profile) {
-    console.error("Get profile error:", profileError);
+    logger.error({ action: "createSessionReservationForLoggedInCandidate", err: profileError }, "プロフィールの取得に失敗しました");
     return { data: null, error: "プロフィールを取得できませんでした" };
   }
 
@@ -654,14 +659,16 @@ export async function createSessionReservationForLoggedInCandidate(sessionDateId
     .single();
 
   if (reservationError || !reservation) {
-    console.error("Create reservation error:", reservationError);
+    logger.error({ action: "createSessionReservationForLoggedInCandidate", err: reservationError, sessionDateId, candidateId }, "予約の作成に失敗しました");
     return { data: null, error: "予約の作成に失敗しました" };
   }
 
   revalidatePath("/", "layout");
   revalidatePath(`/session/${sessionDate.session_id}`);
 
-  sendSessionReservationNotification(sessionDateId, candidateId).catch(console.error);
+  sendSessionReservationNotification(sessionDateId, candidateId).catch((err) =>
+    logger.error({ action: "createSessionReservationForLoggedInCandidate", err, sessionDateId, candidateId }, "予約通知メールの送信に失敗しました")
+  );
 
   return { data: reservation, error: null };
 }
@@ -698,7 +705,7 @@ export async function getReservedSessionDateIdsForCurrentCandidate(sessionDateId
     .in("session_date_id", sessionDateIds);
 
   if (error) {
-    console.error("getReservedSessionDateIdsForCurrentCandidate error:", error);
+    logger.error({ action: "getReservedSessionDateIdsForCurrentCandidate", err: error }, "予約済み日程IDの取得に失敗しました");
     return { data: [], error: null };
   }
 
@@ -723,7 +730,7 @@ export async function updateReservationStatus(reservationId: string, status: str
     .single();
 
   if (error) {
-    console.error("Update reservation status error:", error);
+    logger.error({ action: "updateReservationStatus", err: error, reservationId, status }, "予約ステータスの更新に失敗しました");
     return { data: null, error: error.message };
   }
 
@@ -755,7 +762,7 @@ export async function markReservationAttended(reservationId: string, attended: b
     .single();
 
   if (error) {
-    console.error("Mark reservation attended error:", error);
+    logger.error({ action: "markReservationAttended", err: error, reservationId, attended }, "出席確認の更新に失敗しました");
     return { data: null, error: error.message };
   }
 

@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useMasterData } from "@/hooks/useMasterData";
 import type { Database } from "@/types";
 
-type MasterEventType = Database["public"]["Tables"]["master_event_types"]["Row"];
+type MasterEventType = Database["public"]["Tables"]["event_types"]["Row"];
 
 type MasterEventTypeFormModalProps = {
   isOpen: boolean;
@@ -78,7 +78,7 @@ export default function MasterEventTypeFormModal({
       if (isEditMode && initialData) {
         // 更新
         const { error: updateError } = await supabase
-          .from("master_event_types")
+          .from("event_types")
           .update({
             name,
             target_graduation_year: targetGraduationYear
@@ -97,7 +97,7 @@ export default function MasterEventTypeFormModal({
       } else {
         // 新規作成
         const { error: insertError } = await supabase
-          .from("master_event_types")
+          .from("event_types")
           .insert({
             name,
             target_graduation_year: targetGraduationYear

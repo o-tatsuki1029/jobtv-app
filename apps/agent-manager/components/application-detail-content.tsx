@@ -28,10 +28,8 @@ export async function ApplicationDetailContent({
       *,
       candidates (
         id,
-        first_name,
-        last_name,
         phone,
-        profiles!profiles_candidate_id_fkey (email)
+        profiles!profiles_candidate_id_fkey (email, first_name, last_name)
       ),
       job_postings (
         id,
@@ -117,8 +115,8 @@ export async function ApplicationDetailContent({
                 <div className="flex items-center gap-2 mt-1">
                   <Users className="h-4 w-4 text-muted-foreground" />
                   <p className="text-sm font-medium">
-                    {application.candidates
-                      ? `${application.candidates.last_name} ${application.candidates.first_name}`
+                    {application.candidates?.profiles
+                      ? `${application.candidates.profiles.last_name} ${application.candidates.profiles.first_name}`
                       : "不明"}
                   </p>
                   <Button

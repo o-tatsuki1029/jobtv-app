@@ -8,7 +8,7 @@ type RawEventData = {
   id: string;
   event_date: string;
   event_type_id: string | null;
-  master_event_types: {
+  event_types: {
     name: string;
     target_graduation_year: number | null;
     area: string | null;
@@ -26,9 +26,9 @@ type RawEventData = {
 export function transformEventData(rawData: RawEventData[]) {
   return rawData.map((event) => ({
     ...event,
-    event_name: event.master_event_types?.name || "",
-    target_graduation_year: event.master_event_types?.target_graduation_year || null,
-    area: event.master_event_types?.area || null,
+    event_name: event.event_types?.name || "",
+    target_graduation_year: event.event_types?.target_graduation_year || null,
+    area: event.event_types?.area || null,
   }));
 }
 

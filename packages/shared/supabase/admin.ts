@@ -1,5 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import { configureDevelopmentTLS } from "@jobtv-app/shared/utils/dev-config";
+import pino from "pino";
+
+const logger = pino({ name: "shared/admin" });
 
 /**
  * Supabase Admin API用のクライアント（RLSをバイパス）
@@ -32,7 +35,7 @@ export function createAdminClient() {
       },
     });
   } catch (error) {
-    console.error("Admin Client作成エラー:", error);
+    logger.error({ action: "createAdminClient", err: error }, "Admin Clientの作成に失敗しました");
     throw new Error(
       `Admin Clientの作成に失敗しました: ${
         error instanceof Error ? error.message : String(error)

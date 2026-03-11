@@ -9,6 +9,7 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { sendTemplatedEmail } from "@/lib/email/send-templated-email";
+import { logger } from "@/lib/logger";
 
 // Standard Webhooks 形式の署名検証
 // Supabase は HMAC-SHA256 を "{webhook-id}.{webhook-timestamp}.{body}" で計算し
@@ -80,7 +81,7 @@ export async function POST(request: NextRequest) {
   const webhookSignature = request.headers.get("webhook-signature")  ?? "";
 
   if (!verifyHookSignature(rawBody, webhookId, webhookTimestamp, webhookSignature)) {
-    console.error("[EmailHook] 署名の検証に失敗しました");
+    logger.error({ action: "POST", hook: "email" }, "署名の検証に失敗しました");
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -133,7 +134,7 @@ export async function POST(request: NextRequest) {
   });
 
   if (error) {
-    console.error(`[EmailHook] sendTemplatedEmail 失敗 (${emailActionType}):`, error);
+    logger.error({ action: "POST", hook: "email", emailActionType, err: error }, "テンプレートメール送信に失敗しました");
     // 500 を返すと Supabase がリトライする
     return NextResponse.json({ error }, { status: 500 });
   }

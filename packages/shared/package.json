@@ -20,6 +20,8 @@
     "./utils/cn": "./utils/cn.ts",
     "./utils/validation": "./utils/validation.ts",
     "./utils/char-count": "./utils/char-count.ts",
+    "./utils/logger": "./utils/logger.ts",
+    "./utils/audit": "./utils/audit.ts",
     "./icons": "./icons/index.ts"
   },
   "dependencies": {

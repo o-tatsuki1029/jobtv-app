@@ -6,11 +6,11 @@ const nextConfig: NextConfig = {
   experimental: {
     turbopackUseSystemTlsCerts: true,
     serverActions: {
-      // 動画ファイルアップロードに対応するため、ボディサイズ上限を50MBに設定
-      bodySizeLimit: 50 * 1024 * 1024 // 50MB in bytes
+      // ヒーロー動画アップロードに対応するため、ボディサイズ上限を500MBに設定
+      bodySizeLimit: 500 * 1024 * 1024 // 500MB in bytes
     },
-    // Middleware（proxy.ts）でのリクエストボディサイズ上限を50MBに設定
-    proxyClientMaxBodySize: 50 * 1024 * 1024 // 50MB in bytes
+    // Middleware（proxy.ts）でのリクエストボディサイズ上限を500MBに設定
+    proxyClientMaxBodySize: 500 * 1024 * 1024 // 500MB in bytes
   },
   images: {
     remotePatterns: ALLOWED_IMAGE_HOSTS.map((hostname) => ({

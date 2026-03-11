@@ -8,7 +8,7 @@ import { FormField, NumberInput } from "@/components/ui/form/FormField";
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/types";
 
-type MasterGraduationYear = Database["public"]["Tables"]["master_graduation_years"]["Row"];
+type MasterGraduationYear = Database["public"]["Tables"]["event_graduation_years"]["Row"];
 
 type MasterGraduationYearFormModalProps = {
   isOpen: boolean;
@@ -58,7 +58,7 @@ export default function MasterGraduationYearFormModal({
       if (isEditMode && initialData) {
         // 更新
         const { error: updateError } = await supabase
-          .from("master_graduation_years")
+          .from("event_graduation_years")
           .update({
             year,
             is_active: isActive,
@@ -73,7 +73,7 @@ export default function MasterGraduationYearFormModal({
       } else {
         // 新規作成
         const { error: insertError } = await supabase
-          .from("master_graduation_years")
+          .from("event_graduation_years")
           .insert({
             year,
             is_active: isActive,

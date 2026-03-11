@@ -3,6 +3,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { checkAdminPermission } from "@/lib/actions/admin-actions";
+import { logger } from "@/lib/logger";
 import type { Tables, TablesInsert, TablesUpdate } from "@jobtv-app/shared/types";
 
 type EmailTemplate = Tables<"email_templates">;
@@ -25,12 +26,12 @@ export async function getEmailTemplates(): Promise<{
       .order("created_at", { ascending: true });
 
     if (error) {
-      console.error("getEmailTemplates error:", error);
+      logger.error({ action: "getEmailTemplates", err: error }, "テンプレート一覧の取得に失敗しました");
       return { data: null, error: error.message };
     }
     return { data: data ?? [], error: null };
   } catch (e) {
-    console.error("getEmailTemplates error:", e);
+    logger.error({ action: "getEmailTemplates", err: e }, "テンプレート一覧の取得に失敗しました");
     return { data: null, error: "テンプレート一覧の取得に失敗しました" };
   }
 }
@@ -54,12 +55,12 @@ export async function getEmailTemplate(id: string): Promise<{
       .single();
 
     if (error) {
-      console.error("getEmailTemplate error:", error);
+      logger.error({ action: "getEmailTemplate", err: error, id }, "テンプレートの取得に失敗しました");
       return { data: null, error: error.message };
     }
     return { data, error: null };
   } catch (e) {
-    console.error("getEmailTemplate error:", e);
+    logger.error({ action: "getEmailTemplate", err: e, id }, "テンプレートの取得に失敗しました");
     return { data: null, error: "テンプレートの取得に失敗しました" };
   }
 }
@@ -98,14 +99,14 @@ export async function createEmailTemplate(input: {
       .single();
 
     if (error) {
-      console.error("createEmailTemplate error:", error);
+      logger.error({ action: "createEmailTemplate", err: error }, "テンプレートの作成に失敗しました");
       return { data: null, error: error.message };
     }
 
     revalidatePath("/admin/email");
     return { data, error: null };
   } catch (e) {
-    console.error("createEmailTemplate error:", e);
+    logger.error({ action: "createEmailTemplate", err: e }, "テンプレートの作成に失敗しました");
     return { data: null, error: "テンプレートの作成に失敗しました" };
   }
 }
@@ -139,14 +140,14 @@ export async function updateEmailTemplate(
       .single();
 
     if (error) {
-      console.error("updateEmailTemplate error:", error);
+      logger.error({ action: "updateEmailTemplate", err: error, id }, "テンプレートの更新に失敗しました");
       return { data: null, error: error.message };
     }
 
     revalidatePath("/admin/email");
     return { data, error: null };
   } catch (e) {
-    console.error("updateEmailTemplate error:", e);
+    logger.error({ action: "updateEmailTemplate", err: e, id }, "テンプレートの更新に失敗しました");
     return { data: null, error: "テンプレートの更新に失敗しました" };
   }
 }
@@ -168,14 +169,14 @@ export async function deleteEmailTemplate(
       .eq("id", id);
 
     if (error) {
-      console.error("deleteEmailTemplate error:", error);
+      logger.error({ action: "deleteEmailTemplate", err: error, id }, "テンプレートの削除に失敗しました");
       return { data: null, error: error.message };
     }
 
     revalidatePath("/admin/email");
     return { data: null, error: null };
   } catch (e) {
-    console.error("deleteEmailTemplate error:", e);
+    logger.error({ action: "deleteEmailTemplate", err: e, id }, "テンプレートの削除に失敗しました");
     return { data: null, error: "テンプレートの削除に失敗しました" };
   }
 }

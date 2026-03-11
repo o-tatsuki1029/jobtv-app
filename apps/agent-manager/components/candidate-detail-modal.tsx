@@ -80,10 +80,10 @@ export function CandidateDetailModal({
             <CandidateForm
               initialData={{
                 id: candidate.id,
-                first_name: candidate.first_name,
-                last_name: candidate.last_name,
-                first_name_kana: candidate.first_name_kana,
-                last_name_kana: candidate.last_name_kana,
+                first_name: candidate.profiles?.first_name ?? "",
+                last_name: candidate.profiles?.last_name ?? "",
+                first_name_kana: candidate.profiles?.first_name_kana ?? "",
+                last_name_kana: candidate.profiles?.last_name_kana ?? "",
                 email: candidate.profiles?.email ?? "",
                 phone: candidate.phone || "",
                 notes: candidate.notes || "",
