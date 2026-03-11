@@ -106,6 +106,19 @@ claude mcp add --transport http -H "Authorization: Bearer ${VERCEL_TOKEN}" --sco
 }
 ```
 
+### 3.1 PROD DB 保護 hooks（プロジェクト設定）
+
+`.claude/settings.json` に PreToolUse hook が設定されており、PROD DB への危険な操作を物理的にブロックする。
+
+**ブロック対象（PROD のみ）**:
+- `supabase db reset`（Bash 経由 — PROD リンク時のデータ消失防止）
+- PROD への `execute_sql`（MCP 経由の直接 SQL 実行）
+- PROD への `apply_migration`（MCP 経由 → `pnpm db:push:prod` を使用すること）
+
+**ガードスクリプト**: `.claude/hooks/prod-guard.sh`
+
+詳細は `docs/database.md`「本番データベース変更ルール > 自動ガード」を参照。
+
 ### 4. プロジェクトレベル context7
 
 `.mcp.json`（プロジェクトルート）はリポジトリに含まれており、設定済み。クローン後は自動的に利用可能。

@@ -37,7 +37,14 @@ export interface MainPageContentProps {
     streamingUrl?: string | null;
   }>;
   accounts: Array<{ id: string; name: string; avatar: string; href?: string }>;
-  documentaryPrograms: Array<{
+  documentaries: Array<{
+    id: string;
+    title: string;
+    thumbnail: string;
+    channel: string;
+    linkUrl?: string;
+  }>;
+  shukatsuVideos: Array<{
     id: string;
     title: string;
     thumbnail: string;
@@ -46,7 +53,7 @@ export interface MainPageContentProps {
     videoUrl?: string;
     streamingUrl?: string | null;
   }>;
-  shundiaryVideos: Array<{ id: string; title: string; thumbnail: string }>;
+  shundiaryVideos: Array<{ id: string; title: string; thumbnail: string; linkUrl?: string }>;
   industrySections: MainPageIndustrySection[];
 }
 
@@ -55,7 +62,8 @@ export default function MainPageContent({
   banners,
   shortVideos,
   accounts,
-  documentaryPrograms,
+  documentaries,
+  shukatsuVideos,
   shundiaryVideos,
   industrySections
 }: MainPageContentProps) {
@@ -72,63 +80,90 @@ export default function MainPageContent({
     <div className={cn("min-h-screen", classes.pageBg, classes.pageText)}>
       <HeroSection items={heroPrograms} />
       <div className={classes.contentAreaBg}>
-        <div className={classes.bannerListBg}>
-          <BannerList banners={banners} />
-        </div>
+        {banners.length > 0 && (
+          <div className={classes.bannerListBg}>
+            <BannerList banners={banners} />
+          </div>
+        )}
 
-        <div id="short" className="scroll-mt-20 py-8">
-          <ShortVideoSection
-            title="就活Shorts"
-            description="短い動画で企業の雰囲気や社員の声をチェック。気になる企業を手軽に発見しよう。"
-            showMore={false}
-            videos={shortVideos}
-            onVideoClick={(video) => {
-              if (video.videoUrl || video.streamingUrl) {
-                setModalVideo({
-                  videoUrl: video.videoUrl || video.streamingUrl || "",
-                  streamingUrl: video.streamingUrl,
-                  title: video.title,
-                  thumbnail: video.thumbnail ?? undefined,
-                  aspectRatio: "portrait"
-                });
-              }
-            }}
-          />
-        </div>
-        <AccountList accounts={accounts} />
-        <div
-          id="documentary"
-          className={cn("py-8 scroll-mt-20", classes.contentSectionBg, classes.contentSectionBorder)}
-        >
-          <ProgramSection
-            title="就活ドキュメンタリー"
-            description="企業密着や社員インタビューなど、企業を深く知れるドキュメンタリー動画をまとめてお届けします。"
-            showMore={false}
-            programs={documentaryPrograms}
-            largeCards={true}
-            onProgramClick={(program) => {
-              if (program.videoUrl || program.streamingUrl) {
-                setModalVideo({
-                  videoUrl: program.videoUrl || program.streamingUrl || "",
-                  streamingUrl: program.streamingUrl,
-                  title: program.title,
-                  thumbnail: program.thumbnail,
-                  aspectRatio: "video"
-                });
-              }
-            }}
-          />
-        </div>
-        <div
-          id="shundiary"
-          className={cn("py-8 scroll-mt-20", classes.contentSectionBg, classes.contentSectionBorder)}
-        >
-          <ShundiarySection
-            title="しゅんダイアリー就活対策動画"
-            description="就活対策に役立つ動画をまとめてお届けします。"
-            items={shundiaryVideos ?? []}
-          />
-        </div>
+        {shortVideos.length > 0 && (
+          <div id="short" className="scroll-mt-20 py-8">
+            <ShortVideoSection
+              title="就活Shorts"
+              description="短い動画で企業の雰囲気や社員の声をチェック。気になる企業を手軽に発見しよう。"
+              showMore={false}
+              videos={shortVideos}
+              onVideoClick={(video) => {
+                if (video.videoUrl || video.streamingUrl) {
+                  setModalVideo({
+                    videoUrl: video.videoUrl || video.streamingUrl || "",
+                    streamingUrl: video.streamingUrl,
+                    title: video.title,
+                    thumbnail: video.thumbnail ?? undefined,
+                    aspectRatio: "portrait"
+                  });
+                }
+              }}
+            />
+          </div>
+        )}
+        {accounts.length > 0 && <AccountList accounts={accounts} />}
+        {documentaries.length > 0 && (
+          <div
+            id="documentary"
+            className={cn("py-8 scroll-mt-20", classes.contentSectionBg, classes.contentSectionBorder)}
+          >
+            <ProgramSection
+              title="就活ドキュメンタリー"
+              description="企業密着や社員インタビューなど、企業を深く知れるドキュメンタリー動画をまとめてお届けします。"
+              showMore={false}
+              programs={documentaries}
+              largeCards={true}
+              onProgramClick={(program) => {
+                if (program.linkUrl) {
+                  window.open(program.linkUrl, "_blank", "noopener,noreferrer");
+                }
+              }}
+            />
+          </div>
+        )}
+        {shukatsuVideos.length > 0 && (
+          <div
+            id="shukatsu-videos"
+            className={cn("py-8 scroll-mt-20", classes.contentSectionBg, classes.contentSectionBorder)}
+          >
+            <ProgramSection
+              title="就活Videos"
+              description="企業密着や社員インタビューなど、企業を深く知れる動画をまとめてお届けします。"
+              showMore={false}
+              programs={shukatsuVideos}
+              largeCards={true}
+              onProgramClick={(program) => {
+                if (program.videoUrl || program.streamingUrl) {
+                  setModalVideo({
+                    videoUrl: program.videoUrl || program.streamingUrl || "",
+                    streamingUrl: program.streamingUrl,
+                    title: program.title,
+                    thumbnail: program.thumbnail,
+                    aspectRatio: "video"
+                  });
+                }
+              }}
+            />
+          </div>
+        )}
+        {shundiaryVideos.length > 0 && (
+          <div
+            id="shundiary"
+            className={cn("py-8 scroll-mt-20", classes.contentSectionBg, classes.contentSectionBorder)}
+          >
+            <ShundiarySection
+              title="しゅんダイアリー就活対策動画"
+              description="就活対策に役立つ動画をまとめてお届けします。"
+              items={shundiaryVideos}
+            />
+          </div>
+        )}
         {Array.isArray(industrySections) && (
           <div id="company" className="scroll-mt-20">
             {industrySections.map((industry) => (

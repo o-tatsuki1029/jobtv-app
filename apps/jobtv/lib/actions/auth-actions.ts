@@ -16,7 +16,8 @@ import { sendTemplatedEmail } from "@/lib/email/send-templated-email";
 import { sendSignupSlackNotification } from "@/lib/email/slack";
 import { appendCandidateToSheet } from "@/lib/google/sheets";
 import { logger } from "@/lib/logger";
-import type { SignUpCandidatePayload } from "@/lib/types/signup";
+import { buildCandidatePayloadFromFormData } from "@/lib/utils/candidate-payload";
+import { resolveSchoolKcode } from "@/lib/actions/school-actions";
 
 /**
  * サインアップ処理。認証作成後、同一セッションで candidates 作成と profiles.candidate_id 紐付けを RPC で実行する。
@@ -45,6 +46,9 @@ export async function signUp(formData: FormData) {
 
   const payload = buildCandidatePayloadFromFormData(formData, email);
   payload.user_id = authData.user?.id ?? null;
+  if (!payload.school_kcode && payload.school_name) {
+    payload.school_kcode = await resolveSchoolKcode(payload.school_name, payload.school_type);
+  }
   const { error: rpcError } = await supabase.rpc("create_candidate_and_link_profile", {
     payload: payload as unknown as Record<string, unknown>
   });
@@ -125,52 +129,6 @@ export async function checkEmailForSignup(email: string): Promise<CheckEmailForS
     logger.error({ action: "checkEmailForSignup", err: e }, "メールアドレスのサインアップ確認に失敗しました");
     return { status: "error", error: "確認に失敗しました。しばらく経ってからお試しください。" };
   }
-}
-
-/**
- * FormData から RPC 用の candidate payload を組み立てる
- */
-function buildCandidatePayloadFromFormData(
-  formData: FormData,
-  email: string
-): SignUpCandidatePayload {
-  const get = (key: string) => String(formData.get(key) ?? "").trim();
-  const getNum = (key: string) => {
-    const v = formData.get(key);
-    if (v === null || v === undefined) return 0;
-    const n = Number(v);
-    return Number.isFinite(n) ? n : 0;
-  };
-  const getArray = (key: string) => {
-    return formData.getAll(key).filter((x): x is string => typeof x === "string" && x !== "");
-  };
-
-  return {
-    email,
-    last_name: get("last_name"),
-    first_name: get("first_name"),
-    last_name_kana: get("last_name_kana"),
-    first_name_kana: get("first_name_kana"),
-    gender: get("gender"),
-    desired_work_location: get("desired_work_location"),
-    date_of_birth: get("date_of_birth"),
-    phone: get("phone"),
-    school_type: get("school_type"),
-    school_name: get("school_name"),
-    school_kcode: formData.get("school_kcode") ? String(formData.get("school_kcode")) : null,
-    faculty_name: get("faculty_name"),
-    department_name: get("department_name"),
-    major_field: get("major_field"),
-    graduation_year: getNum("graduation_year"),
-    desired_industry: getArray("desired_industry"),
-    desired_job_type: getArray("desired_job_type"),
-    referrer: formData.get("referrer") ? String(formData.get("referrer")) : null,
-    utm_source: formData.get("utm_source") ? String(formData.get("utm_source")) : null,
-    utm_medium: formData.get("utm_medium") ? String(formData.get("utm_medium")) : null,
-    utm_campaign: formData.get("utm_campaign") ? String(formData.get("utm_campaign")) : null,
-    utm_content: formData.get("utm_content") ? String(formData.get("utm_content")) : null,
-    utm_term: formData.get("utm_term") ? String(formData.get("utm_term")) : null
-  };
 }
 
 /**

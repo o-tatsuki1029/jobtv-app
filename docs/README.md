@@ -15,7 +15,7 @@
 | [roles-and-auth.md](roles-and-auth.md) | 3 ロール（admin/recruiter/candidate）、データ分離、認証・ロール取得・ルート保護、参照実装パス。 |
 | [code-style.md](code-style.md) | ファイル命名、型安全性、コメント、インポートの規約。 |
 | [server-actions.md](server-actions.md) | Server Actions の配置・命名・戻り値・エラーハンドリング・revalidatePath。 |
-| [database.md](database.md) | マイグレーション管理・型定義の分類と配置・Supabase クライアントの使用。 |
+| [database.md](database.md) | マイグレーション管理・型定義の分類と配置・Supabase クライアントの使用・本番 DB 変更ルール。 |
 | [ui-and-styling.md](ui-and-styling.md) | Tailwind、コンポーネント、データフェッチ、ページテーマの規約。 |
 | [monorepo.md](monorepo.md) | モノレポ構成、パッケージ、開発ワークフロー、環境変数。 |
 | [deployment.md](deployment.md) | ブランチ戦略・環境構成・Vercel デプロイ設定・管理者画面 IP 制限。 |

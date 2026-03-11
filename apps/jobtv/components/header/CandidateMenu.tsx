@@ -14,7 +14,6 @@ const menuItems = [
   { label: "マイページ", href: "/mypage" },
   { label: "イベント予約一覧", href: "/mypage/reservations" },
   { label: "エントリー中の企業", href: "/mypage/entries" },
-  { label: "LINE連携", href: "/settings/line" },
   { label: "よくある質問", href: "/mypage/faq" }
 ];
 

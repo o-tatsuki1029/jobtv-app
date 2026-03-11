@@ -13,6 +13,7 @@ export interface ShundiaryItem {
   title: string;
   thumbnail: string;
   channel?: string;
+  linkUrl?: string;
 }
 
 interface ShundiarySectionProps {
@@ -50,20 +51,39 @@ export default function ShundiarySection({
         <div className="-mx-4 md:mx-0">
           <HorizontalScrollContainer>
             <div className="flex gap-5 min-w-max pl-4 md:pl-0">
-              {list.map((item) => (
-                <div
-                  key={item.id}
-                  className={cn(HORIZONTAL_CARD_WIDTH.video, "flex-shrink-0")}
-                  onClick={() => onItemClick?.(item)}
-                >
+              {list.map((item) => {
+                const card = (
                   <ProgramCard
                     title={item.title}
                     thumbnail={item.thumbnail}
                     channel={item.channel ?? "しゅんダイアリー"}
                     vertical={false}
+                    showPlayOverlay={false}
                   />
-                </div>
-              ))}
+                );
+                if (item.linkUrl) {
+                  return (
+                    <a
+                      key={item.id}
+                      href={item.linkUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={cn(HORIZONTAL_CARD_WIDTH.video, "flex-shrink-0")}
+                    >
+                      {card}
+                    </a>
+                  );
+                }
+                return (
+                  <div
+                    key={item.id}
+                    className={cn(HORIZONTAL_CARD_WIDTH.video, "flex-shrink-0")}
+                    onClick={() => onItemClick?.(item)}
+                  >
+                    {card}
+                  </div>
+                );
+              })}
             </div>
           </HorizontalScrollContainer>
         </div>

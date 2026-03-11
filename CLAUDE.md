@@ -20,6 +20,7 @@
 | 認証・ロール・ルート保護・データ分離 | `docs/roles-and-auth.md` |
 | Server Actions | `docs/server-actions.md` |
 | データベース型・マイグレーション・Supabase クライアント | `docs/database.md` |
+| 本番 DB 変更ルール・承認フロー・禁止操作 | `docs/database.md`（「本番データベース変更ルール」セクション） |
 | スタイリング・コンポーネント・データフェッチ・テーマ | `docs/ui-and-styling.md` |
 | コード規約（命名・型・インポート） | `docs/code-style.md` |
 | Monorepo・パッケージ・環境変数 | `docs/monorepo.md` |

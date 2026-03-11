@@ -1016,6 +1016,7 @@ export type Database = {
           created_at: string | null
           event_id: string
           id: string
+          last_reminder_sent_at: string | null
           referrer: string | null
           seat_number: string | null
           status: string
@@ -1025,6 +1026,7 @@ export type Database = {
           utm_medium: string | null
           utm_source: string | null
           utm_term: string | null
+          web_consultation: boolean
         }
         Insert: {
           attended?: boolean
@@ -1032,6 +1034,7 @@ export type Database = {
           created_at?: string | null
           event_id: string
           id?: string
+          last_reminder_sent_at?: string | null
           referrer?: string | null
           seat_number?: string | null
           status?: string
@@ -1041,6 +1044,7 @@ export type Database = {
           utm_medium?: string | null
           utm_source?: string | null
           utm_term?: string | null
+          web_consultation?: boolean
         }
         Update: {
           attended?: boolean
@@ -1048,6 +1052,7 @@ export type Database = {
           created_at?: string | null
           event_id?: string
           id?: string
+          last_reminder_sent_at?: string | null
           referrer?: string | null
           seat_number?: string | null
           status?: string
@@ -1057,6 +1062,7 @@ export type Database = {
           utm_medium?: string | null
           utm_source?: string | null
           utm_term?: string | null
+          web_consultation?: boolean
         }
         Relationships: [
           {
@@ -1176,32 +1182,62 @@ export type Database = {
         Row: {
           created_at: string | null
           created_by: string | null
+          deleted_at: string | null
+          display_name: string | null
           end_time: string
           event_date: string
           event_type_id: string | null
+          form_area: string | null
+          form_label: string | null
+          gathering_time: string | null
+          google_maps_url: string | null
           id: string
           start_time: string
+          status: string
+          target_attendance: number | null
           updated_at: string | null
+          venue_address: string | null
+          venue_name: string | null
         }
         Insert: {
           created_at?: string | null
           created_by?: string | null
+          deleted_at?: string | null
+          display_name?: string | null
           end_time: string
           event_date: string
           event_type_id?: string | null
+          form_area?: string | null
+          form_label?: string | null
+          gathering_time?: string | null
+          google_maps_url?: string | null
           id?: string
           start_time: string
+          status?: string
+          target_attendance?: number | null
           updated_at?: string | null
+          venue_address?: string | null
+          venue_name?: string | null
         }
         Update: {
           created_at?: string | null
           created_by?: string | null
+          deleted_at?: string | null
+          display_name?: string | null
           end_time?: string
           event_date?: string
           event_type_id?: string | null
+          form_area?: string | null
+          form_label?: string | null
+          gathering_time?: string | null
+          google_maps_url?: string | null
           id?: string
           start_time?: string
+          status?: string
+          target_attendance?: number | null
           updated_at?: string | null
+          venue_address?: string | null
+          venue_name?: string | null
         }
         Relationships: [
           {
@@ -2056,6 +2092,36 @@ export type Database = {
           },
         ]
       }
+      top_page_ambassadors: {
+        Row: {
+          avatar_url: string
+          created_at: string
+          display_order: number
+          id: string
+          link_url: string | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          link_url?: string | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          link_url?: string | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       top_page_banners: {
         Row: {
           created_at: string
@@ -2081,6 +2147,39 @@ export type Database = {
           id?: string
           image_url?: string
           link_url?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      top_page_documentaries: {
+        Row: {
+          channel: string
+          created_at: string
+          display_order: number
+          id: string
+          link_url: string | null
+          thumbnail_url: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          channel?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          link_url?: string | null
+          thumbnail_url: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          link_url?: string | null
+          thumbnail_url?: string
           title?: string
           updated_at?: string
         }
@@ -2160,6 +2259,39 @@ export type Database = {
           title?: string
           updated_at?: string
           video_url?: string | null
+        }
+        Relationships: []
+      }
+      top_page_shun_diaries: {
+        Row: {
+          channel: string
+          created_at: string
+          display_order: number
+          id: string
+          link_url: string | null
+          thumbnail_url: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          channel?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          link_url?: string | null
+          thumbnail_url: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          link_url?: string | null
+          thumbnail_url?: string
+          title?: string
+          updated_at?: string
         }
         Relationships: []
       }

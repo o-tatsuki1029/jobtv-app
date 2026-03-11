@@ -1,16 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Mail, Plus, Pencil, ToggleLeft, ToggleRight } from "lucide-react";
+import { Mail, Pencil } from "lucide-react";
 import LoadingSpinner from "@/components/studio/atoms/LoadingSpinner";
 import ErrorMessage from "@/components/studio/atoms/ErrorMessage";
 import StudioButton from "@/components/studio/atoms/StudioButton";
-import StudioBadge from "@/components/studio/atoms/StudioBadge";
-import {
-  getEmailTemplates,
-  updateEmailTemplate,
-} from "@/lib/actions/email-template-actions";
+import Tabs from "@/components/studio/molecules/Tabs";
+import { getEmailTemplates } from "@/lib/actions/email-template-actions";
 
 interface EmailTemplate {
   id: string;
@@ -25,12 +22,20 @@ interface EmailTemplate {
   updated_at: string;
 }
 
+const TEMPLATE_CATEGORIES: Record<string, { label: string; names: string[] | null }> = {
+  all:          { label: "すべて", names: null },
+  auth:         { label: "認証", names: ["signup_confirmation", "password_reset"] },
+  invite:       { label: "招待", names: ["invite_recruiter", "invite_team_member", "invite_student"] },
+  notification: { label: "通知", names: ["job_application_notification", "session_reservation_notification", "candidate_welcome"] },
+  event:        { label: "イベント", names: ["event_reservation_confirmation", "event_reservation_reminder_7d", "event_reservation_reminder_3d", "event_reservation_reminder_1d"] },
+};
+
 export default function AdminEmailTemplatesPage() {
   const router = useRouter();
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("all");
 
   const fetchTemplates = async () => {
     setLoading(true);
@@ -48,22 +53,20 @@ export default function AdminEmailTemplatesPage() {
     fetchTemplates();
   }, []);
 
-  const handleToggleActive = async (template: EmailTemplate) => {
-    setTogglingId(template.id);
-    const { error } = await updateEmailTemplate(template.id, {
-      is_active: !template.is_active,
-    });
-    if (error) {
-      setError(error);
-    } else {
-      setTemplates((prev) =>
-        prev.map((t) =>
-          t.id === template.id ? { ...t, is_active: !t.is_active } : t
-        )
-      );
-    }
-    setTogglingId(null);
-  };
+  const filteredTemplates = useMemo(() => {
+    const category = TEMPLATE_CATEGORIES[activeTab];
+    if (!category || !category.names) return templates;
+    return templates.filter((t) => category.names!.includes(t.name));
+  }, [templates, activeTab]);
+
+  const tabs = useMemo(() => {
+    return Object.entries(TEMPLATE_CATEGORIES).map(([id, { label, names }]) => ({
+      id,
+      label,
+      count: names ? templates.filter((t) => names.includes(t.name)).length : templates.length,
+      color: "black" as const,
+    }));
+  }, [templates]);
 
   return (
     <div className="space-y-8">
@@ -82,15 +85,10 @@ export default function AdminEmailTemplatesPage() {
           >
             送付ログを見る
           </StudioButton>
-          <StudioButton
-            variant="primary"
-            onClick={() => router.push("/admin/email/templates/new")}
-            icon={<Plus className="w-4 h-4" />}
-          >
-            新規テンプレート
-          </StudioButton>
         </div>
       </div>
+
+      <Tabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
 
       {loading && <LoadingSpinner />}
       {error && <ErrorMessage message={error} />}
@@ -103,23 +101,20 @@ export default function AdminEmailTemplatesPage() {
                 <tr className="bg-gray-50 border-b border-gray-100 text-xs uppercase tracking-wider font-bold text-gray-500">
                   <th className="px-6 py-4">テンプレート名</th>
                   <th className="px-6 py-4">件名</th>
-                  <th className="px-6 py-4">変数</th>
-                  <th className="px-6 py-4">状態</th>
                   <th className="px-6 py-4">更新日時</th>
                   <th className="px-6 py-4">操作</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50 text-sm">
-                {templates.length === 0 ? (
+                {filteredTemplates.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan={4} className="px-6 py-12 text-center text-gray-500">
                       <Mail className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                       <p>テンプレートがありません</p>
-                      <p className="text-xs mt-1">新規テンプレートを作成してください</p>
                     </td>
                   </tr>
                 ) : (
-                  templates.map((template) => (
+                  filteredTemplates.map((template) => (
                     <tr key={template.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="font-medium">{template.name}</div>
@@ -132,25 +127,6 @@ export default function AdminEmailTemplatesPage() {
                       <td className="px-6 py-4 max-w-xs truncate text-gray-700">
                         {template.subject}
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-wrap gap-1">
-                          {template.variables.map((v) => (
-                            <span
-                              key={v}
-                              className="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-gray-600"
-                            >
-                              {`{${v}}`}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <StudioBadge
-                          variant={template.is_active ? "success" : "neutral"}
-                        >
-                          {template.is_active ? "有効" : "無効"}
-                        </StudioBadge>
-                      </td>
                       <td className="px-6 py-4 text-gray-500 whitespace-nowrap">
                         {new Date(template.updated_at).toLocaleString("ja-JP", {
                           timeZone: "Asia/Tokyo",
@@ -162,30 +138,16 @@ export default function AdminEmailTemplatesPage() {
                         })}
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <StudioButton
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              router.push(`/admin/email/templates/${template.id}`)
-                            }
-                            icon={<Pencil className="w-3.5 h-3.5" />}
-                          >
-                            編集
-                          </StudioButton>
-                          <button
-                            onClick={() => handleToggleActive(template)}
-                            disabled={togglingId === template.id}
-                            className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
-                            title={template.is_active ? "無効にする" : "有効にする"}
-                          >
-                            {template.is_active ? (
-                              <ToggleRight className="w-5 h-5 text-green-500" />
-                            ) : (
-                              <ToggleLeft className="w-5 h-5" />
-                            )}
-                          </button>
-                        </div>
+                        <StudioButton
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            router.push(`/admin/email/templates/${template.id}`)
+                          }
+                          icon={<Pencil className="w-3.5 h-3.5" />}
+                        >
+                          編集
+                        </StudioButton>
                       </td>
                     </tr>
                   ))

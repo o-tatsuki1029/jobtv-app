@@ -12,10 +12,10 @@ import { logger } from "@/lib/logger";
 const LINE_CTA_HTML = `<div style="background:#f0fff4;border:1px solid #06C755;border-radius:8px;padding:16px 20px;margin:24px 0;">
   <p style="margin:0 0 8px;font-weight:bold;color:#222;">LINEと連携して就活情報をいち早くゲット！</p>
   <p style="margin:0 0 12px;font-size:14px;color:#555;">企業からの新着求人・説明会情報をLINEでお知らせします。</p>
-  <a href="${SITE_URL}/settings/line" style="background:#06C755;color:#fff;padding:10px 20px;text-decoration:none;border-radius:4px;display:inline-block;font-weight:bold;">LINEと連携する</a>
+  <a href="${SITE_URL}/api/line/authorize" style="background:#06C755;color:#fff;padding:10px 20px;text-decoration:none;border-radius:4px;display:inline-block;font-weight:bold;">LINEと連携する</a>
 </div>`;
 
-const LINE_CTA_TEXT = `\n------------------------------------------------------------\n■ LINEと連携して就活情報をいち早くゲット！\n企業からの新着求人・説明会情報をLINEでお知らせします。\nLINEと連携する: ${SITE_URL}/settings/line\n------------------------------------------------------------\n`;
+const LINE_CTA_TEXT = `\n------------------------------------------------------------\n■ LINEと連携して就活情報をいち早くゲット！\n企業からの新着求人・説明会情報をLINEでお知らせします。\nLINEと連携する: ${SITE_URL}/api/line/authorize\n------------------------------------------------------------\n`;
 
 export interface SendTemplatedEmailOptions {
   templateName: string;

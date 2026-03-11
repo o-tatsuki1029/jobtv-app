@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { updateMyCandidateProfile, type UpdateCandidateProfileData } from "@/lib/actions/candidate-actions";
 import { searchSchoolNames, searchFacultyNames, searchDepartmentNames } from "@/lib/actions/school-actions";
@@ -18,26 +18,10 @@ import {
   getGraduationYears,
   getGraduationYearDefault,
   getGraduationYearLabel,
-  getBirthYears,
-  getBirthYearDefault,
-  BIRTH_MONTHS,
-  getBirthDays,
-  getDaysInMonth,
-  formatDateOfBirth,
-  PHONE_REGEX,
-  PHONE_LENGTH_MIN,
-  PHONE_LENGTH_MAX,
   KANA_REGEX
 } from "@/constants/signup-options";
 
 // ---- バリデーション関数（signup と共通ロジック） ----
-
-function validatePhone(value: string): string | null {
-  const v = value.replace(/\s/g, "");
-  if (!v) return null;
-  if (v.length < PHONE_LENGTH_MIN || v.length > PHONE_LENGTH_MAX) return "10桁または11桁の数字で入力してください";
-  return PHONE_REGEX.test(v) ? null : "数字のみで入力してください（ハイフンなし）";
-}
 
 function validateKana(value: string): string | null {
   const v = value.trim();
@@ -79,20 +63,11 @@ export default function ProfileEditForm({ initialData, error: loadError }: Profi
   const { classes, theme } = useMainTheme();
   const isDark = theme === "dark";
 
-  // 生年月日を年/月/日に分解
-  const parseDob = (dob: string | null) => {
-    if (!dob) return { year: getBirthYearDefault(), month: "" as const, day: "" as const };
-    const [y, m, d] = dob.split("-").map(Number);
-    return { year: y || getBirthYearDefault(), month: (m || "") as number | "", day: (d || "") as number | "" };
-  };
-  const initialDob = parseDob(initialData?.date_of_birth ?? null);
-
-  const [form, setForm] = useState<Omit<UpdateCandidateProfileData, "date_of_birth">>({
+  const [form, setForm] = useState<UpdateCandidateProfileData>({
     last_name: initialData?.last_name ?? "",
     first_name: initialData?.first_name ?? "",
     last_name_kana: initialData?.last_name_kana ?? "",
     first_name_kana: initialData?.first_name_kana ?? "",
-    phone: initialData?.phone ?? "",
     gender: initialData?.gender ?? null,
     school_type: initialData?.school_type ?? SCHOOL_TYPE_DEFAULT,
     school_name: initialData?.school_name ?? "",
@@ -105,15 +80,6 @@ export default function ProfileEditForm({ initialData, error: loadError }: Profi
     desired_industry: initialData?.desired_industry ?? [],
     desired_job_type: initialData?.desired_job_type ?? []
   });
-
-  const [birthYear, setBirthYear] = useState(initialDob.year);
-  const [birthMonth, setBirthMonth] = useState<number | "">(initialDob.month);
-  const [birthDay, setBirthDay] = useState<number | "">(initialDob.day);
-
-  const maxDay = getDaysInMonth(birthYear, birthMonth || 1);
-  useEffect(() => {
-    if (birthMonth && birthDay && birthDay > maxDay) setBirthDay(maxDay);
-  }, [birthYear, birthMonth, maxDay, birthDay]);
 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -179,10 +145,6 @@ export default function ProfileEditForm({ initialData, error: loadError }: Profi
       if (e) errors.first_name_kana = e;
     }
     if (!form.gender) errors.gender = "性別を選択してください";
-    if (form.phone) {
-      const e = validatePhone(form.phone);
-      if (e) errors.phone = e;
-    }
     if (!form.desired_work_location) errors.desired_work_location = "希望勤務地を選択してください";
     if (!form.school_type) errors.school_type = "学校種別を選択してください";
     if (!form.school_name?.trim()) errors.school_name = "学校名を入力してください";
@@ -206,10 +168,7 @@ export default function ProfileEditForm({ initialData, error: loadError }: Profi
     }
     setSaving(true);
     setMessage(null);
-    const dateOfBirth = birthMonth && birthDay
-      ? formatDateOfBirth(birthYear, birthMonth, Math.min(birthDay, getDaysInMonth(birthYear, birthMonth)))
-      : null;
-    const result = await updateMyCandidateProfile({ ...form, date_of_birth: dateOfBirth });
+    const result = await updateMyCandidateProfile(form);
     setMessage(result.error
       ? { type: "error", text: result.error }
       : { type: "success", text: "プロフィールを保存しました" }
@@ -221,7 +180,6 @@ export default function ProfileEditForm({ initialData, error: loadError }: Profi
   };
 
   const graduationYears = getGraduationYears();
-  const birthDays = getBirthDays(birthYear, birthMonth || 1);
 
   // ---- エラー・ローディング表示 ----
   if (loadError || !initialData) {
@@ -334,36 +292,16 @@ export default function ProfileEditForm({ initialData, error: loadError }: Profi
               {fieldErrors.gender && <p className={fieldErrorClass} data-field-error>{fieldErrors.gender}</p>}
             </div>
 
-            {/* 電話番号 */}
+            {/* 電話番号（表示のみ） */}
             <div className="mt-4">
-              <label className={labelClass}>電話番号（ハイフンなし）</label>
-              <input
-                type="tel"
-                value={form.phone ?? ""}
-                onChange={(e) => { handleChange("phone", e.target.value); setFieldError("phone", validatePhone(e.target.value)); }}
-                onBlur={(e) => setFieldError("phone", validatePhone(e.target.value))}
-                placeholder="09012345678"
-                className={cn(inputBase, fieldErrors.phone && inputErrorStyle)}
-              />
-              {fieldErrors.phone && <p className={fieldErrorClass} data-field-error>{fieldErrors.phone}</p>}
+              <label className={labelClass}>電話番号</label>
+              <input type="tel" value={initialData?.phone ?? ""} disabled className={inputDisabledClass} />
             </div>
 
-            {/* 生年月日 */}
+            {/* 生年月日（表示のみ） */}
             <div className="mt-4">
-              <label className={labelClass}>生年月日<span className="text-red-500 ml-0.5">*</span></label>
-              <div className="flex gap-2">
-                <select value={birthYear} onChange={(e) => setBirthYear(Number(e.target.value))} className={cn(inputBase, "flex-1")}>
-                  {getBirthYears().map((y) => <option key={y} value={y}>{y}年</option>)}
-                </select>
-                <select value={birthMonth} onChange={(e) => { setBirthMonth(e.target.value ? Number(e.target.value) : ""); setBirthDay(""); }} className={cn(inputBase, "flex-1")}>
-                  <option value="">月</option>
-                  {BIRTH_MONTHS.map((m) => <option key={m} value={m}>{m}月</option>)}
-                </select>
-                <select value={birthDay && birthMonth ? Math.min(birthDay, maxDay) : ""} onChange={(e) => setBirthDay(e.target.value ? Number(e.target.value) : "")} className={cn(inputBase, "flex-1")}>
-                  <option value="">日</option>
-                  {birthDays.map((d) => <option key={d} value={d}>{d}日</option>)}
-                </select>
-              </div>
+              <label className={labelClass}>生年月日</label>
+              <input type="text" value={initialData?.date_of_birth ?? ""} disabled className={inputDisabledClass} />
             </div>
 
             {/* メールアドレス（表示のみ） */}

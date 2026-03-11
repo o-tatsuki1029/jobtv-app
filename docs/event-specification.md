@@ -147,8 +147,36 @@ src/
 - `event_area` (TEXT)
 - `event_date` (DATE)
 - `event_start_time`, `event_end_time` (TIME)
+- `gathering_time` (TIME, nullable): 集合時間
 - `graduation_year` (INTEGER)
+- `venue_name` (TEXT, nullable): 会場名
+- `venue_address` (TEXT, nullable): 会場住所
+- `google_maps_url` (TEXT, nullable): GoogleマップURL
+- `display_name` (TEXT, nullable): フロント表示用イベント名（NULL→event_types.name）
+- `form_label` (TEXT, nullable): フォーム表示用ラベル（NULL→event_types.name）
+- `form_area` (TEXT, nullable): フォーム表示用エリア（NULL→event_types.area）
+- `target_attendance` (INTEGER, nullable): 集客目標数（admin管理用、定員制限なし）
+- `status` (TEXT, NOT NULL, DEFAULT 'active'): `active`/`paused`/`cancelled`
+- `deleted_at` (TIMESTAMPTZ, nullable): 論理削除日時。NULL でない場合は削除済み（一覧・公開ページから除外）
 - `created_at`, `updated_at` (TIMESTAMPTZ)
+
+**削除**: 物理削除ではなく論理削除（`deleted_at` にタイムスタンプをセット）。予約データは保持される。
+
+**出欠フラグ**: `event_reservations.attended` は管理画面から操作不可（読み取り専用表示）。
+
+**ステータス動作ルール**
+
+| status | フォーム表示 | マイページ | リマインド送信 | 新規予約 |
+|--------|-------------|-----------|---------------|---------|
+| `active` | 表示 | 通常表示 | 送信する | 可 |
+| `paused` | 非表示 | 通常表示 | 送信する | 不可 |
+| `cancelled` | 非表示 | 中止バッジ表示 | 送信しない | 不可 |
+
+**表示名フォールバック**
+
+- `display_name` → NULL なら `event_types.name`（メール・カレンダー・マイページ・thanks）
+- `form_label` → NULL なら `event_types.name`（予約フォームのバッジ）
+- `form_area` → NULL なら `event_types.area`（予約フォームのエリア表示）
 
 #### `event_reservations` (予約・出席)
 
@@ -631,5 +659,88 @@ npm run build
 
 ---
 
-**最終更新日**: 2025-01-XX
-**バージョン**: 0.2.0
+## 学生向けイベント予約フロー（jobtv アプリ）
+
+event-system とは別に、jobtv アプリ側で学生がイベントに予約するためのフローを提供する。
+
+### URL
+
+- 予約フォーム: `/event/entry`
+- サンクスページ: `/event/entry/thanks`
+
+### URL パラメータ
+
+| パラメータ | 説明 |
+|------------|------|
+| `event_type_ids` | カンマ区切りのイベントタイプ ID（表示対象を絞り込む） |
+| `from_days` | 今日から N 日後以降のイベントを表示 |
+| `to_days` | 今日から N 日後までのイベントを表示 |
+| `utm_*` | UTM パラメータ（`event_reservations` に保存） |
+
+### フロー
+
+**ログイン済み candidate:**
+1. イベント日程を選択（ラジオボタン）
+2. WEB 相談希望を選択
+3. 「予約する」→ `createPublicEventReservation()` → サンクスページへ
+
+**未ログイン:**
+1. イベント日程を選択 + WEB 相談希望 + メールアドレス入力
+2. `checkEmailForSignup()` でメールチェック
+   - 既存 candidate → ログインページへリダイレクト（戻り URL 付き）
+   - 未登録 → 会員登録フォーム表示（signup と同じフィールド）
+3. 「同意して予約する」→ `signUpAndReserveEvent()` → サンクスページへ
+
+### サンクスページ
+
+- 予約したイベントの詳細表示
+- Google カレンダー登録ボタン
+- LINE 連携 CTA
+
+### 通知
+
+| 種別 | トリガー | 実装 |
+|------|----------|------|
+| 予約確認メール | 予約作成時 | `sendTemplatedEmail("event_reservation_confirmation")` |
+| Slack 通知 | 予約作成時 | `SLACK_EVENT_RESERVATION_WEBHOOK_URL` |
+| Google Sheets | 予約作成時 | `GOOGLE_SHEETS_EVENT_RESERVATION_SPREADSHEET_ID` |
+| LINE push | 予約作成時（`line_user_id` あり） | LINE Messaging API push |
+| リマインドメール | 7 日前 / 3 日前 / 前日 | Vercel Cron `0 1 * * *` (JST 10:00) |
+| リマインド LINE | 同上 | 同上 |
+
+### DB カラム追加
+
+- `events.gathering_time` (time, nullable): 集合時間
+- `events.display_name` (text, nullable): フロント表示用イベント名（NULL→event_types.name）
+- `events.target_attendance` (integer, nullable): 集客目標数（admin管理用、定員制限なし）
+- `events.venue_name` (text, nullable): 会場名
+- `events.venue_address` (text, nullable): 会場住所
+- `events.google_maps_url` (text, nullable): GoogleマップURL
+- `events.form_label` (text, nullable): フォーム表示用ラベル（NULL→event_types.name）
+- `events.form_area` (text, nullable): フォーム表示用エリア（NULL→event_types.area）
+- `events.status` (text, not null, default 'active'): active/paused/cancelled
+- `events.deleted_at` (timestamptz, nullable): 論理削除日時
+- `event_reservations.web_consultation` (boolean, default false): WEB 相談希望
+- `event_reservations.last_reminder_sent_at` (timestamptz, nullable): リマインド送信管理
+
+### Server Actions
+
+| ファイル | 関数 |
+|----------|------|
+| `lib/actions/event-reservation-actions.ts` | `getPublicEventsForReservation()` |
+| 同上 | `createPublicEventReservation()` |
+| 同上 | `signUpAndReserveEvent()` |
+
+### 環境変数
+
+| 変数名 | 用途 |
+|--------|------|
+| `SLACK_EVENT_RESERVATION_WEBHOOK_URL` | イベント予約 Slack 通知 |
+| `GOOGLE_SHEETS_EVENT_RESERVATION_SPREADSHEET_ID` | 予約専用スプレッドシート ID |
+| `GOOGLE_SHEETS_EVENT_RESERVATION_SHEET_NAME` | 予約専用シート名（default: Sheet1） |
+| `CRON_SECRET` | Cron API 認証用シークレット |
+
+---
+
+**最終更新日**: 2026-03-11
+**バージョン**: 0.3.0

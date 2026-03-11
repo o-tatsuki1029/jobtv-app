@@ -137,7 +137,7 @@ export default function EventDetailPage() {
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md animate-in zoom-in-95 duration-200">
             <div className="p-8">
               <h2 className="text-xl font-bold text-gray-900 mb-4">イベントを削除しますか？</h2>
-              <p className="text-sm text-gray-600 mb-6">この操作は取り消せません。予約がある場合は削除できません。</p>
+              <p className="text-sm text-gray-600 mb-6">イベントは論理削除され、一覧には表示されなくなります。予約データは保持されます。</p>
               {deleteError && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
                   <p className="text-sm font-bold text-red-800">{deleteError}</p>

@@ -4,23 +4,34 @@ import Link from "next/link";
 import { useMainTheme } from "@/components/theme/PageThemeContext";
 import { cn } from "@jobtv-app/shared/utils/cn";
 
+type BadgeKey = "eventReservationCount" | "applicationCount" | "reservationCount";
+
 interface MypageTopViewProps {
   fullName: string;
   graduationYear: number | null;
+  eventReservationCount: number;
   applicationCount: number;
   reservationCount: number;
   lineLinked: boolean;
+  linkedSuccess?: boolean;
+  errorCode?: string | null;
 }
 
-const CARDS = [
+const CARDS: {
+  href: string;
+  title: string;
+  description: string;
+  badgeKey: BadgeKey | null;
+  icon: React.ReactNode;
+}[] = [
   {
-    href: "/mypage/profile",
-    title: "プロフィール編集",
-    description: "氏名・学校・志望情報を編集できます",
-    badgeKey: null as null | "applicationCount" | "reservationCount",
+    href: "/mypage/event-reservations",
+    title: "イベント予約",
+    description: "予約済みイベントの確認ができます",
+    badgeKey: "eventReservationCount",
     icon: (
       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
       </svg>
     )
   },
@@ -28,7 +39,7 @@ const CARDS = [
     href: "/mypage/entries",
     title: "エントリー中の企業",
     description: "エントリー済みの求人一覧を確認できます",
-    badgeKey: "applicationCount" as const,
+    badgeKey: "applicationCount",
     icon: (
       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -39,10 +50,21 @@ const CARDS = [
     href: "/mypage/reservations",
     title: "説明会・インターン予約一覧",
     description: "説明会の予約状況を確認できます",
-    badgeKey: "reservationCount" as const,
+    badgeKey: "reservationCount",
     icon: (
       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+      </svg>
+    )
+  },
+  {
+    href: "/mypage/profile",
+    title: "プロフィール編集",
+    description: "氏名・学校・志望情報を編集できます",
+    badgeKey: null,
+    icon: (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
       </svg>
     )
   },
@@ -50,7 +72,7 @@ const CARDS = [
     href: "/mypage/faq",
     title: "よくある質問",
     description: "JOBTVの使い方に関するFAQです",
-    badgeKey: null as null | "applicationCount" | "reservationCount",
+    badgeKey: null,
     icon: (
       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -59,10 +81,36 @@ const CARDS = [
   }
 ];
 
-export default function MypageTopView({ fullName, graduationYear, applicationCount, reservationCount, lineLinked }: MypageTopViewProps) {
+function getErrorMessage(errorCode: string): string {
+  switch (errorCode) {
+    case "already_linked":
+      return "このLINEアカウントは別のアカウントで連携済みです。";
+    case "invalid_state":
+    case "invalid_callback":
+      return "連携に失敗しました。もう一度お試しください。";
+    case "not_logged_in":
+      return "ログインし直して再度お試しください。";
+    case "line_failed":
+    case "update_failed":
+      return "LINE認証または保存に失敗しました。しばらく経ってからお試しください。";
+    default:
+      return "連携中にエラーが発生しました。";
+  }
+}
+
+export default function MypageTopView({
+  fullName,
+  graduationYear,
+  eventReservationCount,
+  applicationCount,
+  reservationCount,
+  lineLinked,
+  linkedSuccess,
+  errorCode
+}: MypageTopViewProps) {
   const { classes } = useMainTheme();
 
-  const badges: Record<string, number> = { applicationCount, reservationCount };
+  const badges: Record<string, number> = { eventReservationCount, applicationCount, reservationCount };
 
   return (
     <div className={cn("min-h-screen", classes.pageBg, classes.pageText)}>
@@ -77,14 +125,18 @@ export default function MypageTopView({ fullName, graduationYear, applicationCou
           )}
         </div>
 
-        {lineLinked ? (
-          <div className="mb-6 flex items-center gap-2 px-4 py-3 rounded-xl bg-green-50 border border-green-200 text-green-700 dark:bg-green-900/20 dark:border-green-800 dark:text-green-300">
-            <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-            <span className="text-sm font-medium">LINE連携済み</span>
+        {linkedSuccess && (
+          <div className="mb-4 rounded-md bg-green-50 dark:bg-green-900/20 px-4 py-3 text-sm text-green-800 dark:text-green-200">
+            LINEと連携しました。
           </div>
-        ) : (
+        )}
+        {errorCode && (
+          <div className="mb-4 rounded-md bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-800 dark:text-red-200">
+            {getErrorMessage(errorCode)}
+          </div>
+        )}
+
+        {!lineLinked && (
           <a
             href="/api/line/authorize"
             className="mb-6 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#06C755] hover:bg-[#05b04c] text-white font-semibold transition-colors"

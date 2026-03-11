@@ -24,15 +24,8 @@ import {
   DESIRED_INDUSTRIES,
   DESIRED_JOB_TYPES,
   formatDateOfBirth,
-  EMAIL_REGEX,
-  EMAIL_ALLOWED_REGEX,
-  PHONE_LENGTH_MIN,
-  PHONE_LENGTH_MAX,
-  PHONE_REGEX,
-  PASSWORD_MIN_LENGTH,
-  PASSWORD_REGEX,
-  KANA_REGEX
 } from "@/constants/signup-options";
+import { validateEmail, validatePhone, validatePassword, validateKana } from "@/lib/utils/signup-validation";
 import Link from "next/link";
 import { cn } from "@jobtv-app/shared/utils/cn";
 
@@ -41,32 +34,6 @@ const inputClass =
 const inputErrorClass = "border-red-500 bg-red-50/50";
 const labelClass = "block text-sm font-medium text-gray-700 mb-1";
 const fieldErrorClass = "mt-0.5 text-xs text-red-600";
-
-/** メール・電話・パスワードのその場バリデーション（入力は受け付ける） */
-function validateEmail(value: string): string | null {
-  const v = value.trim();
-  if (!v) return null;
-  if (!EMAIL_ALLOWED_REGEX.test(v)) {
-    return "メールアドレスに使用できない文字が含まれています。英数字と . _ % + - @ のみ使用できます。";
-  }
-  return EMAIL_REGEX.test(v) ? null : "正しい形式のメールアドレスを入力してください";
-}
-function validatePhone(value: string): string | null {
-  const v = value.replace(/\s/g, "");
-  if (!v) return null;
-  if (v.length < PHONE_LENGTH_MIN || v.length > PHONE_LENGTH_MAX) return "10桁または11桁の数字で入力してください";
-  return PHONE_REGEX.test(v) ? null : "数字のみで入力してください（ハイフンなし）";
-}
-function validatePassword(value: string): string | null {
-  if (!value) return null;
-  if (value.length < PASSWORD_MIN_LENGTH) return "8文字以上で入力してください";
-  return PASSWORD_REGEX.test(value) ? null : "英字と数字の両方を含めてください";
-}
-function validateKana(value: string): string | null {
-  const v = value.trim();
-  if (!v) return null;
-  return KANA_REGEX.test(v) ? null : "カタカナで入力してください";
-}
 
 function SignUpPageContent() {
   const searchParams = useSearchParams();

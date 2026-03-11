@@ -32,6 +32,7 @@ yarn-error.log*
 .env*.local
 .env
 .env.staging
+.env.production
 .env.test
 e2e/.auth/
 
@@ -72,4 +73,7 @@ supabase/seed.sql
 # Video files (original backups and compression scripts)
 apps/jobtv/public/lp/images/*-original.mp4
 apps/jobtv/public/lp/images/compress-videos.sh
+
+# Reference materials (Claude用参考資料)
+reference/
 

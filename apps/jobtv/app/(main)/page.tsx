@@ -4,6 +4,9 @@ import { getCompaniesByIndustry, type CompanyWithPage } from "@/lib/actions/comp
 import { getPublicVideosForTopPage } from "@/lib/actions/video-actions";
 import { getTopPageBanners } from "@/lib/actions/top-page-banner-actions";
 import { getTopPageHeroItems } from "@/lib/actions/top-page-hero-actions";
+import { getTopPageAmbassadors } from "@/lib/actions/top-page-ambassador-actions";
+import { getTopPageDocumentaries } from "@/lib/actions/top-page-documentary-actions";
+import { getTopPageShunDiaries } from "@/lib/actions/top-page-shundiary-actions";
 import { INDUSTRIES } from "@/constants/company-options";
 import { SITE_TITLE, SITE_DESCRIPTION } from "@/constants/site";
 import type { Metadata } from "next";
@@ -14,84 +17,6 @@ export const metadata: Metadata = {
   title: { absolute: SITE_TITLE },
   description: SITE_DESCRIPTION
 };
-
-
-const accounts = [
-  {
-    id: "a8",
-    name: "企業研究ナビ",
-    avatar: "/shorts-icon/shukatsu_kigyokenkyuu.jpeg",
-    href: "https://www.tiktok.com/@shukatsu_kigyokenkyuu"
-  },
-  {
-    id: "a9",
-    name: "就活おかP",
-    avatar: "/shorts-icon/shukatsu_okap.jpeg",
-    href: "https://www.tiktok.com/@shukatsu_okap"
-  },
-  {
-    id: "a10",
-    name: "りな先生の業界入門✏️",
-    avatar: "/shorts-icon/shukatsu_gyoukaikenkyuu.jpeg",
-    href: "https://www.tiktok.com/@shukatsu_gyoukaikenkyuu"
-  },
-  {
-    id: "a1",
-    name: "JOBTV会社図鑑",
-    avatar: "/shorts-icon/jobtv_zukan.jpeg",
-    href: "https://www.tiktok.com/@jobtv_zukan"
-  },
-  {
-    id: "a2",
-    name: "JOBTV企業ガイド",
-    avatar: "/shorts-icon/jobtv_kigyogaido.jpeg",
-    href: "https://www.tiktok.com/@jobtv_kigyogaido"
-  },
-  {
-    id: "a3",
-    name: "JOBTV Voice / 社員の声",
-    avatar: "/shorts-icon/jobtv_voice.jpeg",
-    href: "https://www.tiktok.com/@jobtv_voice"
-  },
-  {
-    id: "a4",
-    name: "JOBTV Real / 社員の１日",
-    avatar: "/shorts-icon/jobtv__real.jpeg",
-    href: "https://www.tiktok.com/@jobtv__real"
-  },
-  {
-    id: "a5",
-    name: "JOBTV Tour / オフィス図鑑",
-    avatar: "/shorts-icon/jobtv_tour.jpeg",
-    href: "https://www.tiktok.com/@jobtv_tour"
-  },
-  {
-    id: "a6",
-    name: "JOBTV Guide / 企業名鑑",
-    avatar: "/shorts-icon/jobtv_guide.jpeg",
-    href: "https://www.tiktok.com/@jobtv_guide"
-  },
-  {
-    id: "a7",
-    name: "JOBTV HR / 就活のヒント",
-    avatar: "/shorts-icon/jobtv_hr.jpeg",
-    href: "https://www.tiktok.com/@jobtv_hr"
-  }
-];
-
-/** しゅんダイアリー就活対策動画のダミーデータ（サムネは public/shundiary の画像） */
-const shundiaryVideos = [
-  { id: "sd-1", title: "就活対策動画 #1", thumbnail: "/shundiary/01.webp" },
-  { id: "sd-2", title: "就活対策動画 #2", thumbnail: "/shundiary/02.webp" },
-  { id: "sd-3", title: "就活対策動画 #3", thumbnail: "/shundiary/03.webp" },
-  { id: "sd-4", title: "就活対策動画 #4", thumbnail: "/shundiary/04.webp" },
-  { id: "sd-5", title: "就活対策動画 #5", thumbnail: "/shundiary/05.jpg" },
-  { id: "sd-6", title: "就活対策動画 #6", thumbnail: "/shundiary/06.webp" },
-  { id: "sd-7", title: "就活対策動画 #7", thumbnail: "/shundiary/07.jpg" },
-  { id: "sd-8", title: "就活対策動画 #8", thumbnail: "/shundiary/08.jpg" },
-  { id: "sd-9", title: "就活対策動画 #9", thumbnail: "/shundiary/09.webp" },
-  { id: "sd-10", title: "就活対策動画 #10", thumbnail: "/shundiary/10.webp" }
-];
 
 export default async function Home() {
   // 企業データを業界ごとに取得
@@ -111,7 +36,7 @@ export default async function Home() {
     streamingUrl?: string | null;
   }> = [];
 
-  let documentaryPrograms: Array<{
+  let shukatsuVideos: Array<{
     id: string;
     title: string;
     thumbnail: string;
@@ -123,14 +48,29 @@ export default async function Home() {
 
   let banners: Array<{ id: string; title: string; image: string; link?: string }> = [];
   let heroPrograms: HeroItem[] = [];
+  let accounts: Array<{ id: string; name: string; avatar: string; href?: string }> = [];
+  let documentaries: Array<{ id: string; title: string; thumbnail: string; channel: string; linkUrl?: string }> = [];
+  let shundiaryVideos: Array<{ id: string; title: string; thumbnail: string; linkUrl?: string }> = [];
 
   try {
-    const [companiesResult, shortResult, documentaryResult, bannersResult, heroResult] = await Promise.all([
+    const [
+      companiesResult,
+      shortResult,
+      shukatsuResult,
+      bannersResult,
+      heroResult,
+      ambassadorsResult,
+      documentariesResult,
+      shunDiariesResult
+    ] = await Promise.all([
       getCompaniesByIndustry(),
       getPublicVideosForTopPage("short"),
       getPublicVideosForTopPage("documentary"),
       getTopPageBanners(),
-      getTopPageHeroItems()
+      getTopPageHeroItems(),
+      getTopPageAmbassadors(),
+      getTopPageDocumentaries(),
+      getTopPageShunDiaries()
     ]);
 
     const companiesByIndustry = companiesResult.data ?? new Map<string, CompanyWithPage[]>();
@@ -162,7 +102,7 @@ export default async function Home() {
       videoUrl: v.video_url ?? undefined
     }));
 
-    documentaryPrograms = (documentaryResult.data ?? []).map((v) => ({
+    shukatsuVideos = (shukatsuResult.data ?? []).map((v) => ({
       id: v.id,
       title: v.title,
       thumbnail: v.thumbnail_url || v.auto_thumbnail_url || "",
@@ -185,19 +125,42 @@ export default async function Home() {
       moreLink: h.link_url ?? undefined,
       title: h.title
     }));
+
+    accounts = (ambassadorsResult.data ?? []).map((a) => ({
+      id: a.id,
+      name: a.name,
+      avatar: a.avatar_url,
+      href: a.link_url ?? undefined
+    }));
+
+    documentaries = (documentariesResult.data ?? []).map((d) => ({
+      id: d.id,
+      title: d.title,
+      thumbnail: d.thumbnail_url,
+      channel: d.channel,
+      linkUrl: d.link_url ?? undefined
+    }));
+
+    shundiaryVideos = (shunDiariesResult.data ?? []).map((s) => ({
+      id: s.id,
+      title: s.title,
+      thumbnail: s.thumbnail_url,
+      linkUrl: s.link_url ?? undefined
+    }));
   } catch (e) {
     console.error("Home: data fetch error", e);
   }
 
   return (
     <>
-      <VideoObjectListJsonLd videos={[...shortVideos, ...documentaryPrograms]} />
+      <VideoObjectListJsonLd videos={[...shortVideos, ...shukatsuVideos]} />
       <MainPageContent
         heroPrograms={heroPrograms}
         banners={banners}
         shortVideos={shortVideos}
         accounts={accounts}
-        documentaryPrograms={documentaryPrograms}
+        documentaries={documentaries}
+        shukatsuVideos={shukatsuVideos}
         shundiaryVideos={shundiaryVideos}
         industrySections={industrySections}
       />

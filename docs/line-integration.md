@@ -14,12 +14,12 @@
 
 ## LINE Login（連携フロー）
 
-1. 学生がログインした状態で `/settings/line` を開き「LINEと連携する」をクリック。
+1. 学生がログインした状態でマイページ（`/mypage`）の「LINEと連携する」ボタンをクリック。
 2. ブラウザが `/api/line/authorize` に遷移。API は candidate であることを確認し、CSRF 用の `state` をランダム生成して Cookie（`line_link_state`）に保存し、LINE の認証 URL へ 302 リダイレクトする。
 3. ユーザーが LINE で認証し、コールバック URL（`/api/line/callback`）に `code` と `state` が付与されて戻る。
 4. コールバックで `state` を Cookie と照合（CSRF 検証）。`code` を LINE の token エンドポイントで access_token に交換し、プロフィール API で `userId` を取得する。
 5. ログイン中の `profiles.candidate_id` に紐づく `candidates` 行の `line_user_id` を取得した `userId` で UPDATE。同一 userId が他候補者に既に紐づいていれば UNIQUE 制約で失敗し、エラー表示する。
-6. 成功時は `/settings/line?linked=1` にリダイレクト。
+6. 成功時は `/mypage?linked=1` にリダイレクト。
 
 ### 参照実装
 
@@ -29,7 +29,7 @@
 | コールバック（code 交換・userId 取得・DB 更新） | `app/api/line/callback/route.ts` |
 | code → token → userId 取得 | `lib/line.ts`（exchangeCodeForLineUserId, getLineCallbackRedirectUri） |
 | 連携状態取得・解除 | `lib/actions/line-actions.ts`（getLineLinkStatus, unlinkLineAccount） |
-| 学生向け設定ページ | `app/(main)/settings/line/page.tsx` |
+| マイページ（連携状態表示・CTA・解除） | `app/(main)/mypage/page.tsx`, `components/mypage/MypageTopView.tsx` |
 
 ---
 
@@ -82,7 +82,7 @@ LINE 連携を促すタッチポイントの一覧。すべて**候補者（cand
 ### 2. サンクスメール（candidate_welcome）
 
 - **ファイル**: `supabase/migrations/20260307000002_update_candidate_welcome_email_line_cta.sql`
-- **動作**: 既存の「JobTV を見てみる」ボタンの直下に LINE CTA ブロックを挿入。リンク先は `{site_url}/settings/line`
+- **動作**: 既存の「JobTV を見てみる」ボタンの直下に LINE CTA ブロックを挿入。リンク先は `{site_url}/api/line/authorize`
 - 適用: `ON CONFLICT (name) DO UPDATE` でテンプレートを上書き更新
 
 ### 3. メール共通フッター
@@ -103,8 +103,7 @@ await sendTemplatedEmail({
 
 ### 4. CandidateMenu（ハンバーガーメニュー）
 
-- **ファイル**: `components/header/CandidateMenu.tsx`
-- **動作**: メニュー項目に「LINE連携」→ `/settings/line` を追加（常時表示）
+- ~~削除済み~~: メニュー項目「LINE連携」はマイページに集約済みのため削除
 
 ### 5. エントリー/予約完了モーダル
 

@@ -94,11 +94,13 @@ AWS_CLOUDFRONT_URL=https://your-cloudfront-domain.cloudfront.net
 npm install -g supabase
 ```
 
-### 3.2 プロジェクトへのリンク
+### 3.2 プロジェクトへのリンク（STG 用）
+
+開発時は常に **STG** プロジェクトにリンクする。PROD への操作は `pnpm db:push:prod` で明示的に行う。
 
 ```bash
-# monorepoのルートディレクトリで実行
-supabase link --project-ref tdewumilkltljbqryjpg
+# monorepoのルートディレクトリで実行（STG 用）
+pnpm db:link:stg
 ```
 
 ### 3.3 ログイン

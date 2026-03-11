@@ -29,6 +29,14 @@ export default function EventInfoTab({ event, onEventUpdate }: EventInfoTabProps
     event_date: event.event_date || "",
     start_time: event.start_time || "",
     end_time: event.end_time || "",
+    gathering_time: event.gathering_time || "",
+    display_name: event.display_name || "",
+    target_attendance: event.target_attendance != null ? String(event.target_attendance) : "",
+    venue_address: event.venue_address || "",
+    google_maps_url: event.google_maps_url || "",
+    form_label: event.form_label || "",
+    form_area: event.form_area || "",
+    status: event.status || "active",
   });
 
   useEffect(() => {
@@ -49,7 +57,20 @@ export default function EventInfoTab({ event, onEventUpdate }: EventInfoTabProps
     setSaveError(null);
     setSaveSuccess(false);
 
-    const { error } = await updateEvent(event.id, form);
+    const { error } = await updateEvent(event.id, {
+      event_type_id: form.event_type_id,
+      event_date: form.event_date,
+      start_time: form.start_time,
+      end_time: form.end_time,
+      gathering_time: form.gathering_time || null,
+      display_name: form.display_name || null,
+      target_attendance: form.target_attendance ? Number(form.target_attendance) : null,
+      venue_address: form.venue_address || null,
+      google_maps_url: form.google_maps_url || null,
+      form_label: form.form_label || null,
+      form_area: form.form_area || null,
+      status: form.status,
+    });
 
     if (error) {
       setSaveError(error);
@@ -112,6 +133,17 @@ export default function EventInfoTab({ event, onEventUpdate }: EventInfoTabProps
         />
       </div>
 
+      <div className="space-y-2">
+        <label className="block text-sm font-bold text-gray-700">集合時間</label>
+        <input
+          type="time"
+          value={form.gathering_time}
+          onChange={(e) => setForm((prev) => ({ ...prev, gathering_time: e.target.value }))}
+          disabled={saveLoading}
+          className="block w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500"
+        />
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <label className="block text-sm font-bold text-gray-700">
@@ -134,6 +166,100 @@ export default function EventInfoTab({ event, onEventUpdate }: EventInfoTabProps
             value={form.end_time}
             onChange={(e) => setForm((prev) => ({ ...prev, end_time: e.target.value }))}
             disabled={saveLoading}
+            className="block w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500"
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <label className="block text-sm font-bold text-gray-700">ステータス</label>
+        <StudioSelect
+          value={form.status}
+          onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value }))}
+          disabled={saveLoading}
+        >
+          <option value="active">active（公開）</option>
+          <option value="paused">paused（公開停止）</option>
+          <option value="cancelled">cancelled（中止）</option>
+        </StudioSelect>
+      </div>
+
+      <div className="space-y-2">
+        <label className="block text-sm font-bold text-gray-700">
+          フロント表示用イベント名
+          <span className="ml-1 text-xs text-gray-400 font-normal">（空欄→イベントタイプ名を使用）</span>
+        </label>
+        <input
+          type="text"
+          value={form.display_name}
+          onChange={(e) => setForm((prev) => ({ ...prev, display_name: e.target.value }))}
+          disabled={saveLoading}
+          placeholder="イベントタイプ名をそのまま使用"
+          className="block w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <label className="block text-sm font-bold text-gray-700">集客目標数</label>
+        <input
+          type="number"
+          min="0"
+          value={form.target_attendance}
+          onChange={(e) => setForm((prev) => ({ ...prev, target_attendance: e.target.value }))}
+          disabled={saveLoading}
+          placeholder="管理用（定員制限なし）"
+          className="block w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <label className="block text-sm font-bold text-gray-700">会場住所</label>
+        <input
+          type="text"
+          value={form.venue_address}
+          onChange={(e) => setForm((prev) => ({ ...prev, venue_address: e.target.value }))}
+          disabled={saveLoading}
+          className="block w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <label className="block text-sm font-bold text-gray-700">GoogleマップURL</label>
+        <input
+          type="url"
+          value={form.google_maps_url}
+          onChange={(e) => setForm((prev) => ({ ...prev, google_maps_url: e.target.value }))}
+          disabled={saveLoading}
+          className="block w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500"
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <label className="block text-sm font-bold text-gray-700">
+            フォーム表示用ラベル
+            <span className="ml-1 text-xs text-gray-400 font-normal">（空欄→イベントタイプ名）</span>
+          </label>
+          <input
+            type="text"
+            value={form.form_label}
+            onChange={(e) => setForm((prev) => ({ ...prev, form_label: e.target.value }))}
+            disabled={saveLoading}
+            placeholder="イベントタイプ名を使用"
+            className="block w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500"
+          />
+        </div>
+        <div className="space-y-2">
+          <label className="block text-sm font-bold text-gray-700">
+            フォーム表示用エリア
+            <span className="ml-1 text-xs text-gray-400 font-normal">（空欄→イベントタイプのエリア）</span>
+          </label>
+          <input
+            type="text"
+            value={form.form_area}
+            onChange={(e) => setForm((prev) => ({ ...prev, form_area: e.target.value }))}
+            disabled={saveLoading}
+            placeholder="イベントタイプのエリアを使用"
             className="block w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500"
           />
         </div>

@@ -43,7 +43,7 @@ git push -u origin feature/機能名
 ```bash
 # GitHub で PR 作成: develop → staging
 # 変更内容をレビュー
-# マージ → Vercel が自動で STG にデプロイ（Preview デプロイ）
+# マージ → Vercel が自動で STG にデプロイ（カスタム環境 staging）
 ```
 
 #### PROD へのプロモーション
@@ -70,30 +70,33 @@ git checkout -b hotfix/修正内容
 
 ### 環境の種類
 
-| 環境 | ブランチ | デプロイ先 | 接続先リソース |
-|------|---------|----------|-------------|
-| ローカル | — | localhost | Supabase STG / AWS STG |
-| 開発（develop） | `develop` | Vercel Preview | Supabase STG / AWS STG |
-| STG | `staging` | Vercel Preview | Supabase STG / AWS STG |
-| PROD | `main` | Vercel Production | 本番 Supabase / AWS PROD |
+| 環境 | ブランチ | デプロイ先 | Supabase | AWS |
+|------|---------|----------|----------|-----|
+| ローカル | — | localhost | STG (`tdewumilkltljbqryjpg`) | STG |
+| 開発（develop） | `develop` | Vercel Preview | STG (`tdewumilkltljbqryjpg`) | STG |
+| STG | `staging` | Vercel カスタム環境 (staging) | STG (`tdewumilkltljbqryjpg`) | STG |
+| PROD | `main` | Vercel Production | PROD (`voisychklptvavokrxox`) | PROD |
 
 ```
-ローカル（localhost）  ┐
-develop（Vercel Preview）├── 同じ Supabase STG / AWS STG を参照
-staging（Vercel Preview）┘
+ローカル（localhost）          ┐
+develop（Vercel Preview）      ├── Supabase STG (tdewumilkltljbqryjpg) / AWS STG
+staging（Vercel カスタム環境 staging）┘
 
-main（Vercel Production）→ 本番 Supabase / AWS PROD
+main（Vercel Production）→ Supabase PROD (voisychklptvavokrxox) / AWS PROD
 ```
+
+**本番ドメイン**: `https://media.jobtv.jp`
 
 ### ローカルとステージングの違い
 
-| 項目 | ローカル | STG / develop（Vercel Preview） | PROD（Vercel Production） |
+| 項目 | ローカル | STG（カスタム環境 staging）/ develop（Vercel Preview） | PROD（Vercel Production） |
 |------|---------|-------------------------------|--------------------------|
-| Supabase URL / キー | STG と同じ | STG | 本番 |
+| Supabase プロジェクト | STG (`tdewumilkltljbqryjpg`) | STG (`tdewumilkltljbqryjpg`) | PROD (`voisychklptvavokrxox`) |
 | AWS S3 バケット | `jobtv-videos-stg` | `jobtv-videos-stg` | 本番用バケット |
 | CloudFront URL | STG と同じ | STG | 本番用 |
-| `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` | `https://jobtv-app-jobtv.vercel.app` | 本番ドメイン |
-| Basic 認証 | あり（開発用 user/pass） | あり | なし |
+| `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` | `https://jobtv-app-jobtv.vercel.app` | `https://media.jobtv.jp` |
+| Basic 認証 | あり（開発用 user/pass） | あり | `BASIC_AUTH_SCOPE` で制御 |
+| `BASIC_AUTH_SCOPE` | 未設定（= `all`） | 未設定（= `all`） | リリース前: `all` / リリース後: `admin` |
 | `NODE_TLS_REJECT_UNAUTHORIZED=0` | あり（ローカル専用） | **設定しない** | **設定しない** |
 | `SKIP_ZEROTRUST_CHECK=true` | あり（ローカル専用） | **設定しない** | **設定しない** |
 | Cloudflare Zero Trust | スキップ | 有効 | 有効 |
@@ -121,27 +124,38 @@ apps/jobtv/.env.local          # jobtv ローカル用（フル設定）
 | Vercel スコープ | 対象ブランチ | 接続先リソース |
 |----------------|------------|-------------|
 | **Production** | `main` | 本番 Supabase / AWS PROD |
-| **Preview** | `staging`, `develop`, `feature/*` | STG Supabase / AWS STG |
+| **カスタム環境 (staging)** | `staging` | STG Supabase / AWS STG |
+| **Preview** | `develop`, `feature/*` | STG Supabase / AWS STG |
 
-> STG と develop は同じ Supabase STG / AWS STG を共有する。
-> 将来的に分けたい場合は Preview 変数にブランチフィルタを追加できる。
+> STG（カスタム環境 staging）と develop（Preview）は同じ Supabase STG / AWS STG を共有する。
+> カスタム環境を使うことで、STG 固有の環境変数を Preview とは独立して管理できる。
 
-### 本番環境を作るときに変える必要がある項目
+### Vercel PROD 環境変数
 
-本番環境を作成する際は、以下をすべて本番用の値に差し替える。
+Vercel ダッシュボードの **Production** スコープに以下を設定する。
 
-| 項目 | 現在（STG） | 本番時 |
-|------|-----------|--------|
-| `NEXT_PUBLIC_SUPABASE_URL` | `tdewumilkltljbqryjpg.supabase.co` | 本番 Supabase プロジェクトの URL |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | STG 公開キー | 本番公開キー |
-| `SUPABASE_SERVICE_ROLE_KEY` | STG サービスロールキー | 本番サービスロールキー |
-| `SUPABASE_JWT_SECRET` | STG JWT シークレット | 本番 JWT シークレット |
-| `SUPABASE_HOOK_SECRET` | STG 用の値 | 本番 Supabase Dashboard → Auth → Hooks で設定した値 |
-| `AWS_S3_BUCKET` | `jobtv-videos-stg` | 本番用バケット名 |
-| `AWS_CLOUDFRONT_URL` | `d3ulvrrnhlrak2.cloudfront.net` | `d11xeybks927fj.cloudfront.net`（本番用） |
-| `NEXT_PUBLIC_SITE_URL` | `https://jobtv-app-jobtv.vercel.app` | 本番ドメイン |
-| `NODE_TLS_REJECT_UNAUTHORIZED` | 0（ローカルのみ） | **設定しない** |
-| `SKIP_ZEROTRUST_CHECK` | `true`（ローカルのみ） | **設定しない** |
+| 項目 | PROD の値 |
+|------|----------|
+| `NEXT_PUBLIC_SUPABASE_URL` | `https://voisychklptvavokrxox.supabase.co` |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | PROD Supabase Dashboard → Settings → API → anon key |
+| `SUPABASE_SERVICE_ROLE_KEY` | PROD Supabase Dashboard → Settings → API → service_role key |
+| `SUPABASE_JWT_SECRET` | PROD Supabase Dashboard → Settings → API → JWT Secret |
+| `SUPABASE_HOOK_SECRET` | PROD Supabase Dashboard → Auth → Hooks で設定した値 |
+| `AWS_S3_BUCKET` | 本番用バケット名 |
+| `AWS_CLOUDFRONT_URL` | `d11xeybks927fj.cloudfront.net`（本番用） |
+| `NEXT_PUBLIC_SITE_URL` | `https://media.jobtv.jp` |
+| `NODE_TLS_REJECT_UNAUTHORIZED` | **設定しない** |
+| `SKIP_ZEROTRUST_CHECK` | **設定しない** |
+
+### PROD Supabase Dashboard 手動設定チェックリスト
+
+PROD の Supabase Dashboard で以下を手動設定する：
+
+- [ ] **Auth Hook（send_email）**: URI を `https://media.jobtv.jp/api/webhooks/email` に設定
+- [ ] **Site URL**: `https://media.jobtv.jp`
+- [ ] **Redirect URLs**: `https://media.jobtv.jp/**`
+- [ ] **MFA（TOTP）**: enroll / verify を有効化
+- [ ] **初期 admin ユーザー作成**: Dashboard → Authentication → Users から作成し、`profiles.role` を `admin` に設定
 
 ---
 
@@ -152,9 +166,8 @@ apps/jobtv/.env.local          # jobtv ローカル用（フル設定）
 Vercel は Git 連携で自動的にデプロイする：
 
 - **Production Branch**（= `main`）への push → **Production デプロイ**
+- **`staging` ブランチ**への push → **カスタム環境 (staging) デプロイ**
 - **それ以外のブランチ**への push → **Preview デプロイ**
-
-つまり `staging` や `develop` へのマージも Preview デプロイとして自動実行される。
 
 ### 対象プロジェクト
 
@@ -183,24 +196,41 @@ npx turbo-ignore jobtv
 
 ---
 
-## JobTV アプリ全体の Basic 認証（オプション）
+## Basic 認証（オプション）
 
 ### 方針
 
-- **ステージングなどでアプリ全体をガードしたい場合**に、環境変数で Basic 認証を有効にできる。
-- 環境変数を設定したときだけ有効。未設定のときは Basic 認証はかからない。
+- 環境変数で Basic 認証を有効にできる。未設定のときは Basic 認証はかからない。
+- `BASIC_AUTH_SCOPE` で認証の適用範囲を制御できる。
 
-### 設定方法
+### 環境変数
 
-- **jobtv** の環境変数に以下を設定する：
-  - `BASIC_AUTH_USER`: Basic 認証のユーザー名
-  - `BASIC_AUTH_PASSWORD`: Basic 認証のパスワード
-- 両方設定されている場合、静的ファイル（`/_next/`、`favicon.ico`、画像・CSS・JS 等）以外の**全ルート**で Basic 認証がかかる。
-- 認証通過後、従来どおり Supabase のセッションやロールに応じたリダイレクトが行われる。
+| 環境変数 | 説明 |
+|---------|------|
+| `BASIC_AUTH_USER` | Basic 認証のユーザー名 |
+| `BASIC_AUTH_PASSWORD` | Basic 認証のパスワード |
+| `BASIC_AUTH_SCOPE` | 認証スコープ。`all`（デフォルト）= 全ルート、`admin` = `/admin` 配下のみ |
+
+### 動作マトリクス
+
+| `BASIC_AUTH_USER/PASSWORD` | `BASIC_AUTH_SCOPE` | 動作 |
+|---|---|---|
+| 未設定 | （任意） | Basic 認証なし |
+| 設定済み | 未設定 or `all` | 全ルートに Basic 認証（後方互換） |
+| 設定済み | `admin` | `/admin` 配下のみ Basic 認証（jobtv のみ。event-system / agent-manager はスキップ） |
+
+### 運用フロー（PROD）
+
+1. **サービスリリース前**: `BASIC_AUTH_SCOPE=all`（or 未設定）→ 全体に Basic 認証
+2. **サービスリリース後**: `BASIC_AUTH_SCOPE=admin` に変更 → `/admin` のみ Basic 認証
+3. **STG / ローカル**: 変更不要（`BASIC_AUTH_SCOPE` 未設定で現行どおり全体に Basic 認証）
+
+切り替えは Vercel の環境変数を `all` → `admin` に変えて再デプロイするだけ。
 
 ### 実装
 
-- [apps/jobtv/proxy.ts](apps/jobtv/proxy.ts) で Basic 認証をチェックし、失敗時は 401 と `WWW-Authenticate: Basic` を返す。
+- **jobtv**: [apps/jobtv/proxy.ts](apps/jobtv/proxy.ts) — `scope === "all"` で全ルート、`scope === "admin"` で `/admin` 配下のみ認証
+- **event-system / agent-manager**: admin ルートがないため、`scope === "admin"` 時は Basic 認証をスキップ
 
 ---
 

@@ -95,6 +95,7 @@ export async function getEvents(params: {
   dateFrom?: string;
   dateTo?: string;
   sortBy?: "date_asc" | "date_desc";
+  status?: string;
 }): Promise<{
   data: (Event & { event_types: EventType | null })[] | null;
   count: number | null;
@@ -105,7 +106,8 @@ export async function getEvents(params: {
 
     let query = supabase
       .from("events")
-      .select("*, event_types(*)", { count: "exact" });
+      .select("*, event_types(*)", { count: "exact" })
+      .is("deleted_at", null);
 
     if (params.area) {
       query = query.eq("event_types.area", params.area);
@@ -118,6 +120,9 @@ export async function getEvents(params: {
     }
     if (params.dateTo) {
       query = query.lte("event_date", params.dateTo);
+    }
+    if (params.status) {
+      query = query.eq("status", params.status);
     }
 
     if (params.sortBy === "date_asc") {
@@ -158,6 +163,7 @@ export async function getEventById(eventId: string): Promise<{
       .from("events")
       .select("*, event_types(*)")
       .eq("id", eventId)
+      .is("deleted_at", null)
       .single();
 
     if (error) {
@@ -176,6 +182,14 @@ export async function createEvent(data: {
   event_date: string;
   start_time: string;
   end_time: string;
+  gathering_time?: string | null;
+  display_name?: string | null;
+  target_attendance?: number | null;
+  venue_address?: string | null;
+  google_maps_url?: string | null;
+  form_label?: string | null;
+  form_area?: string | null;
+  status?: string;
 }): Promise<{ data: { eventId: string } | null; error: string | null }> {
   const { isAdmin } = await checkAdminPermission();
   if (!isAdmin) {
@@ -193,6 +207,14 @@ export async function createEvent(data: {
         event_date: data.event_date,
         start_time: data.start_time,
         end_time: data.end_time,
+        gathering_time: data.gathering_time || null,
+        display_name: data.display_name || null,
+        target_attendance: data.target_attendance || null,
+        venue_address: data.venue_address || null,
+        google_maps_url: data.google_maps_url || null,
+        form_label: data.form_label || null,
+        form_area: data.form_area || null,
+        status: data.status || "active",
         created_by: user?.id || null,
       })
       .select()
@@ -233,6 +255,14 @@ export async function updateEvent(
     event_date?: string;
     start_time?: string;
     end_time?: string;
+    gathering_time?: string | null;
+    display_name?: string | null;
+    target_attendance?: number | null;
+    venue_address?: string | null;
+    google_maps_url?: string | null;
+    form_label?: string | null;
+    form_area?: string | null;
+    status?: string;
   }
 ): Promise<{ data: { eventId: string } | null; error: string | null }> {
   const { isAdmin } = await checkAdminPermission();
@@ -283,20 +313,12 @@ export async function deleteEvent(eventId: string): Promise<{ error: string | nu
   try {
     const supabaseAdmin = createAdminClient();
 
-    // 予約があれば拒否
-    const { count } = await supabaseAdmin
-      .from("event_reservations")
-      .select("id", { count: "exact", head: true })
-      .eq("event_id", eventId);
-
-    if (count && count > 0) {
-      return { error: `このイベントには${count}件の予約があるため削除できません。` };
-    }
-
-    // 参加企業を先に削除
-    await supabaseAdmin.from("event_companies").delete().eq("event_id", eventId);
-
-    const { error } = await supabaseAdmin.from("events").delete().eq("id", eventId);
+    // 論理削除: deleted_at をセット
+    const { error } = await supabaseAdmin
+      .from("events")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", eventId)
+      .is("deleted_at", null);
 
     if (error) {
       return { error: error.message };
@@ -309,7 +331,7 @@ export async function deleteEvent(eventId: string): Promise<{ error: string | nu
     if (user) {
       logAudit({
         userId: user.id,
-        action: "event.delete",
+        action: "event.soft_delete",
         category: "content_edit",
         resourceType: "events",
         resourceId: eventId,

@@ -12,6 +12,7 @@ interface ProgramCardProps {
   viewers?: number;
   isLive?: boolean;
   vertical?: boolean;
+  showPlayOverlay?: boolean;
 }
 
 export default function ProgramCard({
@@ -21,7 +22,8 @@ export default function ProgramCard({
   time,
   viewers,
   isLive = false,
-  vertical = false
+  vertical = false,
+  showPlayOverlay = true
 }: ProgramCardProps) {
   const { classes } = useMainTheme();
 
@@ -76,19 +78,21 @@ export default function ProgramCard({
           </div>
         )}
         {/* Play overlay on hover */}
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-          <svg
-            className="w-12 h-12 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-            fill="currentColor"
-            viewBox="0 0 20 20"
-          >
-            <path
-              fillRule="evenodd"
-              d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
-              clipRule="evenodd"
-            />
-          </svg>
-        </div>
+        {showPlayOverlay && (
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+            <svg
+              className="w-12 h-12 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path
+                fillRule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </div>
+        )}
       </div>
       <div className="px-1">
         <p className={cn("text-xs mb-1.5 font-medium", classes.textMuted)}>{channel}</p>
