@@ -9,6 +9,7 @@
 - **用語・テーブルの解釈**: `docs/database-domain.md` を正とする。意味で迷ったらそこで確認する。
 - **DB を変更したとき**: マイグレーション・テーブル役割・RLS 等の変更後は、必ず `docs/database-domain.md` を更新する。該当セクションの「参照実装」に挙がる他機能の整合も確認する。
 - **複数 doc に影響する変更**: 該当する doc をすべて更新する（例: 新規テーブルなら database-domain と必要に応じて database.md 等）。
+- **doc の追加・削除時**: CLAUDE.md のトピック別参照先テーブルと `docs/README.md` の両方を更新する。
 
 ## トピック別参照先
 
@@ -30,3 +31,7 @@
 | LINE 連携・配信・CTA 動線 | `docs/line-integration.md` |
 | ロギング・監査ログ・エラーバウンダリ | `docs/logging.md` |
 | 会員登録通知（Slack・Google Sheets） | `docs/signup-notification.md` |
+| AWS 動画ストリーミング（S3・MediaConvert・CloudFront） | `docs/aws-video.md` |
+| イベント運営システム仕様 | `docs/event-specification.md` |
+| 環境構築・セットアップ | `docs/setup.md` |
+| テスト観点・バグ候補 | `docs/test/` |

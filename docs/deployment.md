@@ -1,47 +1,130 @@
 # デプロイ・運用
 
+## ブランチ戦略
+
+### ブランチ構成
+
+3 環境を Git ブランチで分離し、Vercel の Git 連携で自動デプロイする。
+
+| ブランチ | 環境 | 用途 |
+|---------|------|------|
+| `main` | **PROD** | 本番デプロイ用。`staging` からの PR マージでのみ更新 |
+| `staging` | **STG** | ステージングデプロイ用。`develop` からの PR マージで更新 |
+| `develop` | **開発** | 開発統合ブランチ。feature ブランチの PR マージ先。**デフォルトブランチ** |
+
+```
+feature/* ──PR──▶ develop ──PR──▶ staging ──PR──▶ main
+                  (統合)          (STG デプロイ)    (PROD デプロイ)
+```
+
+### Branch Protection Rules
+
+| ブランチ | PR 必須 | 承認者数 | 直接 push 禁止 | Force push 禁止 |
+|---------|--------|---------|--------------|----------------|
+| `main` | Yes | 1+ | Yes | Yes |
+| `staging` | Yes | — | Yes | Yes |
+| `develop` | 任意（段階的に厳格化） | — | — | — |
+
+### 開発者ワークフロー
+
+#### 通常の機能開発
+
+```bash
+git checkout develop && git pull
+git checkout -b feature/機能名
+# 開発・コミット
+git push -u origin feature/機能名
+# GitHub で PR 作成: feature/機能名 → develop
+# レビュー → マージ
+```
+
+#### STG へのプロモーション
+
+```bash
+# GitHub で PR 作成: develop → staging
+# 変更内容をレビュー
+# マージ → Vercel が自動で STG にデプロイ（Preview デプロイ）
+```
+
+#### PROD へのプロモーション
+
+```bash
+# GitHub で PR 作成: staging → main
+# 最終レビュー・承認
+# マージ → Vercel が自動で PROD にデプロイ（Production デプロイ）
+```
+
+#### ホットフィックス（緊急修正）
+
+```bash
+git checkout main && git pull
+git checkout -b hotfix/修正内容
+# 修正・コミット
+# PR: hotfix/修正内容 → main → マージ → PROD デプロイ
+# main を staging と develop にもマージ（逆流）
+```
+
+---
+
 ## 環境構成
 
-### 環境の種類と現状
+### 環境の種類
 
-このプロジェクトは現在 **ローカル** と **ステージング（STG）** の 2 環境のみ存在する。
-本番（Production）は未作成。
+| 環境 | ブランチ | デプロイ先 | 接続先リソース |
+|------|---------|----------|-------------|
+| ローカル | — | localhost | Supabase STG / AWS STG |
+| 開発（develop） | `develop` | Vercel Preview | Supabase STG / AWS STG |
+| STG | `staging` | Vercel Preview | Supabase STG / AWS STG |
+| PROD | `main` | Vercel Production | 本番 Supabase / AWS PROD |
 
 ```
 ローカル（localhost）  ┐
-                       ├── 同じ Supabase STG / AWS STG を参照
-ステージング（Vercel） ┘
+develop（Vercel Preview）├── 同じ Supabase STG / AWS STG を参照
+staging（Vercel Preview）┘
 
-本番（未作成）         → 将来、別の Supabase プロジェクト・AWS リソースを用意する
+main（Vercel Production）→ 本番 Supabase / AWS PROD
 ```
 
 ### ローカルとステージングの違い
 
-| 項目 | ローカル | ステージング（Vercel） |
-|------|---------|----------------------|
-| Supabase URL / キー | STG と同じ | STG |
-| AWS S3 バケット | `jobtv-videos-stg` | `jobtv-videos-stg` |
-| CloudFront URL | STG と同じ | STG |
-| `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` | `https://jobtv-app-jobtv.vercel.app` |
-| Basic 認証 | あり（開発用 user/pass） | あり |
-| `NODE_TLS_REJECT_UNAUTHORIZED=0` | あり（ローカル専用） | **設定しない** |
-| `SKIP_ZEROTRUST_CHECK=true` | あり（ローカル専用） | **設定しない** |
-| Cloudflare Zero Trust | スキップ | 有効 |
+| 項目 | ローカル | STG / develop（Vercel Preview） | PROD（Vercel Production） |
+|------|---------|-------------------------------|--------------------------|
+| Supabase URL / キー | STG と同じ | STG | 本番 |
+| AWS S3 バケット | `jobtv-videos-stg` | `jobtv-videos-stg` | 本番用バケット |
+| CloudFront URL | STG と同じ | STG | 本番用 |
+| `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` | `https://jobtv-app-jobtv.vercel.app` | 本番ドメイン |
+| Basic 認証 | あり（開発用 user/pass） | あり | なし |
+| `NODE_TLS_REJECT_UNAUTHORIZED=0` | あり（ローカル専用） | **設定しない** | **設定しない** |
+| `SKIP_ZEROTRUST_CHECK=true` | あり（ローカル専用） | **設定しない** | **設定しない** |
+| Cloudflare Zero Trust | スキップ | 有効 | 有効 |
 
 > **重要**: ローカルで開発しながら書き込んだデータは STG DB にそのまま反映される。
-> ローカル ↔ STG はデータを完全共有しているため、テストデータの書き込みや削除は STG にも影響する。
+> ローカル ↔ STG ↔ develop はデータを完全共有しているため、テストデータの書き込みや削除は STG にも影響する。
 
-### 環境変数ファイルの配置
+### 環境変数の管理
+
+#### ローカル開発
 
 ```
 .env.local                     # ルート共通（Supabase URL など最小限）
 apps/jobtv/.env.local          # jobtv ローカル用（フル設定）
-apps/jobtv/.env.staging        # jobtv STG 用（Vercel のビルド時に読み込まれる）
 .env.test                      # E2E テスト用（gitignore 済み）
 ```
 
 `.env.local` は Next.js の規約でローカル優先で読み込まれる。
-STG・本番では Vercel の Environment Variables に直接設定する。
+
+#### Vercel 環境変数（STG / PROD）
+
+環境変数はすべて **Vercel ダッシュボード** の Environment Variables で管理する。
+`.env.staging` ファイルは不要（Vercel のスコープ機能で環境を分離）。
+
+| Vercel スコープ | 対象ブランチ | 接続先リソース |
+|----------------|------------|-------------|
+| **Production** | `main` | 本番 Supabase / AWS PROD |
+| **Preview** | `staging`, `develop`, `feature/*` | STG Supabase / AWS STG |
+
+> STG と develop は同じ Supabase STG / AWS STG を共有する。
+> 将来的に分けたい場合は Preview 変数にブランチフィルタを追加できる。
 
 ### 本番環境を作るときに変える必要がある項目
 
@@ -62,9 +145,41 @@ STG・本番では Vercel の Environment Variables に直接設定する。
 
 ---
 
-## デプロイ先
+## Vercel デプロイ設定
 
-- **JobTV アプリ（jobtv）**: [Vercel](https://vercel.com) にデプロイする。
+### デプロイの仕組み
+
+Vercel は Git 連携で自動的にデプロイする：
+
+- **Production Branch**（= `main`）への push → **Production デプロイ**
+- **それ以外のブランチ**への push → **Preview デプロイ**
+
+つまり `staging` や `develop` へのマージも Preview デプロイとして自動実行される。
+
+### 対象プロジェクト
+
+| Vercel プロジェクト | アプリ | Root Directory |
+|---|---|---|
+| `jobtv-app-jobtv` | jobtv | `apps/jobtv` |
+
+> event-system / agent-manager は後日対応。
+
+### Vercel プロジェクト設定
+
+**Settings > Git:**
+- Production Branch: `main`
+- Automatic Deployments: 有効（デフォルト）
+
+**Settings > General:**
+- Framework Preset: Next.js
+- Root Directory: `apps/jobtv`
+- Build Command: デフォルト（`next build`）
+
+**Settings > Git > Ignored Build Step（ビルド最適化、任意）:**
+```
+npx turbo-ignore jobtv
+```
+→ jobtv に変更がないときビルドをスキップし、ビルド時間を節約する。
 
 ---
 

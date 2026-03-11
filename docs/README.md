@@ -18,10 +18,15 @@
 | [database.md](database.md) | マイグレーション管理・型定義の分類と配置・Supabase クライアントの使用。 |
 | [ui-and-styling.md](ui-and-styling.md) | Tailwind、コンポーネント、データフェッチ、ページテーマの規約。 |
 | [monorepo.md](monorepo.md) | モノレポ構成、パッケージ、開発ワークフロー、環境変数。 |
-| [deployment.md](deployment.md) | デプロイ先（Vercel）と管理者画面（/admin）の IP 制限方針。 |
+| [deployment.md](deployment.md) | ブランチ戦略・環境構成・Vercel デプロイ設定・管理者画面 IP 制限。 |
 | [apps.md](apps.md) | アプリ概要・構成・環境変数・技術スタック（jobtv / event-system / agent-manager）。 |
 | [setup.md](setup.md) | 環境構築・セットアップ手順。 |
-| [seo.md](seo.md) | SEO 設計・メタデータ・robots 設定。 |
+| [seo-aio.md](seo-aio.md) | SEO・AIO 対策・構造化データ・Core Web Vitals・llms.txt。 |
 | [aws-video.md](aws-video.md) | AWS 動画ストリーミング（S3 / MediaConvert / CloudFront）連携。 |
 | [event-specification.md](event-specification.md) | イベントシステムの詳細仕様。 |
+| [line-integration.md](line-integration.md) | LINE 連携・配信・CTA 動線。 |
+| [logging.md](logging.md) | ロギング・監査ログ・エラーバウンダリ。 |
+| [signup-notification.md](signup-notification.md) | 会員登録通知（Slack・Google Sheets）。 |
+| [testing.md](testing.md) | E2E テスト（Playwright）・テスト戦略。 |
+| [mcp.md](mcp.md) | MCP サーバー設定・用途・セットアップ。 |
 | [test/](test/) | 機能別テスト観点・バグ候補（例: [company-page-flow.md](test/company-page-flow.md)）。 |
