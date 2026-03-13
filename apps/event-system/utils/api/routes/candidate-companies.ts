@@ -1,4 +1,3 @@
-import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@jobtv-app/shared/supabase/admin";
 
 export async function getCandidateCompanies(eventId: string, candidateId: string) {
@@ -6,10 +5,10 @@ export async function getCandidateCompanies(eventId: string, candidateId: string
     throw new Error("eventIdとcandidateIdが必要です");
   }
 
-  // まず通常のクライアントで試行（RLSポリシーが適切に設定されていれば動作する）
-  const supabase = await createClient();
-  
-  // 学生が出席登録したイベントか確認（RLSポリシーで自分の予約のみアクセス可能）
+  // event-system はクッキー認証のため、admin client を使用（candidateId はルートハンドラで検証済み）
+  const supabase = getAdminClient();
+
+  // 学生が出席登録したイベントか確認
   const { data: reservation, error: reservationError } = await supabase
     .from("event_reservations")
     .select("id, attended")
@@ -18,37 +17,14 @@ export async function getCandidateCompanies(eventId: string, candidateId: string
     .eq("attended", true)
     .single();
 
-  // RLSポリシーでアクセスできない場合は、管理者クライアントを使用（フォールバック）
-  let finalSupabase = supabase;
-  let finalReservation = reservation;
-  
   if (reservationError || !reservation) {
-    // RLSポリシーが適切に設定されていない場合のフォールバック
-    const adminSupabase = getAdminClient();
-    const { data: adminReservation, error: adminReservationError } = await adminSupabase
-      .from("event_reservations")
-      .select("id, attended")
-      .eq("candidate_id", candidateId)
-      .eq("event_id", eventId)
-      .eq("attended", true)
-      .single();
-    
-    if (adminReservationError || !adminReservation) {
-      throw new Error("このイベントに出席登録されていません");
-    }
-    
-    finalReservation = adminReservation;
-    finalSupabase = adminSupabase;
-  } else {
-    if (!reservation) {
-      throw new Error("このイベントに出席登録されていません");
-    }
+    throw new Error("このイベントに出席登録されていません");
   }
 
   // 2つのクエリを並列実行（reservationは既に確認済み）
   const [eventCompaniesResult, ratingsResult] = await Promise.all([
     // そのイベントに参加登録している企業を取得
-    finalSupabase
+    supabase
       .from("event_companies")
       .select(
         `
@@ -60,8 +36,8 @@ export async function getCandidateCompanies(eventId: string, candidateId: string
       `
       )
       .eq("event_id", eventId),
-    // 既存の評価を取得（RLSポリシーで自分の評価のみアクセス可能）
-    finalSupabase
+    // 既存の評価を取得
+    supabase
       .from("event_ratings_candidate_to_company")
       .select("id, company_id, rating, comment")
       .eq("candidate_id", candidateId)
@@ -120,4 +96,3 @@ export async function getCandidateCompanies(eventId: string, candidateId: string
 
   return { companies };
 }
-

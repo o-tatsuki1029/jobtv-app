@@ -34,6 +34,13 @@ export async function POST(request: NextRequest) {
 
     console.log("[Webhook] SNS received: type=" + (message.Type || "unknown"));
 
+    // TopicArn 検証（設定されている場合のみ）
+    const expectedTopicArn = process.env.AWS_SNS_TOPIC_ARN;
+    if (expectedTopicArn && message.TopicArn && message.TopicArn !== expectedTopicArn) {
+      console.log("[Webhook] NG: TopicArn mismatch");
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     // SNS通知の検証（SubscriptionConfirmationとNotificationを処理）
     if (message.Type === "SubscriptionConfirmation") {
       // SNSトピックのサブスクリプション確認

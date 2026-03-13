@@ -49,6 +49,9 @@ export async function getAllJobsForReview(params?: {
   offset?: number;
   sortBy?: string;
 }) {
+  const { isAdmin } = await checkAdminPermission();
+  if (!isAdmin) return { data: null, count: 0, error: "管理者権限が必要です" };
+
   const supabaseAdmin = createAdminClient();
   const limit = params?.limit;
   const offset = params?.offset ?? 0;
@@ -165,6 +168,9 @@ export async function getAllSessionsForReview(params?: {
   offset?: number;
   sortBy?: string;
 }) {
+  const { isAdmin } = await checkAdminPermission();
+  if (!isAdmin) return { data: null, count: 0, error: "管理者権限が必要です" };
+
   const supabaseAdmin = createAdminClient();
   const limit = params?.limit;
   const offset = params?.offset ?? 0;
@@ -273,6 +279,9 @@ export async function getAllSessionsForReview(params?: {
  * 審査待ちの企業情報（companies）一覧を取得
  */
 export async function getAllCompanyInfoForReview() {
+  const { isAdmin } = await checkAdminPermission();
+  if (!isAdmin) return { data: null, error: "管理者権限が必要です" };
+
   const supabaseAdmin = createAdminClient();
 
   // 企業情報の審査はcompanies_draftテーブルから取得
@@ -322,6 +331,9 @@ export async function getAllCompaniesForReview(params?: {
   offset?: number;
   sortBy?: string;
 }) {
+  const { isAdmin } = await checkAdminPermission();
+  if (!isAdmin) return { data: null, count: 0, error: "管理者権限が必要です" };
+
   const supabaseAdmin = createAdminClient();
   const limit = params?.limit;
   const offset = params?.offset ?? 0;
@@ -1209,6 +1221,9 @@ export async function getReviewCounts(): Promise<{
   } | null;
   error: string | null;
 }> {
+  const { isAdmin } = await checkAdminPermission();
+  if (!isAdmin) return { data: null, error: "管理者権限が必要です" };
+
   const supabaseAdmin = createAdminClient();
 
   const [companyInfoRes, companyPagesRes, jobsRes, sessionsRes, videosRes] = await Promise.all([
@@ -1265,6 +1280,9 @@ export async function getAdminDashboardStats(): Promise<
       }>;
     }
 > {
+  const { isAdmin } = await checkAdminPermission();
+  if (!isAdmin) return { error: "管理者権限が必要です" };
+
   const supabaseAdmin = createAdminClient();
   const todayStr = new Date().toISOString().split("T")[0];
 
@@ -1310,6 +1328,12 @@ export async function getAdminDashboardStats(): Promise<
  * 審査待ち件数のサマリーを取得
  */
 export async function getReviewSummary() {
+  const { isAdmin } = await checkAdminPermission();
+  if (!isAdmin) return {
+    pendingJobs: 0, pendingSessions: 0, pendingCompanyPages: 0, pendingCompanyInfo: 0,
+    error: "管理者権限が必要です"
+  };
+
   const [jobsResult, sessionsResult, companyPagesResult, companyInfoResult] = await Promise.all([
     getAllJobsForReview(),
     getAllSessionsForReview(),
