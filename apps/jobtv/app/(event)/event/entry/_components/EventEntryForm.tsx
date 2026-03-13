@@ -34,6 +34,7 @@ import {
 } from "@/constants/signup-options";
 import EventDateSelector from "./EventDateSelector";
 import { cn } from "@jobtv-app/shared/utils/cn";
+import TurnstileWidget from "@/components/common/TurnstileWidget";
 
 const inputClass =
   "w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500 transition-all";
@@ -79,6 +80,9 @@ export default function EventEntryForm({ events, isLoggedInCandidate }: Props) {
   const [schoolKcode, setSchoolKcode] = useState<string | null>(null);
   const [facultyName, setFacultyName] = useState("");
   const [departmentName, setDepartmentName] = useState("");
+
+  // Turnstile token（既存候補者の手動予約用）
+  const [captchaToken, setCaptchaToken] = useState("");
 
   // UTM
   const [referrer, setReferrer] = useState("");
@@ -184,6 +188,7 @@ export default function EventEntryForm({ events, isLoggedInCandidate }: Props) {
     fd.set("utm_campaign", utm.campaign);
     fd.set("utm_content", utm.content);
     fd.set("utm_term", utm.term);
+    fd.set("captchaToken", captchaToken);
     const reserveResult = await createReservationForExistingCandidate(fd);
     setLoading(false);
     if (reserveResult.error) {
@@ -393,6 +398,10 @@ export default function EventEntryForm({ events, isLoggedInCandidate }: Props) {
                   )}
                 </button>
               </>
+            )}
+
+            {!confirmed && (
+              <TurnstileWidget theme="light" action="event-entry" onToken={setCaptchaToken} />
             )}
 
             {!confirmed && (
@@ -638,6 +647,8 @@ export default function EventEntryForm({ events, isLoggedInCandidate }: Props) {
                 {error && (
                   <div className="p-3 bg-red-50 border border-red-100 rounded-md text-red-600 text-xs">{error}</div>
                 )}
+
+                <TurnstileWidget theme="light" action="event-signup" />
 
                 <button
                   type="submit"

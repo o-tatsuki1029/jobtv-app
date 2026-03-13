@@ -42,6 +42,52 @@
 - アスペクト比: `HORIZONTAL_CARD_ASPECT_RATIO_CLASS`（5:7）、`HORIZONTAL_CARD_ASPECT_RATIO_16_9_CLASS`（16:9）
 - 横幅: `HORIZONTAL_CARD_WIDTH.company` / `shortVideo` / `banner` / `video` など。新規に同種カードを追加する場合は定数を追加し、コンポーネントでは定数を参照する
 
+### フォント設定（Tailwind v4 + next/font）
+
+全アプリで **Inter**（欧文）+ **Noto Sans JP**（日本語）を Web フォントとして使用し、環境間のフォント差異をなくしている。欧文は Inter が処理し、日本語は Noto Sans JP にフォールバックする。
+
+#### 構成パターン
+
+1. **layout.tsx**: `next/font/google` から `Inter` と `Noto_Sans_JP` をインポートし、CSS 変数を生成。**クラスは `<html>` に付与する**（`<body>` ではない）
+2. **globals.css**: `:root` に `--default-font-family` を設定（Inter → Noto Sans JP の順）
+
+```tsx
+// layout.tsx
+import { Inter, Noto_Sans_JP } from "next/font/google";
+
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+  weight: ["400", "500", "700"],
+  display: "swap",
+  preload: true,
+});
+
+const notoSansJP = Noto_Sans_JP({
+  variable: "--font-noto-sans-jp",
+  subsets: ["latin"],
+  weight: ["400", "500", "700"],
+  display: "swap",
+  preload: true,
+});
+
+// <html> に付与（<body> ではない）
+<html className={`${inter.variable} ${notoSansJP.variable}`}>
+```
+
+```css
+/* globals.css */
+:root {
+  --default-font-family: var(--font-inter), var(--font-noto-sans-jp), sans-serif;
+}
+```
+
+#### 注意点
+
+- **CSS 変数のスコープ**: `next/font` は指定要素にのみ CSS 変数を定義する。Tailwind v4 の preflight は `html` の `--default-font-family` を参照するため、フォント変数クラスは必ず `<html>` に付与すること。`<body>` に付けると `:root`（= `html`）から変数が見えず、フォールバックフォントが使われる
+- **`@theme inline` の `--font-sans`**: Tailwind v4 では `@theme inline { --font-sans: ... }` だけでは preflight の `font-family` に反映されない。`:root` で `--default-font-family` を明示的に設定する必要がある
+- **Mono フォント**: Web フォントは使わず、システム mono フォント（`ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`）を使用
+
 ### アクセシビリティ・禁止事項
 
 - フォーカス状態・スクリーンリーダー対応など、アクセシビリティを考慮したクラスを使用する

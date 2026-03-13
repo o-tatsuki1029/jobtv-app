@@ -28,6 +28,7 @@ import {
 import { validateEmail, validatePhone, validatePassword, validateKana } from "@/lib/utils/signup-validation";
 import Link from "next/link";
 import { cn } from "@jobtv-app/shared/utils/cn";
+import TurnstileWidget from "@/components/common/TurnstileWidget";
 
 const inputClass =
   "w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500 transition-all";
@@ -679,6 +680,8 @@ function SignUpPageContent() {
                   {error && (
                     <div className="p-3 bg-red-50 border border-red-100 rounded-md text-red-600 text-xs">{error}</div>
                   )}
+
+                  <TurnstileWidget theme="light" action="signup" />
 
                   <button
                     type="submit"

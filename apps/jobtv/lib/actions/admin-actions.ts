@@ -1237,6 +1237,76 @@ export async function getReviewCounts(): Promise<{
 }
 
 /**
+ * 管理者ダッシュボード用の統計情報を一括取得
+ */
+export async function getAdminDashboardStats(): Promise<
+  | { error: string }
+  | {
+      error: null;
+      companies: number;
+      students: number;
+      activeJobs: number;
+      activeSessions: number;
+      reviewCounts: {
+        "company-info": number;
+        "company-pages": number;
+        jobs: number;
+        sessions: number;
+        videos: number;
+      };
+      upcomingEvents: Array<{
+        id: string;
+        event_date: string;
+        start_time: string;
+        display_name: string | null;
+        form_area: string | null;
+        status: string;
+        event_types: { name: string } | null;
+      }>;
+    }
+> {
+  const supabaseAdmin = createAdminClient();
+  const todayStr = new Date().toISOString().split("T")[0];
+
+  const [
+    companiesRes, studentsRes, activeJobsRes, activeSessionsRes,
+    reviewCounts, upcomingEventsRes
+  ] = await Promise.all([
+    supabaseAdmin.from("companies").select("id", { count: "exact", head: true }),
+    supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }).eq("role", "candidate"),
+    supabaseAdmin.from("job_postings").select("id", { count: "exact", head: true }).eq("status", "active"),
+    supabaseAdmin.from("sessions").select("id", { count: "exact", head: true }).eq("status", "active"),
+    getReviewCounts(),
+    supabaseAdmin
+      .from("events")
+      .select("id, event_date, start_time, display_name, form_area, status, event_types:event_type_id(name)")
+      .is("deleted_at", null)
+      .neq("status", "cancelled")
+      .gte("event_date", todayStr)
+      .order("event_date", { ascending: true })
+      .limit(5),
+  ]);
+
+  const firstError = companiesRes.error || studentsRes.error || activeJobsRes.error || activeSessionsRes.error || upcomingEventsRes.error;
+  if (firstError) {
+    return { error: firstError.message };
+  }
+  if (reviewCounts.error) {
+    return { error: reviewCounts.error };
+  }
+
+  return {
+    companies: companiesRes.count ?? 0,
+    students: studentsRes.count ?? 0,
+    activeJobs: activeJobsRes.count ?? 0,
+    activeSessions: activeSessionsRes.count ?? 0,
+    reviewCounts: reviewCounts.data!,
+    upcomingEvents: (upcomingEventsRes.data ?? []) as any,
+    error: null,
+  };
+}
+
+/**
  * 審査待ち件数のサマリーを取得
  */
 export async function getReviewSummary() {

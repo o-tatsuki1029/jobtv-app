@@ -27,6 +27,7 @@
 | デプロイ・admin IP 制限・環境構成（ローカル/STG/本番の違い） | `docs/deployment.md` |
 | アプリ構成・技術スタック | `docs/apps.md` |
 | MCP サーバー設定・用途・セットアップ | `docs/mcp.md` |
+| CAPTCHA・ボット対策 | `docs/captcha.md` |
 | E2E テスト（Playwright） | `docs/testing.md` |
 | SEO・AIO 対策・構造化データ・llms.txt | `docs/seo-aio.md` |
 | LINE 連携・配信・CTA 動線 | `docs/line-integration.md` |

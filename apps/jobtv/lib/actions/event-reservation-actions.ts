@@ -13,6 +13,7 @@ import {
 } from "@/lib/email/send-event-reservation-notification";
 import { buildCandidatePayloadFromFormData } from "@/lib/utils/candidate-payload";
 import { resolveSchoolKcode } from "@/lib/actions/school-actions";
+import { verifyTurnstileToken } from "@/lib/captcha/verify-turnstile";
 import { logger } from "@/lib/logger";
 
 export interface EventForReservation {
@@ -204,9 +205,16 @@ export async function createReservationForExistingCandidate(formData: FormData):
 }> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const eventId = String(formData.get("event_id") ?? "").trim();
+  const captchaToken = String(formData.get("captchaToken") ?? "");
 
   if (!email || !eventId) {
     return { data: null, error: "必要な情報が不足しています" };
+  }
+
+  // Supabase Auth を経由しないため手動で Turnstile 検証
+  const captchaResult = await verifyTurnstileToken(captchaToken);
+  if (!captchaResult.success) {
+    return { data: null, error: captchaResult.error ?? "CAPTCHA の検証に失敗しました" };
   }
 
   try {
@@ -298,10 +306,11 @@ export async function signUpAndReserveEvent(formData: FormData): Promise<{
     const supabase = await createClient();
 
     // 1. 認証アカウント作成
+    const captchaToken = String(formData.get("captchaToken") ?? "");
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: `${getFullSiteUrl(3000)}/api/auth/callback` },
+      options: { emailRedirectTo: `${getFullSiteUrl(3000)}/api/auth/callback`, captchaToken },
     });
 
     if (authError) {

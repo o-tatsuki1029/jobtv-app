@@ -25,12 +25,13 @@ import { resolveSchoolKcode } from "@/lib/actions/school-actions";
 export async function signUp(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
+  const captchaToken = String(formData.get("captchaToken") ?? "");
 
   const supabase = await createClient();
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
     password,
-    options: { emailRedirectTo: `${getFullSiteUrl(3000)}/api/auth/callback` }
+    options: { emailRedirectTo: `${getFullSiteUrl(3000)}/api/auth/callback`, captchaToken }
   });
 
   if (authError) {
@@ -138,7 +139,8 @@ export async function checkEmailForSignup(email: string): Promise<CheckEmailForS
 export async function signIn(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
-  const result = await baseSignInWithPassword(email, password);
+  const captchaToken = (formData.get("captchaToken") as string) ?? "";
+  const result = await baseSignInWithPassword(email, password, captchaToken);
 
   if (result.error) {
     return { error: result.error };
@@ -198,7 +200,8 @@ export async function signOut() {
  */
 export async function resetPassword(formData: FormData) {
   const email = formData.get("email") as string;
-  const result = await baseResetPasswordForEmail(email, `${getFullSiteUrl(3000)}/auth/update-password`);
+  const captchaToken = (formData.get("captchaToken") as string) ?? "";
+  const result = await baseResetPasswordForEmail(email, `${getFullSiteUrl(3000)}/auth/update-password`, captchaToken);
 
   if (result.error) {
     return { error: result.error };

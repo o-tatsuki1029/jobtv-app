@@ -27,6 +27,7 @@
 | [line-integration.md](line-integration.md) | LINE 連携・配信・CTA 動線。 |
 | [logging.md](logging.md) | ロギング・監査ログ・エラーバウンダリ。 |
 | [signup-notification.md](signup-notification.md) | 会員登録通知（Slack・Google Sheets）。 |
+| [captcha.md](captcha.md) | CAPTCHA（Cloudflare Turnstile）導入・設定・検証パターン。 |
 | [testing.md](testing.md) | E2E テスト（Playwright）・テスト戦略。 |
 | [mcp.md](mcp.md) | MCP サーバー設定・用途・セットアップ。 |
 | [test/](test/) | 機能別テスト観点・バグ候補（例: [company-page-flow.md](test/company-page-flow.md)）。 |

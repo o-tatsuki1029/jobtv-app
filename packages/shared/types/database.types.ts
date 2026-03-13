@@ -1420,6 +1420,129 @@ export type Database = {
           },
         ]
       }
+      lp_company_logos: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          image_url: string
+          name: string
+          row_position: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          image_url: string
+          name: string
+          row_position?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          image_url?: string
+          name?: string
+          row_position?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      lp_faq_items: {
+        Row: {
+          answer: string
+          created_at: string
+          display_order: number
+          id: string
+          question: string
+          updated_at: string
+        }
+        Insert: {
+          answer: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          question: string
+          updated_at?: string
+        }
+        Update: {
+          answer?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          question?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      lp_sample_videos: {
+        Row: {
+          created_at: string
+          description: string
+          display_order: number
+          duration: string
+          id: string
+          tag: string
+          thumbnail_url: string | null
+          title: string
+          updated_at: string
+          video_url: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          display_order?: number
+          duration: string
+          id?: string
+          tag: string
+          thumbnail_url?: string | null
+          title: string
+          updated_at?: string
+          video_url: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          display_order?: number
+          duration?: string
+          id?: string
+          tag?: string
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string
+          video_url?: string
+        }
+        Relationships: []
+      }
+      lp_scroll_banner: {
+        Row: {
+          created_at: string
+          id: string
+          image_url: string
+          is_active: boolean
+          link_url: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          image_url: string
+          is_active?: boolean
+          link_url: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          image_url?: string
+          is_active?: boolean
+          link_url?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       matching_results: {
         Row: {
           candidate_id: string

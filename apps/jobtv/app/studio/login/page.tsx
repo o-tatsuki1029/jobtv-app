@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import Link from "next/link";
 import { Building2, Loader2 } from "lucide-react";
+import TurnstileWidget from "@/components/common/TurnstileWidget";
 
 function StudioLoginPageContent() {
   const searchParams = useSearchParams();
@@ -69,6 +70,8 @@ function StudioLoginPageContent() {
                 {errorFromQuery}
               </div>
             )}
+
+            <TurnstileWidget theme="dark" action="studio-login" />
 
             <button
               type="submit"

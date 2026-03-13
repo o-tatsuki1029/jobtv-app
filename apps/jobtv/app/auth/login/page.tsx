@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { primaryButtonClass } from "@/constants/navigation";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
+import TurnstileWidget from "@/components/common/TurnstileWidget";
 
 function LoginPageContent() {
   const searchParams = useSearchParams();
@@ -70,6 +71,8 @@ function LoginPageContent() {
                 {errorFromQuery}
               </div>
             )}
+
+            <TurnstileWidget theme="light" action="login" />
 
             <button
               type="submit"
