@@ -21,7 +21,7 @@
 
 ## 全体の前提（ドラフト／本番パターン）
 
-JobTV では、スタジオで編集し管理者審査を経てから公開する機能について、次のパターンでテーブルが分かれている。
+JOBTV では、スタジオで編集し管理者審査を経てから公開する機能について、次のパターンでテーブルが分かれている。
 
 - **本番テーブル**（例: `company_pages`）: 公開サイトに表示されるデータ。審査承認後に更新される。公開のオン/オフは `status` などで制御。
 - **ドラフトテーブル**（例: `company_pages_draft`）: スタジオで編集する一時データ。`draft_status` で下書き / 審査中 / 承認済み / 却下 を管理。承認時に本番へ反映。
@@ -956,3 +956,75 @@ NEXT_PUBLIC_SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... pnpm tsx scripts/impo
 |------|------|
 | ヘルパー関数 | `packages/shared/utils/audit.ts`（`logAudit()`） |
 | マイグレーション | `supabase/migrations/20260313000000_create_audit_logs.sql` |
+
+---
+
+## LINE 配信ログ・テンプレート
+
+LINE 一斉配信の実行記録・候補者別配信結果・テンプレート管理・管理者テスト送信用のテーブル群。
+
+### line_broadcast_logs
+
+配信履歴テーブル。LINE 一斉配信の実行記録を 1 配信 1 行で保持する。
+
+| カラム | 型 | 説明 |
+|--------|-----|------|
+| id | uuid PK | |
+| status | text | draft / scheduled / sending / sent / failed / cancelled |
+| filters_snapshot | jsonb | 配信時のフィルター条件 |
+| messages_snapshot | jsonb | 配信メッセージ（LineMessage[]） |
+| target_count | int | 配信対象数 |
+| sent_count / failed_count / blocked_count | int | 結果カウント |
+| scheduled_at | timestamptz | 予約配信日時（即時は NULL） |
+| sent_at | timestamptz | 実行完了日時 |
+| created_by | uuid FK→auth.users | 実行した管理者 |
+| template_id | uuid FK→line_message_templates | 使用テンプレート（NULL 可） |
+
+- RLS: admin のみ全操作
+- インデックス: status, created_at DESC, scheduled_at WHERE status='scheduled'
+
+### line_broadcast_deliveries
+
+候補者別配信結果テーブル。各 LINE push の送信結果を 1 行で記録。
+
+| カラム | 型 | 説明 |
+|--------|-----|------|
+| id | uuid PK | |
+| broadcast_log_id | uuid FK→line_broadcast_logs | 親ログ |
+| candidate_id | uuid FK | 候補者 |
+| line_user_id | text | 送信先 |
+| status | text | pending / success / failed / blocked |
+| error_code / error_message | text | エラー詳細 |
+| retry_count | int | リトライ回数（最大 3） |
+| last_attempted_at | timestamptz | 最終試行日時 |
+
+- RLS: admin SELECT のみ（INSERT/UPDATE は service_role）
+- インデックス: broadcast_log_id, status, (broadcast_log_id, status) WHERE status='failed' AND retry_count<3
+
+### line_message_templates
+
+LINE メッセージテンプレートテーブル。配信で再利用可能なメッセージ構成を保存。
+
+| カラム | 型 | 説明 |
+|--------|-----|------|
+| id | uuid PK | |
+| name | text UNIQUE | テンプレート名 |
+| description | text | 説明 |
+| message_type | text | text / bubble / carousel / image / imagemap |
+| messages_json | jsonb | LineMessage[]（API 送信用） |
+| builder_state_json | jsonb | ビルダー UI 状態（フォーム復元用） |
+| is_active | boolean | ソフトデリート用 |
+| created_by | uuid FK | |
+
+- RLS: admin のみ全操作
+
+### admin_line_user_ids
+
+管理者の LINE userId テーブル。テスト送信で使用。
+
+| カラム | 型 | 説明 |
+|--------|-----|------|
+| profile_id | uuid PK FK→auth.users | |
+| line_user_id | text NOT NULL | 管理者の LINE userId |
+
+- RLS: admin のみ全操作

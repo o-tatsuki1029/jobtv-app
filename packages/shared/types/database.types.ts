@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_line_user_ids: {
+        Row: {
+          created_at: string
+          line_user_id: string
+          profile_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          line_user_id: string
+          profile_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          line_user_id?: string
+          profile_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       application_progress: {
         Row: {
           application_id: string
@@ -1419,6 +1440,151 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      line_broadcast_deliveries: {
+        Row: {
+          broadcast_log_id: string
+          candidate_id: string
+          created_at: string
+          error_code: string | null
+          error_message: string | null
+          id: string
+          last_attempted_at: string | null
+          line_user_id: string
+          retry_count: number
+          status: string
+        }
+        Insert: {
+          broadcast_log_id: string
+          candidate_id: string
+          created_at?: string
+          error_code?: string | null
+          error_message?: string | null
+          id?: string
+          last_attempted_at?: string | null
+          line_user_id: string
+          retry_count?: number
+          status?: string
+        }
+        Update: {
+          broadcast_log_id?: string
+          candidate_id?: string
+          created_at?: string
+          error_code?: string | null
+          error_message?: string | null
+          id?: string
+          last_attempted_at?: string | null
+          line_user_id?: string
+          retry_count?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "line_broadcast_deliveries_broadcast_log_id_fkey"
+            columns: ["broadcast_log_id"]
+            isOneToOne: false
+            referencedRelation: "line_broadcast_logs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      line_broadcast_logs: {
+        Row: {
+          blocked_count: number
+          created_at: string
+          created_by: string | null
+          failed_count: number
+          filters_snapshot: Json
+          id: string
+          messages_snapshot: Json
+          scheduled_at: string | null
+          sent_at: string | null
+          sent_count: number
+          status: string
+          target_count: number
+          template_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          blocked_count?: number
+          created_at?: string
+          created_by?: string | null
+          failed_count?: number
+          filters_snapshot?: Json
+          id?: string
+          messages_snapshot?: Json
+          scheduled_at?: string | null
+          sent_at?: string | null
+          sent_count?: number
+          status?: string
+          target_count?: number
+          template_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          blocked_count?: number
+          created_at?: string
+          created_by?: string | null
+          failed_count?: number
+          filters_snapshot?: Json
+          id?: string
+          messages_snapshot?: Json
+          scheduled_at?: string | null
+          sent_at?: string | null
+          sent_count?: number
+          status?: string
+          target_count?: number
+          template_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_line_broadcast_logs_template"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "line_message_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      line_message_templates: {
+        Row: {
+          builder_state_json: Json | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          message_type: string
+          messages_json: Json
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          builder_state_json?: Json | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          message_type?: string
+          messages_json?: Json
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          builder_state_json?: Json | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          message_type?: string
+          messages_json?: Json
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       lp_company_logos: {
         Row: {

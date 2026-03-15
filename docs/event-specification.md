@@ -143,12 +143,10 @@ src/
 #### `events` (イベント)
 
 - `id` (UUID, PK)
-- `event_name` (TEXT)
-- `event_area` (TEXT)
+- `event_type_id` (UUID, FK → `event_types`): イベント種別。`event_types.name`（イベント名）・`event_types.area`（エリア）・`event_types.target_graduation_year`（対象卒業年度）を参照する
 - `event_date` (DATE)
-- `event_start_time`, `event_end_time` (TIME)
+- `start_time`, `end_time` (TIME)
 - `gathering_time` (TIME, nullable): 集合時間
-- `graduation_year` (INTEGER)
 - `venue_name` (TEXT, nullable): 会場名
 - `venue_address` (TEXT, nullable): 会場住所
 - `google_maps_url` (TEXT, nullable): GoogleマップURL
@@ -158,6 +156,7 @@ src/
 - `target_attendance` (INTEGER, nullable): 集客目標数（admin管理用、定員制限なし）
 - `status` (TEXT, NOT NULL, DEFAULT 'active'): `active`/`paused`/`cancelled`
 - `deleted_at` (TIMESTAMPTZ, nullable): 論理削除日時。NULL でない場合は削除済み（一覧・公開ページから除外）
+- `created_by` (UUID, nullable): 作成者
 - `created_at`, `updated_at` (TIMESTAMPTZ)
 
 **削除**: 物理削除ではなく論理削除（`deleted_at` にタイムスタンプをセット）。予約データは保持される。

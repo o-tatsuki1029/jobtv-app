@@ -1,22 +1,22 @@
 # アプリケーション概要
 
-JobTV App Monorepo には、3 つの Next.js アプリケーションが含まれています。
+JOBTV App Monorepo には、3 つの Next.js アプリケーションが含まれています。
 
 ## アプリケーション一覧
 
 | アプリ名          | ポート | 説明                     |
 | ----------------- | ------ | ------------------------ |
-| **jobtv**         | 3000   | JobTV 動画就活情報サイト |
+| **jobtv**         | 3000   | JOBTV 動画就活情報サイト |
 | **event-system**  | 3001   | イベント運営システム     |
 | **agent-manager** | 3002   | エージェント管理システム |
 
 ---
 
-## 1. JobTV (port 3000)
+## 1. JOBTV (port 3000)
 
 ### 概要
 
-JobTV は新卒採用をする企業の就活情報を動画で探せるサービスです。企業密着、社員インタビュー、職場見学など、リアルな情報を無料で視聴できます。
+JOBTV は新卒採用をする企業の就活情報を動画で探せるサービスです。企業密着、社員インタビュー、職場見学など、リアルな情報を無料で視聴できます。
 
 ### 主な機能
 
@@ -120,9 +120,9 @@ LINE_CHANNEL_ACCESS_TOKEN=your-messaging-api-channel-access-token
 
 ### 技術スタック
 
-- **フレームワーク**: Next.js 15.5.6 (App Router)
-- **言語**: TypeScript 5
-- **UI**: React 19.1.0, Tailwind CSS 4.1.16
+- **フレームワーク**: Next.js 16 (App Router)
+- **言語**: TypeScript
+- **スタイリング**: Tailwind CSS 4
 - **認証・データベース**: Supabase (PostgreSQL)
 - **PDF 生成**: jsPDF
 - **グラフ表示**: Recharts
@@ -221,43 +221,5 @@ BASIC_AUTH_PASSWORD=your-password
 
 ## 共通の技術要素
 
-### 共通パッケージ (@jobtv-app/shared)
-
-すべてのアプリで共有される機能：
-
-- **Supabase クライアント**: サーバー/クライアント/管理者クライアント
-- **型定義**: データベース型、拡張型、共通ヘルパー型
-- **認証ヘルパー**: 認証関連のユーティリティ
-- **ユーティリティ**: 共通のヘルパー関数
-
-### データベース
-
-すべてのアプリが同じ Supabase データベースを共有します：
-
-- **プロジェクト ID**: `tdewumilkltljbqryjpg`
-- **マイグレーション管理**: `jobtv-app/supabase/migrations/`で一元管理
-- **型定義**: `packages/shared/types/database.types.ts`で自動生成
-
-### 開発ワークフロー
-
-```bash
-# 全アプリを並列起動
-pnpm dev
-
-# 個別のアプリを起動
-pnpm --filter jobtv dev
-pnpm --filter event-system dev
-pnpm --filter agent-manager dev
-
-# ビルド
-pnpm build
-pnpm --filter jobtv build
-```
-
-## 次のステップ
-
-- [セットアップガイド](./setup.md) - 環境構築の詳細
-- [データベース管理](./database.md) - マイグレーション管理
-- [デプロイ・運用](./deployment.md) - デプロイ先（Vercel）と admin の IP 制限方針
-- [コーディング規約](./code-style.md) - 命名・型・インポート
-- [ドキュメント一覧](./README.md) - docs 全体の索引
+- **共通パッケージ・開発ワークフロー**: [monorepo.md](./monorepo.md) を参照
+- **データベース・マイグレーション・型定義**: [database.md](./database.md) を参照

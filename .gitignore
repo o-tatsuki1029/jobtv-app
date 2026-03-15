@@ -77,3 +77,6 @@ apps/jobtv/public/lp/images/compress-videos.sh
 # Reference materials (Claude用参考資料)
 reference/
 
+
+# Serena tool local data
+.serena/

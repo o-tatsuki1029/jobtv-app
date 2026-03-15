@@ -317,7 +317,7 @@ export async function getRecruiterMenuInfo(): Promise<{
 export async function getHeaderAuthInfo(): Promise<
   | {
       data: {
-        user: { email: string | null } | null;
+        user: { email: string | null; displayName: string | null } | null;
         role: "recruiter" | "admin" | null;
         recruiterMenuInfo: {
           displayName: string;
@@ -347,16 +347,14 @@ export async function getHeaderAuthInfo(): Promise<
       .maybeSingle();
     const role =
       profile?.role === "recruiter" || profile?.role === "admin" ? profile.role : null;
+    const displayName =
+      [profile?.last_name, profile?.first_name].filter(Boolean).join(" ") || null;
     let recruiterMenuInfo: {
       displayName: string;
       companyName: string | null;
       email: string | null;
     } | null = null;
     if (role === "recruiter" && profile) {
-      const displayName =
-        [profile.last_name, profile.first_name].filter(Boolean).join(" ") ||
-        user.email?.split("@")[0] ||
-        "ユーザー";
       let companyName: string | null = null;
       if (profile.company_id) {
         const { data: company } = await supabase
@@ -367,14 +365,14 @@ export async function getHeaderAuthInfo(): Promise<
         companyName = company?.name ?? null;
       }
       recruiterMenuInfo = {
-        displayName,
+        displayName: displayName || user.email?.split("@")[0] || "ユーザー",
         companyName,
         email: profile.email ?? user.email ?? null
       };
     }
     return {
       data: {
-        user: { email: user.email ?? null },
+        user: { email: user.email ?? null, displayName },
         role,
         recruiterMenuInfo
       },

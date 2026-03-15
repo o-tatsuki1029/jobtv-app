@@ -34,6 +34,8 @@
 | ロギング・監査ログ・エラーバウンダリ | `docs/logging.md` |
 | 会員登録通知（Slack・Google Sheets） | `docs/signup-notification.md` |
 | AWS 動画ストリーミング（S3・MediaConvert・CloudFront） | `docs/aws-video.md` |
+| スケジュール配信（Vercel Cron） | `docs/scheduled-jobs.md` |
+| 通知システム（メール・LINE・Slack・Sheets・アプリ内） | `docs/notifications.md` |
 | イベント運営システム仕様 | `docs/event-specification.md` |
 | 環境構築・セットアップ | `docs/setup.md` |
 | テスト観点・バグ候補 | `docs/test/` |

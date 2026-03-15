@@ -97,9 +97,10 @@ main（Vercel Production）→ Supabase PROD (voisychklptvavokrxox) / AWS PROD
 | `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` | `https://jobtv-app-jobtv.vercel.app` | `https://media.jobtv.jp` |
 | Basic 認証 | あり（開発用 user/pass） | あり | `BASIC_AUTH_SCOPE` で制御 |
 | `BASIC_AUTH_SCOPE` | 未設定（= `all`） | 未設定（= `all`） | リリース前: `all` / リリース後: `admin` |
-| `NODE_TLS_REJECT_UNAUTHORIZED=0` | あり（ローカル専用） | **設定しない** | **設定しない** |
 | `SKIP_ZEROTRUST_CHECK=true` | あり（ローカル専用） | **設定しない** | **設定しない** |
-| Cloudflare Zero Trust | スキップ | 有効 | 有効 |
+| Cloudflare Zero Trust | スキップ（下記注意参照） | 有効 | 有効 |
+
+> **Cloudflare Zero Trust について**: Zero Trust はネットワークレベルのアクセス制御（社外からの接続制限）であり、JOBTV 固有のセキュリティ対策ではない。ローカル開発時に `SKIP_ZEROTRUST_CHECK=true` を設定してスキップするのは、Zero Trust 環境下では外部サービス（Supabase 等）への TLS 通信が証明書エラーで失敗するため。`NODE_TLS_REJECT_UNAUTHORIZED=0` を自動適用して回避している。STG/PROD では Zero Trust が有効だが、これはインフラ側の制約であり、アプリケーションのセキュリティ機能には含めない。
 
 > **重要**: ローカルで開発しながら書き込んだデータは STG DB にそのまま反映される。
 > ローカル ↔ STG ↔ develop はデータを完全共有しているため、テストデータの書き込みや削除は STG にも影響する。
@@ -144,7 +145,6 @@ Vercel ダッシュボードの **Production** スコープに以下を設定す
 | `AWS_S3_BUCKET` | 本番用バケット名 |
 | `AWS_CLOUDFRONT_URL` | `d11xeybks927fj.cloudfront.net`（本番用） |
 | `NEXT_PUBLIC_SITE_URL` | `https://media.jobtv.jp` |
-| `NODE_TLS_REJECT_UNAUTHORIZED` | **設定しない** |
 | `SKIP_ZEROTRUST_CHECK` | **設定しない** |
 
 ### PROD Supabase Dashboard 手動設定チェックリスト
@@ -173,7 +173,7 @@ Vercel は Git 連携で自動的にデプロイする：
 
 | Vercel プロジェクト | アプリ | Root Directory |
 |---|---|---|
-| `jobtv-app-jobtv` | jobtv | `apps/jobtv` |
+| `jobtv-app` | jobtv | `apps/jobtv` |
 
 > event-system / agent-manager は後日対応。
 
@@ -234,27 +234,47 @@ npx turbo-ignore jobtv
 
 ---
 
-## 管理者画面（/admin）のアクセス制限
+## Vercel Firewall
 
 ### 方針
 
-- **admin 配下へのアクセスには IP 制限をかける。**
-- **IP 制限はアプリではなく、インフラ側（Vercel）で実施する。**
+- **セキュリティ制御は Vercel Firewall（インフラ側）で実施する。**
+- リクエストがアプリに届く前に遮断できるため、アプリ側のコード変更は不要。
+- 設定場所: Vercel ダッシュボード → プロジェクト (`jobtv-app`) → **Settings → Firewall → Rules**
 
-### 理由
+### DDoS 対策
 
-- 許可されていない IP からのリクエストをアプリに届く前に遮断できる。
-- 許可 IP の変更は Vercel の設定で行い、アプリのコード変更は不要にできる。
+Vercel は全プラン共通で **DDoS 緩和（DDoS Mitigation）** を標準提供しており、追加設定は不要。
 
-### 実施方法（Vercel）
+- **L3/L4（ネットワーク/トランスポート層）**: SYN flood・UDP reflection 等を PoP（エッジ拠点）レベルで遮断
+- **L7（アプリケーション層）**: リクエストパターンのフィンガープリントにより攻撃的トラフィックを自動検出・ブロック
+- **検出速度**: P50 2.5 秒 / P99 3.5 秒で緩和開始（最短 0.5 秒）
+- **課金保護**: Firewall がブロックしたトラフィックは課金対象外（DDoS 攻撃によるコスト増を防止）
 
-Vercel の **Firewall** または **IP Allowlist** を用い、`/admin` および `/admin/*` へのアクセスを許可する IP のみに限定する。
+> 参考: [Vercel DDoS Mitigation](https://vercel.com/docs/vercel-firewall/ddos-mitigation)
 
-- 設定場所: Vercel ダッシュボード → プロジェクト → Settings → Firewall（または該当するセキュリティ設定）
-- 対象パス: `/admin`, `/admin/*`
-- 許可 IP は運用で定めた一覧を設定する（オフィス・VPN 等）。
+### ルール一覧
+
+| 優先度 | 対象パス | 種類 | 条件 | 目的 |
+|--------|----------|------|------|------|
+| **必須** | `/admin/*` | IP 制限 (Block) | 許可 IP 以外を 403 | 管理画面の保護 |
+| **必須** | `/api/admin/*` | IP 制限 (Block) | 許可 IP 以外を 403 | 管理 API の保護（画面だけ塞いでも API 直叩きを防げないため） |
+| 推奨 | `/api/auth/login` | Rate Limit | 10 req/min per IP | ブルートフォース対策（学生ログイン） |
+| 推奨 | `/api/studio/login` | Rate Limit | 10 req/min per IP | ブルートフォース対策（企業ログイン） |
+| 推奨 | `/api/cron/*` | Rate Limit | 1 req/min per IP | Cron エンドポイントの乱用防止（`CRON_SECRET` 認証との二重防御） |
+
+> **許可 IP**: オフィス・VPN 等、運用で定めた一覧を設定する。
+
+### Webhook について
+
+以下は送信元 IP が変動するため Firewall での IP 制限は行わず、アプリ内認証に依存する。
+
+| パス | 送信元 | アプリ内認証 |
+|------|--------|-------------|
+| `/api/webhooks/email` | Supabase Auth Hook | `SUPABASE_HOOK_SECRET` による検証 |
+| `/api/webhooks/mediaconvert` | AWS SNS | SNS 署名検証 |
 
 ### 注意
 
-- 本制限は **認証・MFA（requireAdmin）とは別レイヤー** である。IP 許可後にログインし、TOTP 検証が必要。
+- IP 制限は **認証・MFA（requireAdmin）とは別レイヤー** である。IP 許可後にログインし、TOTP 検証が必要。
 - 開発・ステージング環境で admin に触る場合は、Vercel の環境別設定で許可 IP を設定するか、該当環境のみ制限を緩和する。

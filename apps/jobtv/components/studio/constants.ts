@@ -13,6 +13,8 @@ import {
   LayoutList,
   Mail,
   FileText,
+  ClipboardList,
+  LayoutGrid,
   // MessageSquare, // チャット用（後々追加）
   UserCog
 } from "lucide-react";
@@ -111,5 +113,8 @@ export const ADMIN_BOTTOM_NAVIGATION = [{ name: "設定", href: "/admin/settings
 /** LINE 管理エリア用サイドバー（/admin/line 配下） */
 export const ADMIN_LINE_NAVIGATION = [
   { name: "配信", href: "/admin/line/broadcast", icon: MessageCircle },
+  { name: "配信履歴", href: "/admin/line/history", icon: ClipboardList },
+  { name: "テンプレート", href: "/admin/line/templates", icon: FileText },
+  { name: "リッチメニュー", href: "/admin/line/richmenu", icon: LayoutGrid },
   { name: "管理トップへ", href: "/admin", icon: LayoutDashboard }
 ];

@@ -44,7 +44,7 @@ export default function StudioSidebar() {
           <div className="w-8 h-8 bg-white rounded flex items-center justify-center transition-transform group-hover:scale-110">
             <span className="text-black font-black text-xl">J</span>
           </div>
-          <span className="text-xl font-bold tracking-tighter uppercase">JobTV Studio</span>
+          <span className="text-xl font-bold tracking-tighter uppercase">JOBTV Studio</span>
         </Link>
       </div>
 

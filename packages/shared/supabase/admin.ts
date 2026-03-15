@@ -1,5 +1,4 @@
 import { createClient } from "@supabase/supabase-js";
-import { configureDevelopmentTLS } from "@jobtv-app/shared/utils/dev-config";
 import pino from "pino";
 
 const logger = pino({ name: "shared/admin" });
@@ -23,9 +22,6 @@ export function createAdminClient() {
       "SUPABASE_SERVICE_ROLE_KEY is not set. Please add it to your .env.local file."
     );
   }
-
-  // 開発環境用のTLS設定を適用
-  configureDevelopmentTLS();
 
   try {
     return createClient(supabaseUrl, supabaseServiceKey, {

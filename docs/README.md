@@ -26,6 +26,8 @@
 | [event-specification.md](event-specification.md) | イベントシステムの詳細仕様。 |
 | [line-integration.md](line-integration.md) | LINE 連携・配信・CTA 動線。 |
 | [logging.md](logging.md) | ロギング・監査ログ・エラーバウンダリ。 |
+| [scheduled-jobs.md](scheduled-jobs.md) | スケジュール配信（Vercel Cron Jobs）の仕組み・設定・運用ルール。 |
+| [notifications.md](notifications.md) | 通知システム全体（メール・LINE・Slack・Sheets・アプリ内通知）の一覧・環境変数・改善提案。 |
 | [signup-notification.md](signup-notification.md) | 会員登録通知（Slack・Google Sheets）。 |
 | [captcha.md](captcha.md) | CAPTCHA（Cloudflare Turnstile）導入・設定・検証パターン。 |
 | [testing.md](testing.md) | E2E テスト（Playwright）・テスト戦略。 |

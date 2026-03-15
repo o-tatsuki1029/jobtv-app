@@ -293,5 +293,5 @@
   "StatusUpdateInterval": "SECONDS_60",
   "Priority": 0,
   "HopDestinations": [],
-  "Description": "JobTV用HLS変換テンプレート（横長）"
+  "Description": "JOBTV用HLS変換テンプレート（横長）"
 }

@@ -3,6 +3,14 @@
     {
       "path": "/api/cron/event-reminder",
       "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/line-broadcast",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/line-broadcast-retry",
+      "schedule": "5,20,35,50 * * * *"
     }
   ]
 }

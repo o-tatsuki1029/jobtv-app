@@ -164,7 +164,7 @@ export default function AdminEmailTemplateEditPage() {
               onChange={handleChange}
               required
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500"
-              placeholder="【JobTV】{company_name} リクルーターアカウントのご案内"
+              placeholder="【JOBTV】{company_name} リクルーターアカウントのご案内"
             />
             <p className="text-xs text-gray-400">
               変数は <code className="bg-gray-100 px-1 rounded">{`{variable_name}`}</code> の形式で記述
