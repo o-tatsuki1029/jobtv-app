@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { checkAdminPermission } from "@/lib/actions/admin-actions";
+import { logAudit } from "@jobtv-app/shared/utils/audit";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
 import type { Tables } from "@jobtv-app/shared/types";
@@ -106,6 +107,18 @@ export async function createLineMessageTemplate(input: {
       return { data: null, error: error.message };
     }
 
+    if (userId) {
+      logAudit({
+        userId,
+        action: "line_template.create",
+        category: "line",
+        resourceType: "line_message_templates",
+        resourceId: data.id,
+        app: "jobtv",
+        metadata: { name: input.name.trim() },
+      });
+    }
+
     revalidatePath("/admin/line/templates");
     return { data, error: null };
   } catch (e) {
@@ -127,7 +140,7 @@ export async function updateLineMessageTemplate(
     builder_state_json?: unknown;
   }
 ): Promise<{ data: LineMessageTemplate | null; error: string | null }> {
-  const { isAdmin } = await checkAdminPermission();
+  const { isAdmin, userId } = await checkAdminPermission();
   if (!isAdmin) return { data: null, error: "管理者権限が必要です" };
 
   try {
@@ -156,6 +169,18 @@ export async function updateLineMessageTemplate(
       return { data: null, error: error.message };
     }
 
+    if (userId) {
+      logAudit({
+        userId,
+        action: "line_template.update",
+        category: "line",
+        resourceType: "line_message_templates",
+        resourceId: id,
+        app: "jobtv",
+        metadata: { templateId: id },
+      });
+    }
+
     revalidatePath("/admin/line/templates");
     return { data, error: null };
   } catch (e) {
@@ -170,7 +195,7 @@ export async function updateLineMessageTemplate(
 export async function deleteLineMessageTemplate(
   id: string
 ): Promise<{ data: null; error: string | null }> {
-  const { isAdmin } = await checkAdminPermission();
+  const { isAdmin, userId } = await checkAdminPermission();
   if (!isAdmin) return { data: null, error: "管理者権限が必要です" };
 
   try {
@@ -183,6 +208,17 @@ export async function deleteLineMessageTemplate(
     if (error) {
       logger.error({ action: "deleteLineMessageTemplate", err: error, id }, "テンプレートの削除に失敗");
       return { data: null, error: error.message };
+    }
+
+    if (userId) {
+      logAudit({
+        userId,
+        action: "line_template.delete",
+        category: "line",
+        resourceType: "line_message_templates",
+        resourceId: id,
+        app: "jobtv",
+      });
     }
 
     revalidatePath("/admin/line/templates");

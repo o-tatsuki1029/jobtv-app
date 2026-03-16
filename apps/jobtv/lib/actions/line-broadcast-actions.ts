@@ -3,6 +3,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth/require-auth";
 import { checkAdminPermission } from "@/lib/actions/admin-actions";
+import { logAudit } from "@jobtv-app/shared/utils/audit";
 import { logger } from "@/lib/logger";
 import type { LineMessage } from "@/types/line-flex.types";
 import { replaceMessageVariables } from "@/lib/line-message-variables";
@@ -410,6 +411,18 @@ export async function sendLineBroadcast(
 
     const result = await executeBroadcast(broadcastLogId, filters, messages);
 
+    if (userId) {
+      logAudit({
+        userId,
+        action: "line_broadcast.send",
+        category: "line",
+        resourceType: "line_broadcast_logs",
+        resourceId: broadcastLogId,
+        app: "jobtv",
+        metadata: { sent: result.sent, failed: result.failed, filters },
+      });
+    }
+
     return {
       data: { sent: result.sent, failed: result.failed, broadcastLogId },
       error: null,
@@ -468,6 +481,18 @@ export async function scheduleLineBroadcast(
     if (error || !data) {
       logger.error({ action: "scheduleLineBroadcast", err: error }, "配信予約の作成に失敗");
       return { data: null, error: "配信予約の作成に失敗しました。" };
+    }
+
+    if (userId) {
+      logAudit({
+        userId,
+        action: "line_broadcast.schedule",
+        category: "line",
+        resourceType: "line_broadcast_logs",
+        resourceId: data.id,
+        app: "jobtv",
+        metadata: { scheduledAt, targetCount, filters },
+      });
     }
 
     return { data: { broadcastLogId: data.id }, error: null };
@@ -584,6 +609,18 @@ export async function setAdminLineUserId(
       logger.error({ action: "setAdminLineUserId", err: error }, "LINE userId の設定に失敗");
       return { data: null, error: error.message };
     }
+
+    if (userId) {
+      logAudit({
+        userId,
+        action: "line_admin.set_user_id",
+        category: "line",
+        resourceType: "admin_line_user_ids",
+        resourceId: userId,
+        app: "jobtv",
+      });
+    }
+
     return { data: null, error: null };
   } catch (e) {
     logger.error({ action: "setAdminLineUserId", err: e }, "LINE userId の設定に失敗");

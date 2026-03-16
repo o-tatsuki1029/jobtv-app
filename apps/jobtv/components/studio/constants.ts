@@ -16,7 +16,8 @@ import {
   ClipboardList,
   LayoutGrid,
   // MessageSquare, // チャット用（後々追加）
-  UserCog
+  UserCog,
+  HardDrive,
 } from "lucide-react";
 
 export const STUDIO_NAVIGATION = [
@@ -104,6 +105,12 @@ export const ADMIN_NAVIGATION_SECTIONS: {
       { name: "お知らせ管理", href: "/admin/notifications", icon: Bell },
       { name: "LINE管理", href: "/admin/line", icon: MessageCircle },
       { name: "メール管理", href: "/admin/email/templates", icon: Mail }
+    ]
+  },
+  {
+    sectionLabel: "システム管理",
+    items: [
+      { name: "ストレージ管理", href: "/admin/storage-cleanup", icon: HardDrive }
     ]
   }
 ];

@@ -862,7 +862,9 @@ event-system アプリで利用するデータは、テーブル名に **`event_
 | `signup_confirmation` | 候補者サインアップ確認メール（Supabase Auth Hook 経由） | 候補者 |
 | `password_reset` | パスワードリセットリンクのメール（Supabase Auth Hook 経由） | 対象ユーザー |
 | `job_application_notification` | 候補者が求人エントリーした際の通知 | 企業リクルーター全員 |
+| `job_application_confirmation` | 求人エントリー受付確認メール | エントリーした候補者 |
 | `session_reservation_notification` | 候補者が説明会を予約した際の通知 | 企業リクルーター全員 |
+| `session_reservation_confirmation` | 説明会予約受付確認メール | 予約した候補者 |
 | `event_reservation_confirmation` | イベント予約完了メール | 予約した候補者 |
 | `event_reservation_reminder_7d` | イベント7日前リマインド | 予約した候補者 |
 | `event_reservation_reminder_3d` | イベント3日前リマインド | 予約した候補者 |
@@ -870,10 +872,11 @@ event-system アプリで利用するデータは、テーブル名に **`event_
 
 ### エントリー・予約通知の仕組み
 
-- `createApplicationsForCandidate()` 成功後、`created.length > 0` の場合のみ `sendJobApplicationNotification()` を fire-and-forget で呼ぶ。
-- `createSessionReservationForLoggedInCandidate()` 成功後、`sendSessionReservationNotification()` を fire-and-forget で呼ぶ。
-- 通知ヘルパーは `lib/email/send-entry-notification.ts` に実装。`profiles.role = 'recruiter'` かつ `company_id = 対象企業` のレコードを全件取得して各自にメールを送る。
-- メール送信エラーはエントリー・予約処理の失敗とは切り離す（`catch(console.error)` のみ）。
+- `createApplicationsForCandidate()` 成功後、`created.length > 0` の場合のみ `sendJobApplicationNotification()`（採用担当向け）と `sendJobApplicationConfirmation()`（学生向け）を fire-and-forget で呼ぶ。
+- `createSessionReservationForLoggedInCandidate()` 成功後、`sendSessionReservationNotification()`（採用担当向け）と `sendSessionReservationConfirmation()`（学生向け）を fire-and-forget で呼ぶ。
+- `fireReservationNotifications()`（イベント予約）で `sendEventReservationRecruiterNotification()` を fire-and-forget で呼び、`event_companies` 経由で該当企業のリクルーター全員に通知する。
+- 通知ヘルパーは `lib/email/send-entry-notification.ts`（求人・説明会）と `lib/email/send-event-reservation-notification.ts`（イベント）に実装。
+- メール送信エラーはエントリー・予約処理の失敗とは切り離す（`catch` + `logger.error` のみ）。
 
 ---
 
@@ -938,7 +941,7 @@ NEXT_PUBLIC_SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... pnpm tsx scripts/impo
 | created_at | timestamptz | 記録日時 |
 | user_id | uuid (FK → auth.users) | 操作者 |
 | action | text | 操作種別（`job.approve`, `proxy_login.start_company` 等） |
-| category | text | カテゴリ（`content_review`, `account`, `content_edit`, `access`, `matching`, `hero`, `auth`） |
+| category | text | カテゴリ（`content_review`, `account`, `content_edit`, `access`, `matching`, `hero`, `auth`, `storage`, `line`, `notification`, `email_template`） |
 | resource_type | text | 対象テーブル名 |
 | resource_id | text | 対象レコード ID |
 | app | text | アプリ名（`jobtv`, `event-system`, `agent-manager`） |
@@ -1028,3 +1031,46 @@ LINE メッセージテンプレートテーブル。配信で再利用可能な
 | line_user_id | text NOT NULL | 管理者の LINE userId |
 
 - RLS: admin のみ全操作
+
+---
+
+## ストレージ管理
+
+### storage_deletion_queue
+
+ストレージ（S3 / Supabase Storage）の削除候補をキューとして蓄積するテーブル。動画・画像の削除/更新操作時に自動登録され、管理者が承認後に実際の削除が実行される。
+
+| カラム | 型 | 説明 |
+|--------|-----|------|
+| id | uuid PK | |
+| storage_type | text NOT NULL | `'s3'` または `'supabase'` |
+| bucket | text NOT NULL | バケット名 |
+| path | text NOT NULL | S3 key または Supabase Storage パス |
+| is_prefix | boolean NOT NULL | true = プレフィックス配下一括削除 |
+| source | text NOT NULL | 発生源（例: `delete_video`, `update_hero_thumbnail`, `full_scan`） |
+| source_detail | text | 補足情報（レコード ID 等） |
+| status | text NOT NULL | `pending` → `approved` → `completed` / `failed` |
+| created_at | timestamptz | |
+| approved_at | timestamptz | |
+| executed_at | timestamptz | |
+| error_message | text | 実行失敗時のエラー |
+
+- RLS: service_role のみ（Server Action 経由）
+- 参照実装: `lib/storage/deletion-queue.ts`, `lib/actions/storage-cleanup-actions.ts`, 各 action ファイルの削除/更新関数
+
+### storage_cleanup_schedules
+
+フルスキャン（ストレージ全体と DB 参照の突合）の日時予約テーブル。Cron が毎日チェックし、実行時刻を過ぎた予約を処理する。
+
+| カラム | 型 | 説明 |
+|--------|-----|------|
+| id | uuid PK | |
+| scan_from | timestamptz NOT NULL | スキャン対象期間（開始） |
+| scan_to | timestamptz NOT NULL | スキャン対象期間（終了） |
+| scheduled_at | timestamptz NOT NULL | 実行予定日時 |
+| status | text NOT NULL | `pending` → `running` → `completed` / `failed` |
+| created_at | timestamptz | |
+| result | jsonb | 結果サマリ（孤立ファイル数等） |
+
+- RLS: service_role のみ（Server Action 経由）
+- 参照実装: `lib/actions/storage-cleanup-actions.ts`, `app/api/cron/storage-cleanup/route.ts`

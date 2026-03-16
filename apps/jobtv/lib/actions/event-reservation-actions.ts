@@ -392,6 +392,7 @@ export async function signUpAndReserveEvent(formData: FormData): Promise<{
         last_name: payload.last_name,
         site_url: getFullSiteUrl(3000),
       },
+      recipientRole: "candidate",
     }).catch((e) => logger.error({ action: "signUpAndReserveEvent", err: e }, "ウェルカムメール送信に失敗"));
 
     // Slack・Sheets（会員登録分）
@@ -543,6 +544,7 @@ function fireReservationNotifications(
           googleMapsUrl: event.google_maps_url ?? "",
         }).catch((e) => logger.error({ action: "fireReservationNotifications", err: e }, "LINE予約通知に失敗"));
       }
+
     } catch (e) {
       logger.error({ action: "fireReservationNotifications", err: e }, "予約通知処理で予期しないエラー");
     }

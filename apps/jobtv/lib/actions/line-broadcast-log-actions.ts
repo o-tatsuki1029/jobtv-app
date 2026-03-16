@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { checkAdminPermission } from "@/lib/actions/admin-actions";
+import { logAudit } from "@jobtv-app/shared/utils/audit";
 import { logger } from "@/lib/logger";
 import type {
   LineBroadcastLog,
@@ -282,7 +283,7 @@ export async function exportLineBroadcastDeliveries(
 export async function cancelScheduledBroadcast(
   broadcastLogId: string
 ): Promise<{ data: null; error: string | null }> {
-  const { isAdmin } = await checkAdminPermission();
+  const { isAdmin, userId } = await checkAdminPermission();
   if (!isAdmin) return { data: null, error: "管理者権限が必要です" };
 
   try {
@@ -297,6 +298,18 @@ export async function cancelScheduledBroadcast(
       logger.error({ action: "cancelScheduledBroadcast", err: error }, "予約キャンセルに失敗");
       return { data: null, error: error.message };
     }
+
+    if (userId) {
+      logAudit({
+        userId,
+        action: "line_broadcast.cancel",
+        category: "line",
+        resourceType: "line_broadcast_logs",
+        resourceId: broadcastLogId,
+        app: "jobtv",
+      });
+    }
+
     return { data: null, error: null };
   } catch (e) {
     logger.error({ action: "cancelScheduledBroadcast", err: e }, "予約キャンセルに失敗");
@@ -313,7 +326,7 @@ export async function retryFailedDeliveries(
   data: { retried: number; success: number; failed: number } | null;
   error: string | null;
 }> {
-  const { isAdmin } = await checkAdminPermission();
+  const { isAdmin, userId } = await checkAdminPermission();
   if (!isAdmin) return { data: null, error: "管理者権限が必要です" };
 
   const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
@@ -422,6 +435,18 @@ export async function retryFailedDeliveries(
           updated_at: new Date().toISOString(),
         })
         .eq("id", broadcastLogId);
+    }
+
+    if (userId) {
+      logAudit({
+        userId,
+        action: "line_broadcast.retry",
+        category: "line",
+        resourceType: "line_broadcast_logs",
+        resourceId: broadcastLogId,
+        app: "jobtv",
+        metadata: { retried: deliveries.length, success, failed },
+      });
     }
 
     return {

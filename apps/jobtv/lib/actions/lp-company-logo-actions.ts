@@ -5,6 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { checkAdminPermission } from "@/lib/actions/admin-actions";
 import { logger } from "@/lib/logger";
+import { logAudit } from "@jobtv-app/shared/utils/audit";
+import { enqueueStorageDeletion } from "@/lib/storage/deletion-queue";
+import { extractSupabaseStoragePath } from "@/lib/storage/storage-cleanup";
 
 const ALLOWED_LOGO_MIME = ["image/jpeg", "image/png", "image/webp"];
 const MAX_LOGO_SIZE = 5 * 1024 * 1024; // 5MB
@@ -72,6 +75,9 @@ export async function createLpCompanyLogo(formData: FormData): Promise<{
   const { isAdmin } = await checkAdminPermission();
   if (!isAdmin) return { data: null, error: "管理者権限が必要です" };
 
+  const supabaseForUser = await createClient();
+  const { data: { user } } = await supabaseForUser.auth.getUser();
+
   const name = formData.get("name");
   const rowPosition = formData.get("row_position");
   const file = formData.get("file");
@@ -136,6 +142,18 @@ export async function createLpCompanyLogo(formData: FormData): Promise<{
       return { data: null, error: insertError.message };
     }
 
+    if (user) {
+      logAudit({
+        userId: user.id,
+        action: "lp_logo.create",
+        category: "content_edit",
+        resourceType: "lp_company_logos",
+        resourceId: id,
+        app: "jobtv",
+        metadata: { name: name.trim() },
+      });
+    }
+
     revalidatePath("/service/recruitment-marketing");
     revalidatePath("/admin/lp-content");
     return { data: { id }, error: null };
@@ -153,6 +171,9 @@ export async function updateLpCompanyLogo(
   const { isAdmin } = await checkAdminPermission();
   if (!isAdmin) return { data: null, error: "管理者権限が必要です" };
 
+  const supabaseForUser = await createClient();
+  const { data: { user } } = await supabaseForUser.auth.getUser();
+
   const name = formData.get("name");
   const rowPosition = formData.get("row_position");
   const file = formData.get("file");
@@ -166,6 +187,14 @@ export async function updateLpCompanyLogo(
 
   try {
     const supabase = createAdminClient();
+
+    // 旧画像URL取得（差し替え時の旧ファイル削除用）
+    const { data: currentRecord } = await supabase
+      .from("lp_company_logos")
+      .select("image_url")
+      .eq("id", id)
+      .maybeSingle();
+
     const updates: Record<string, unknown> = {
       name: name.trim(),
       row_position: rowPosition,
@@ -210,6 +239,33 @@ export async function updateLpCompanyLogo(
       return { data: null, error: updateError.message };
     }
 
+    // 旧画像ファイル削除をキューに登録
+    if (updates.image_url && currentRecord?.image_url) {
+      const oldPath = extractSupabaseStoragePath(currentRecord.image_url, "company-assets");
+      if (oldPath) {
+        void enqueueStorageDeletion({
+          storageType: "supabase",
+          bucket: "company-assets",
+          path: oldPath,
+          isPrefix: false,
+          source: "update_lp_company_logo",
+          sourceDetail: `lpCompanyLogoId=${id}`,
+        });
+      }
+    }
+
+    if (user) {
+      logAudit({
+        userId: user.id,
+        action: "lp_logo.update",
+        category: "content_edit",
+        resourceType: "lp_company_logos",
+        resourceId: id,
+        app: "jobtv",
+        metadata: { lpCompanyLogoId: id },
+      });
+    }
+
     revalidatePath("/service/recruitment-marketing");
     revalidatePath("/admin/lp-content");
     return { data: true, error: null };
@@ -226,6 +282,9 @@ export async function deleteLpCompanyLogo(
   const { isAdmin } = await checkAdminPermission();
   if (!isAdmin) return { data: null, error: "管理者権限が必要です" };
 
+  const supabaseForUser = await createClient();
+  const { data: { user } } = await supabaseForUser.auth.getUser();
+
   try {
     const supabase = createAdminClient();
     const { error } = await supabase.from("lp_company_logos").delete().eq("id", id);
@@ -234,6 +293,28 @@ export async function deleteLpCompanyLogo(
       logger.error({ action: "deleteLpCompanyLogo", err: error }, "ロゴの削除に失敗しました");
       return { data: null, error: error.message };
     }
+
+    if (user) {
+      logAudit({
+        userId: user.id,
+        action: "lp_logo.delete",
+        category: "content_edit",
+        resourceType: "lp_company_logos",
+        resourceId: id,
+        app: "jobtv",
+        metadata: { lpCompanyLogoId: id },
+      });
+    }
+
+    // Supabase Storage 削除をキューに登録
+    void enqueueStorageDeletion({
+      storageType: "supabase",
+      bucket: "company-assets",
+      path: `admin/lp-logos/${id}/`,
+      isPrefix: true,
+      source: "delete_lp_company_logo",
+      sourceDetail: `lpCompanyLogoId=${id}`,
+    });
 
     revalidatePath("/service/recruitment-marketing");
     revalidatePath("/admin/lp-content");
@@ -252,6 +333,9 @@ export async function reorderLpCompanyLogos(
   const { isAdmin } = await checkAdminPermission();
   if (!isAdmin) return { data: null, error: "管理者権限が必要です" };
 
+  const supabaseForUser = await createClient();
+  const { data: { user } } = await supabaseForUser.auth.getUser();
+
   if (orderedIds.length === 0) return { data: true, error: null };
 
   try {
@@ -266,6 +350,17 @@ export async function reorderLpCompanyLogos(
         logger.error({ action: "reorderLpCompanyLogos", err: error }, "ロゴの並び替えに失敗しました");
         return { data: null, error: error.message };
       }
+    }
+
+    if (user) {
+      logAudit({
+        userId: user.id,
+        action: "lp_logos.reorder",
+        category: "content_edit",
+        resourceType: "lp_company_logos",
+        app: "jobtv",
+        metadata: { orderedIds, rowPosition },
+      });
     }
 
     revalidatePath("/service/recruitment-marketing");

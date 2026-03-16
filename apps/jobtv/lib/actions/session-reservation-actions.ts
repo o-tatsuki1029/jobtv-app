@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { getUserCompanyId } from "@jobtv-app/shared/actions/company-utils";
 import type { Tables, TablesInsert } from "@jobtv-app/shared/types";
-import { sendSessionReservationNotification } from "@/lib/email/send-entry-notification";
+import { sendSessionReservationNotification, sendSessionReservationConfirmation } from "@/lib/email/send-entry-notification";
 import { logger } from "@/lib/logger";
 
 type SessionReservation = Tables<"session_reservations">;
@@ -668,6 +668,9 @@ export async function createSessionReservationForLoggedInCandidate(sessionDateId
 
   sendSessionReservationNotification(sessionDateId, candidateId).catch((err) =>
     logger.error({ action: "createSessionReservationForLoggedInCandidate", err, sessionDateId, candidateId }, "予約通知メールの送信に失敗しました")
+  );
+  sendSessionReservationConfirmation(sessionDateId, candidateId).catch((err) =>
+    logger.error({ action: "createSessionReservationForLoggedInCandidate", err, sessionDateId, candidateId }, "説明会予約確認メール（学生向け）の送信に失敗しました")
   );
 
   return { data: reservation, error: null };

@@ -88,7 +88,6 @@ function SortableLogoItem({
           fill
           className="object-contain"
           sizes="64px"
-          unoptimized
         />
       </div>
       <div className="min-w-0 flex-1">

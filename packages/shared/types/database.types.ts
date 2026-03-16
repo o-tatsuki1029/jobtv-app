@@ -2381,6 +2381,81 @@ export type Database = {
           },
         ]
       }
+      storage_cleanup_schedules: {
+        Row: {
+          created_at: string
+          id: string
+          result: Json | null
+          scan_from: string
+          scan_to: string
+          scheduled_at: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          result?: Json | null
+          scan_from: string
+          scan_to: string
+          scheduled_at: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          result?: Json | null
+          scan_from?: string
+          scan_to?: string
+          scheduled_at?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      storage_deletion_queue: {
+        Row: {
+          approved_at: string | null
+          bucket: string
+          created_at: string
+          error_message: string | null
+          executed_at: string | null
+          id: string
+          is_prefix: boolean
+          path: string
+          source: string
+          source_detail: string | null
+          status: string
+          storage_type: string
+        }
+        Insert: {
+          approved_at?: string | null
+          bucket: string
+          created_at?: string
+          error_message?: string | null
+          executed_at?: string | null
+          id?: string
+          is_prefix?: boolean
+          path: string
+          source: string
+          source_detail?: string | null
+          status?: string
+          storage_type: string
+        }
+        Update: {
+          approved_at?: string | null
+          bucket?: string
+          created_at?: string
+          error_message?: string | null
+          executed_at?: string | null
+          id?: string
+          is_prefix?: boolean
+          path?: string
+          source?: string
+          source_detail?: string | null
+          status?: string
+          storage_type?: string
+        }
+        Relationships: []
+      }
       top_page_ambassadors: {
         Row: {
           avatar_url: string

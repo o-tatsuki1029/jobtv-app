@@ -1,6 +1,7 @@
 "use server";
 
 import { checkAdminPermission } from "@/lib/actions/admin-actions";
+import { logAudit } from "@jobtv-app/shared/utils/audit";
 import { logger } from "@/lib/logger";
 import type { LineRichMenu } from "@/types/line-richmenu.types";
 
@@ -45,7 +46,7 @@ export async function createRichMenu(input: {
   areas: { bounds: { x: number; y: number; width: number; height: number }; action: { type: string; uri?: string; text?: string; label?: string } }[];
   selected?: boolean;
 }): Promise<{ data: string | null; error: string | null }> {
-  const { isAdmin } = await checkAdminPermission();
+  const { isAdmin, userId } = await checkAdminPermission();
   if (!isAdmin) return { data: null, error: "管理者権限が必要です" };
 
   const token = getToken();
@@ -76,6 +77,19 @@ export async function createRichMenu(input: {
     }
 
     const json = await res.json();
+
+    if (userId) {
+      logAudit({
+        userId,
+        action: "line_richmenu.create",
+        category: "line",
+        resourceType: "line_rich_menus",
+        resourceId: json.richMenuId,
+        app: "jobtv",
+        metadata: { name: input.name },
+      });
+    }
+
     return { data: json.richMenuId, error: null };
   } catch (e) {
     logger.error({ action: "createRichMenu", err: e }, "リッチメニュー作成に失敗");
@@ -122,7 +136,7 @@ export async function uploadRichMenuImage(
 export async function deleteRichMenu(
   richMenuId: string
 ): Promise<{ data: null; error: string | null }> {
-  const { isAdmin } = await checkAdminPermission();
+  const { isAdmin, userId } = await checkAdminPermission();
   if (!isAdmin) return { data: null, error: "管理者権限が必要です" };
 
   const token = getToken();
@@ -139,6 +153,18 @@ export async function deleteRichMenu(
       logger.error({ action: "deleteRichMenu", status: res.status, body: errBody }, "リッチメニュー削除に失敗");
       return { data: null, error: `削除に失敗しました (${res.status})` };
     }
+
+    if (userId) {
+      logAudit({
+        userId,
+        action: "line_richmenu.delete",
+        category: "line",
+        resourceType: "line_rich_menus",
+        resourceId: richMenuId,
+        app: "jobtv",
+      });
+    }
+
     return { data: null, error: null };
   } catch (e) {
     logger.error({ action: "deleteRichMenu", err: e }, "リッチメニュー削除に失敗");
@@ -149,7 +175,7 @@ export async function deleteRichMenu(
 export async function setDefaultRichMenu(
   richMenuId: string
 ): Promise<{ data: null; error: string | null }> {
-  const { isAdmin } = await checkAdminPermission();
+  const { isAdmin, userId } = await checkAdminPermission();
   if (!isAdmin) return { data: null, error: "管理者権限が必要です" };
 
   const token = getToken();
@@ -169,6 +195,18 @@ export async function setDefaultRichMenu(
       logger.error({ action: "setDefaultRichMenu", status: res.status, body: errBody }, "デフォルト設定に失敗");
       return { data: null, error: `デフォルト設定に失敗しました (${res.status})` };
     }
+
+    if (userId) {
+      logAudit({
+        userId,
+        action: "line_richmenu.set_default",
+        category: "line",
+        resourceType: "line_rich_menus",
+        resourceId: richMenuId,
+        app: "jobtv",
+      });
+    }
+
     return { data: null, error: null };
   } catch (e) {
     logger.error({ action: "setDefaultRichMenu", err: e }, "デフォルト設定に失敗");

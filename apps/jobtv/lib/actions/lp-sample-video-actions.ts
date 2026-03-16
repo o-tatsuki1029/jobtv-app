@@ -4,7 +4,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { checkAdminPermission } from "@/lib/actions/admin-actions";
+import { logAudit } from "@jobtv-app/shared/utils/audit";
 import { logger } from "@/lib/logger";
+import { enqueueStorageDeletion } from "@/lib/storage/deletion-queue";
+import { extractSupabaseStoragePath } from "@/lib/storage/storage-cleanup";
 
 const ALLOWED_VIDEO_MIME = ["video/mp4"];
 const ALLOWED_THUMBNAIL_MIME = ["image/jpeg", "image/png", "image/webp"];
@@ -74,6 +77,9 @@ export async function createLpSampleVideo(formData: FormData): Promise<{
 }> {
   const { isAdmin } = await checkAdminPermission();
   if (!isAdmin) return { data: null, error: "管理者権限が必要です" };
+
+  const supabaseForUser = await createClient();
+  const { data: { user } } = await supabaseForUser.auth.getUser();
 
   const tag = formData.get("tag");
   const title = formData.get("title");
@@ -167,6 +173,18 @@ export async function createLpSampleVideo(formData: FormData): Promise<{
       return { data: null, error: insertError.message };
     }
 
+    if (user) {
+      logAudit({
+        userId: user.id,
+        action: "lp_video.create",
+        category: "content_edit",
+        resourceType: "lp_sample_videos",
+        resourceId: id,
+        app: "jobtv",
+        metadata: { title: title.trim(), tag: tag.trim() },
+      });
+    }
+
     revalidatePath("/service/recruitment-marketing");
     revalidatePath("/admin/lp-content");
     return { data: { id }, error: null };
@@ -183,6 +201,9 @@ export async function updateLpSampleVideo(
 ): Promise<{ data: true | null; error: string | null }> {
   const { isAdmin } = await checkAdminPermission();
   if (!isAdmin) return { data: null, error: "管理者権限が必要です" };
+
+  const supabaseForUser = await createClient();
+  const { data: { user } } = await supabaseForUser.auth.getUser();
 
   const tag = formData.get("tag");
   const title = formData.get("title");
@@ -204,6 +225,14 @@ export async function updateLpSampleVideo(
 
   try {
     const supabase = createAdminClient();
+
+    // 旧ファイルURL取得（差し替え時の旧ファイル削除用）
+    const { data: currentRecord } = await supabase
+      .from("lp_sample_videos")
+      .select("video_url, thumbnail_url")
+      .eq("id", id)
+      .maybeSingle();
+
     const updates: Record<string, unknown> = {
       tag: tag.trim(),
       title: title.trim(),
@@ -267,6 +296,46 @@ export async function updateLpSampleVideo(
       return { data: null, error: updateError.message };
     }
 
+    if (user) {
+      logAudit({
+        userId: user.id,
+        action: "lp_video.update",
+        category: "content_edit",
+        resourceType: "lp_sample_videos",
+        resourceId: id,
+        app: "jobtv",
+        metadata: { lpSampleVideoId: id },
+      });
+    }
+
+    // 旧ファイル削除をキューに登録
+    if (updates.video_url && currentRecord?.video_url) {
+      const oldPath = extractSupabaseStoragePath(currentRecord.video_url, "company-assets");
+      if (oldPath) {
+        void enqueueStorageDeletion({
+          storageType: "supabase",
+          bucket: "company-assets",
+          path: oldPath,
+          isPrefix: false,
+          source: "update_lp_sample_video",
+          sourceDetail: `lpSampleVideoId=${id}`,
+        });
+      }
+    }
+    if (updates.thumbnail_url && currentRecord?.thumbnail_url) {
+      const oldPath = extractSupabaseStoragePath(currentRecord.thumbnail_url, "company-assets");
+      if (oldPath) {
+        void enqueueStorageDeletion({
+          storageType: "supabase",
+          bucket: "company-assets",
+          path: oldPath,
+          isPrefix: false,
+          source: "update_lp_sample_video_thumbnail",
+          sourceDetail: `lpSampleVideoId=${id}`,
+        });
+      }
+    }
+
     revalidatePath("/service/recruitment-marketing");
     revalidatePath("/admin/lp-content");
     return { data: true, error: null };
@@ -283,6 +352,9 @@ export async function deleteLpSampleVideo(
   const { isAdmin } = await checkAdminPermission();
   if (!isAdmin) return { data: null, error: "管理者権限が必要です" };
 
+  const supabaseForUser = await createClient();
+  const { data: { user } } = await supabaseForUser.auth.getUser();
+
   try {
     const supabase = createAdminClient();
     const { error } = await supabase.from("lp_sample_videos").delete().eq("id", id);
@@ -291,6 +363,28 @@ export async function deleteLpSampleVideo(
       logger.error({ action: "deleteLpSampleVideo", err: error }, "LP動画の削除に失敗しました");
       return { data: null, error: error.message };
     }
+
+    if (user) {
+      logAudit({
+        userId: user.id,
+        action: "lp_video.delete",
+        category: "content_edit",
+        resourceType: "lp_sample_videos",
+        resourceId: id,
+        app: "jobtv",
+        metadata: { lpSampleVideoId: id },
+      });
+    }
+
+    // Supabase Storage 削除をキューに登録
+    void enqueueStorageDeletion({
+      storageType: "supabase",
+      bucket: "company-assets",
+      path: `admin/lp-videos/${id}/`,
+      isPrefix: true,
+      source: "delete_lp_sample_video",
+      sourceDetail: `lpSampleVideoId=${id}`,
+    });
 
     revalidatePath("/service/recruitment-marketing");
     revalidatePath("/admin/lp-content");
@@ -308,6 +402,9 @@ export async function reorderLpSampleVideos(
   const { isAdmin } = await checkAdminPermission();
   if (!isAdmin) return { data: null, error: "管理者権限が必要です" };
 
+  const supabaseForUser = await createClient();
+  const { data: { user } } = await supabaseForUser.auth.getUser();
+
   if (orderedIds.length === 0) return { data: true, error: null };
 
   try {
@@ -322,6 +419,17 @@ export async function reorderLpSampleVideos(
         logger.error({ action: "reorderLpSampleVideos", err: error }, "LP動画の並び替えに失敗しました");
         return { data: null, error: error.message };
       }
+    }
+
+    if (user) {
+      logAudit({
+        userId: user.id,
+        action: "lp_videos.reorder",
+        category: "content_edit",
+        resourceType: "lp_sample_videos",
+        app: "jobtv",
+        metadata: { orderedIds },
+      });
     }
 
     revalidatePath("/service/recruitment-marketing");

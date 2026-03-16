@@ -3,10 +3,14 @@
 import { MediaConvertClient, CreateJobCommand, GetJobCommand } from "@aws-sdk/client-mediaconvert";
 import { logger } from "@/lib/logger";
 
+const globalForMediaConvert = globalThis as unknown as { __mediaConvertClient?: MediaConvertClient };
+
 /**
- * MediaConvertクライアントを作成（内部関数）
+ * MediaConvertクライアントを取得（シングルトン）
  */
-function createMediaConvertClient() {
+function getMediaConvertClient(): MediaConvertClient {
+  if (globalForMediaConvert.__mediaConvertClient) return globalForMediaConvert.__mediaConvertClient;
+
   const region = process.env.AWS_REGION || "ap-northeast-1";
   const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
   const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
@@ -17,13 +21,16 @@ function createMediaConvertClient() {
     );
   }
 
-  return new MediaConvertClient({
+  const client = new MediaConvertClient({
     region,
     credentials: {
       accessKeyId,
       secretAccessKey
     }
   });
+
+  globalForMediaConvert.__mediaConvertClient = client;
+  return client;
 }
 
 /**
@@ -45,7 +52,7 @@ export async function createMediaConvertJob(config: MediaConvertJobConfig): Prom
 }> {
   try {
     logger.info({ action: "createMediaConvertJob", videoId: config.videoId, sourceS3Key: config.sourceS3Key }, "MediaConvertジョブ作成開始");
-    const client = createMediaConvertClient();
+    const client = getMediaConvertClient();
     const bucket = process.env.AWS_S3_BUCKET || "jobtv-videos-stg";
     const roleArn = process.env.AWS_MEDIACONVERT_ROLE_ARN;
     const templateLandscape = process.env.AWS_MEDIACONVERT_TEMPLATE_LANDSCAPE;
@@ -147,7 +154,7 @@ export async function createHeroMediaConvertJob(
 ): Promise<{ jobId?: string; error?: string }> {
   try {
     logger.info({ action: "createHeroMediaConvertJob", heroItemId, sourceS3Key }, "ヒーローMediaConvertジョブ作成開始");
-    const client = createMediaConvertClient();
+    const client = getMediaConvertClient();
     const bucket = process.env.AWS_S3_BUCKET || "jobtv-videos-stg";
     const roleArn = process.env.AWS_MEDIACONVERT_ROLE_ARN;
     const templateArn = process.env.AWS_MEDIACONVERT_TEMPLATE_LANDSCAPE;
@@ -235,7 +242,7 @@ export async function getMediaConvertJobStatus(jobId: string): Promise<{
   error?: string;
 }> {
   try {
-    const client = createMediaConvertClient();
+    const client = getMediaConvertClient();
 
     const command = new GetJobCommand({ Id: jobId });
     const response = await client.send(command);

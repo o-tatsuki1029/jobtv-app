@@ -81,5 +81,6 @@ export const ROBOTS_NOINDEX = {
 export const ALLOWED_IMAGE_HOSTS = [
   "images.unsplash.com",
   "d3ulvrrnhlrak2.cloudfront.net", // サムネ・動画用 CloudFront（STG 等）
-  "tdewumilkltljbqryjpg.supabase.co" // Supabase Storage（ロゴ・カバー・サムネ等）
+  "tdewumilkltljbqryjpg.supabase.co", // Supabase Storage（STG）
+  "voisychklptvavokrxox.supabase.co" // Supabase Storage（PROD）
 ];

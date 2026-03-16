@@ -2,6 +2,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
+import { logAudit } from "@jobtv-app/shared/utils/audit";
 import { logger } from "@/lib/logger";
 
 // Supabase Admin API用のクライアント
@@ -140,6 +141,20 @@ export async function createAdminUser(email: string, password: string) {
       };
     }
 
+    const supabaseForUser = await createServerClient();
+    const { data: { user: currentUser } } = await supabaseForUser.auth.getUser();
+    if (currentUser) {
+      logAudit({
+        userId: currentUser.id,
+        action: "admin.create",
+        category: "account",
+        resourceType: "profiles",
+        resourceId: authUser.user.id,
+        app: "event-system",
+        metadata: { email },
+      });
+    }
+
     return {
       success: true,
       error: null,
@@ -180,6 +195,19 @@ export async function resetUserPassword(userId: string) {
       };
     }
 
+    const supabaseForUser = await createServerClient();
+    const { data: { user: currentUser } } = await supabaseForUser.auth.getUser();
+    if (currentUser) {
+      logAudit({
+        userId: currentUser.id,
+        action: "user.password_reset",
+        category: "account",
+        resourceType: "profiles",
+        resourceId: userId,
+        app: "event-system",
+      });
+    }
+
     return {
       success: true,
       error: null,
@@ -215,6 +243,19 @@ export async function deleteUser(userId: string) {
         success: false,
         error: errorMessage,
       };
+    }
+
+    const supabaseForUser = await createServerClient();
+    const { data: { user: currentUser } } = await supabaseForUser.auth.getUser();
+    if (currentUser) {
+      logAudit({
+        userId: currentUser.id,
+        action: "user.delete",
+        category: "account",
+        resourceType: "profiles",
+        resourceId: userId,
+        app: "event-system",
+      });
     }
 
     return {
@@ -446,6 +487,20 @@ export async function createRecruiterUser(
       };
     }
 
+    const supabaseForUser = await createServerClient();
+    const { data: { user: currentUser } } = await supabaseForUser.auth.getUser();
+    if (currentUser) {
+      logAudit({
+        userId: currentUser.id,
+        action: "recruiter.create",
+        category: "account",
+        resourceType: "profiles",
+        resourceId: userId,
+        app: "event-system",
+        metadata: { email, companyId },
+      });
+    }
+
     return {
       success: true,
       error: null,
@@ -515,6 +570,20 @@ export async function updateRecruiterProfile(
       };
     }
 
+    const supabaseForUser = await createServerClient();
+    const { data: { user: currentUser } } = await supabaseForUser.auth.getUser();
+    if (currentUser) {
+      logAudit({
+        userId: currentUser.id,
+        action: "recruiter.update",
+        category: "account",
+        resourceType: "profiles",
+        resourceId: recruiterId,
+        app: "event-system",
+        metadata: { recruiterId },
+      });
+    }
+
     return {
       success: true,
       error: null,
@@ -578,6 +647,9 @@ export async function createAuthAccountForRecruiter(recruiterId: string) {
       };
     }
 
+    const supabaseForUser = await createServerClient();
+    const { data: { user: currentUser } } = await supabaseForUser.auth.getUser();
+
     // 新規アカウントを作成
     if (!recruiter.company_id) {
       return {
@@ -598,6 +670,18 @@ export async function createAuthAccountForRecruiter(recruiterId: string) {
         first_name_kana: recruiter.first_name_kana || "",
       }
     );
+
+    if (result.success && currentUser) {
+      logAudit({
+        userId: currentUser.id,
+        action: "recruiter.auth_create",
+        category: "account",
+        resourceType: "profiles",
+        resourceId: recruiterId,
+        app: "event-system",
+        metadata: { email: recruiter.email },
+      });
+    }
 
     return result;
   } catch (error: unknown) {

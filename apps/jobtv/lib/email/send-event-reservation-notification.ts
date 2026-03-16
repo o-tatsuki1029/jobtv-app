@@ -1,5 +1,6 @@
 // イベント予約通知ヘルパー（Slack / Google Sheets / LINE push）
 // Server Actions から fire-and-forget で呼び出す
+// 注意: イベントは admin が運営するものであり、recruiter への通知は行わない
 
 import { google } from "googleapis";
 import { logger } from "@/lib/logger";

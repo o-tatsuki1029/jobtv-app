@@ -699,7 +699,6 @@ export default function LPPage() {
                       height={80}
                       className="w-full h-full object-contain pointer-events-none"
                       draggable={false}
-                      unoptimized
                     />
                   </div>
                 ))}
@@ -718,7 +717,6 @@ export default function LPPage() {
                       height={80}
                       className="w-full h-full object-contain pointer-events-none"
                       draggable={false}
-                      unoptimized
                     />
                   </div>
                 ))}
@@ -740,7 +738,6 @@ export default function LPPage() {
                       height={80}
                       className="w-full h-full object-contain pointer-events-none"
                       draggable={false}
-                      unoptimized
                     />
                   </div>
                 ))}
@@ -759,7 +756,6 @@ export default function LPPage() {
                       height={80}
                       className="w-full h-full object-contain pointer-events-none"
                       draggable={false}
-                      unoptimized
                     />
                   </div>
                 ))}

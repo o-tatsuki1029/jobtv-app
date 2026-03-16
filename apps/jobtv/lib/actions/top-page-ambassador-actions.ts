@@ -5,6 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { checkAdminPermission } from "@/lib/actions/admin-actions";
 import { logger } from "@/lib/logger";
+import { enqueueStorageDeletion } from "@/lib/storage/deletion-queue";
+import { extractSupabaseStoragePath } from "@/lib/storage/storage-cleanup";
+import { logAudit } from "@jobtv-app/shared/utils/audit";
 
 const ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -70,6 +73,9 @@ export async function createTopPageAmbassador(formData: FormData): Promise<{
   const { isAdmin } = await checkAdminPermission();
   if (!isAdmin) return { data: null, error: "管理者権限が必要です" };
 
+  const supabaseForUser = await createClient();
+  const { data: { user } } = await supabaseForUser.auth.getUser();
+
   const name = formData.get("name");
   const linkUrl = formData.get("link_url");
   const file = formData.get("file");
@@ -130,6 +136,18 @@ export async function createTopPageAmbassador(formData: FormData): Promise<{
       return { data: null, error: insertError.message };
     }
 
+    if (user) {
+      logAudit({
+        userId: user.id,
+        action: "ambassador.create",
+        category: "content_edit",
+        resourceType: "top_page_ambassadors",
+        resourceId: id,
+        app: "jobtv",
+        metadata: { name: name.trim() },
+      });
+    }
+
     revalidatePath("/");
     revalidatePath("/admin/featured-videos");
     return { data: { id }, error: null };
@@ -147,6 +165,9 @@ export async function updateTopPageAmbassador(
   const { isAdmin } = await checkAdminPermission();
   if (!isAdmin) return { data: null, error: "管理者権限が必要です" };
 
+  const supabaseForUser = await createClient();
+  const { data: { user } } = await supabaseForUser.auth.getUser();
+
   const name = formData.get("name");
   const linkUrl = formData.get("link_url");
   const file = formData.get("file");
@@ -157,6 +178,14 @@ export async function updateTopPageAmbassador(
 
   try {
     const supabase = createAdminClient();
+
+    // 旧アバターURL取得（差し替え時の旧ファイル削除用）
+    const { data: currentRecord } = await supabase
+      .from("top_page_ambassadors")
+      .select("avatar_url")
+      .eq("id", id)
+      .maybeSingle();
+
     const updates: Record<string, unknown> = {
       name: name.trim(),
       link_url: linkUrl && typeof linkUrl === "string" && linkUrl.trim() !== "" ? linkUrl.trim() : null,
@@ -201,6 +230,33 @@ export async function updateTopPageAmbassador(
       return { data: null, error: updateError.message };
     }
 
+    // 旧アバターファイル削除をキューに登録
+    if (updates.avatar_url && currentRecord?.avatar_url) {
+      const oldPath = extractSupabaseStoragePath(currentRecord.avatar_url, "company-assets");
+      if (oldPath) {
+        void enqueueStorageDeletion({
+          storageType: "supabase",
+          bucket: "company-assets",
+          path: oldPath,
+          isPrefix: false,
+          source: "update_ambassador_avatar",
+          sourceDetail: `ambassadorId=${id}`,
+        });
+      }
+    }
+
+    if (user) {
+      logAudit({
+        userId: user.id,
+        action: "ambassador.update",
+        category: "content_edit",
+        resourceType: "top_page_ambassadors",
+        resourceId: id,
+        app: "jobtv",
+        metadata: { ambassadorId: id },
+      });
+    }
+
     revalidatePath("/");
     revalidatePath("/admin/featured-videos");
     return { data: true, error: null };
@@ -217,6 +273,9 @@ export async function deleteTopPageAmbassador(
   const { isAdmin } = await checkAdminPermission();
   if (!isAdmin) return { data: null, error: "管理者権限が必要です" };
 
+  const supabaseForUser = await createClient();
+  const { data: { user } } = await supabaseForUser.auth.getUser();
+
   try {
     const supabase = createAdminClient();
     const { error } = await supabase.from("top_page_ambassadors").delete().eq("id", id);
@@ -224,6 +283,28 @@ export async function deleteTopPageAmbassador(
     if (error) {
       logger.error({ action: "deleteTopPageAmbassador", err: error }, "アンバサダーの削除に失敗しました");
       return { data: null, error: error.message };
+    }
+
+    // Supabase Storage 削除をキューに登録
+    void enqueueStorageDeletion({
+      storageType: "supabase",
+      bucket: "company-assets",
+      path: `admin/ambassadors/${id}/`,
+      isPrefix: true,
+      source: "delete_ambassador",
+      sourceDetail: `ambassadorId=${id}`,
+    });
+
+    if (user) {
+      logAudit({
+        userId: user.id,
+        action: "ambassador.delete",
+        category: "content_edit",
+        resourceType: "top_page_ambassadors",
+        resourceId: id,
+        app: "jobtv",
+        metadata: { ambassadorId: id },
+      });
     }
 
     revalidatePath("/");
@@ -242,6 +323,9 @@ export async function reorderTopPageAmbassadors(
   const { isAdmin } = await checkAdminPermission();
   if (!isAdmin) return { data: null, error: "管理者権限が必要です" };
 
+  const supabaseForUser = await createClient();
+  const { data: { user } } = await supabaseForUser.auth.getUser();
+
   if (orderedIds.length === 0) return { data: true, error: null };
 
   try {
@@ -256,6 +340,17 @@ export async function reorderTopPageAmbassadors(
         logger.error({ action: "reorderTopPageAmbassadors", err: error }, "アンバサダーの並び替えに失敗しました");
         return { data: null, error: error.message };
       }
+    }
+
+    if (user) {
+      logAudit({
+        userId: user.id,
+        action: "ambassadors.reorder",
+        category: "content_edit",
+        resourceType: "top_page_ambassadors",
+        app: "jobtv",
+        metadata: { orderedIds },
+      });
     }
 
     revalidatePath("/");

@@ -108,6 +108,38 @@ Vercel Cron スケジューラー
 
 ---
 
+### ストレージクリーンアップ
+
+| 項目 | 値 |
+|------|-----|
+| エンドポイント | `GET /api/cron/storage-cleanup` |
+| スケジュール | `0 3 * * *`（毎日 UTC 03:00 = JST 12:00） |
+| 実装 | `apps/jobtv/app/api/cron/storage-cleanup/route.ts` |
+| 定義 | `apps/jobtv/vercel.json` |
+
+**処理内容:**
+
+1. `storage_cleanup_schedules` から `status = 'pending'` かつ `scheduled_at <= now()` のスケジュールを取得
+2. 各スケジュールに対してフルスキャンを実行:
+   - DB の全テーブルからストレージ参照 URL を収集
+   - S3 `companies/`, `admin/` プレフィックスとSupabase `company-assets` バケットをリスト
+   - 指定期間内で DB に参照がないファイルを孤立と判定 → `storage_deletion_queue` に登録
+3. `storage_deletion_queue` から `status = 'approved'` のアイテムを取得し、実際の削除を実行
+
+**関連テーブル:**
+
+| テーブル | 使用カラム |
+|----------|-----------|
+| `storage_cleanup_schedules` | `status`, `scheduled_at`, `scan_from`, `scan_to`, `result` |
+| `storage_deletion_queue` | `status`, `storage_type`, `bucket`, `path`, `is_prefix` |
+
+**注意:**
+- 孤立ファイルは自動削除されず、`storage_deletion_queue` に `pending` ステータスで登録されます
+- 実際の削除には管理画面 (`/admin/storage-cleanup`) での承認が必要です
+- 管理画面から即時スキャンも実行可能です
+
+---
+
 ## 環境変数
 
 | 変数名 | 用途 | 取得方法 |

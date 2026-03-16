@@ -39,6 +39,7 @@ export default function TurnstileWidget({
 
     widgetIdRef.current = window.turnstile.render(containerRef.current, {
       sitekey: siteKey,
+      size: "invisible",
       theme,
       action,
       callback: (token: string) => {

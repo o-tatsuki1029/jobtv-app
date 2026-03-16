@@ -68,6 +68,7 @@ export async function signUp(formData: FormData) {
       last_name:  payload.last_name,
       site_url:   getFullSiteUrl(3000),
     },
+    recipientRole: "candidate",
   }).catch((e) => logger.error({ action: "signUp", err: e }, "候補者ウェルカムメールの送信に失敗しました"));
 
   // Slack 通知・Google Sheets 転記（失敗してもサインアップは成功とする）

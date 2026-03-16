@@ -5,6 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { checkAdminPermission } from "@/lib/actions/admin-actions";
 import { logger } from "@/lib/logger";
+import { logAudit } from "@jobtv-app/shared/utils/audit";
+import { enqueueStorageDeletion } from "@/lib/storage/deletion-queue";
+import { extractSupabaseStoragePath } from "@/lib/storage/storage-cleanup";
 
 const ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -71,6 +74,9 @@ export async function createTopPageShunDiary(formData: FormData): Promise<{
   const { isAdmin } = await checkAdminPermission();
   if (!isAdmin) return { data: null, error: "管理者権限が必要です" };
 
+  const supabaseForUser = await createClient();
+  const { data: { user } } = await supabaseForUser.auth.getUser();
+
   const title = formData.get("title");
   const linkUrl = formData.get("link_url");
   const file = formData.get("file");
@@ -131,6 +137,18 @@ export async function createTopPageShunDiary(formData: FormData): Promise<{
       return { data: null, error: insertError.message };
     }
 
+    if (user) {
+      logAudit({
+        userId: user.id,
+        action: "shundiary.create",
+        category: "content_edit",
+        resourceType: "top_page_shun_diaries",
+        resourceId: id,
+        app: "jobtv",
+        metadata: { title: title.trim() },
+      });
+    }
+
     revalidatePath("/");
     revalidatePath("/admin/featured-videos");
     return { data: { id }, error: null };
@@ -148,6 +166,9 @@ export async function updateTopPageShunDiary(
   const { isAdmin } = await checkAdminPermission();
   if (!isAdmin) return { data: null, error: "管理者権限が必要です" };
 
+  const supabaseForUser = await createClient();
+  const { data: { user } } = await supabaseForUser.auth.getUser();
+
   const title = formData.get("title");
   const linkUrl = formData.get("link_url");
   const file = formData.get("file");
@@ -158,6 +179,14 @@ export async function updateTopPageShunDiary(
 
   try {
     const supabase = createAdminClient();
+
+    // 旧サムネイルURL取得（差し替え時の旧ファイル削除用）
+    const { data: currentRecord } = await supabase
+      .from("top_page_shun_diaries")
+      .select("thumbnail_url")
+      .eq("id", id)
+      .maybeSingle();
+
     const updates: Record<string, unknown> = {
       title: title.trim(),
       link_url: linkUrl && typeof linkUrl === "string" && linkUrl.trim() !== "" ? linkUrl.trim() : null,
@@ -202,6 +231,33 @@ export async function updateTopPageShunDiary(
       return { data: null, error: updateError.message };
     }
 
+    if (user) {
+      logAudit({
+        userId: user.id,
+        action: "shundiary.update",
+        category: "content_edit",
+        resourceType: "top_page_shun_diaries",
+        resourceId: id,
+        app: "jobtv",
+        metadata: { shunDiaryId: id },
+      });
+    }
+
+    // 旧サムネイルファイル削除をキューに登録
+    if (updates.thumbnail_url && currentRecord?.thumbnail_url) {
+      const oldPath = extractSupabaseStoragePath(currentRecord.thumbnail_url, "company-assets");
+      if (oldPath) {
+        void enqueueStorageDeletion({
+          storageType: "supabase",
+          bucket: "company-assets",
+          path: oldPath,
+          isPrefix: false,
+          source: "update_shun_diary_thumbnail",
+          sourceDetail: `shunDiaryId=${id}`,
+        });
+      }
+    }
+
     revalidatePath("/");
     revalidatePath("/admin/featured-videos");
     return { data: true, error: null };
@@ -218,6 +274,9 @@ export async function deleteTopPageShunDiary(
   const { isAdmin } = await checkAdminPermission();
   if (!isAdmin) return { data: null, error: "管理者権限が必要です" };
 
+  const supabaseForUser = await createClient();
+  const { data: { user } } = await supabaseForUser.auth.getUser();
+
   try {
     const supabase = createAdminClient();
     const { error } = await supabase.from("top_page_shun_diaries").delete().eq("id", id);
@@ -226,6 +285,28 @@ export async function deleteTopPageShunDiary(
       logger.error({ action: "deleteTopPageShunDiary", err: error }, "しゅんダイアリーの削除に失敗しました");
       return { data: null, error: error.message };
     }
+
+    if (user) {
+      logAudit({
+        userId: user.id,
+        action: "shundiary.delete",
+        category: "content_edit",
+        resourceType: "top_page_shun_diaries",
+        resourceId: id,
+        app: "jobtv",
+        metadata: { shunDiaryId: id },
+      });
+    }
+
+    // Supabase Storage 削除をキューに登録
+    void enqueueStorageDeletion({
+      storageType: "supabase",
+      bucket: "company-assets",
+      path: `admin/shun-diaries/${id}/`,
+      isPrefix: true,
+      source: "delete_shun_diary",
+      sourceDetail: `shunDiaryId=${id}`,
+    });
 
     revalidatePath("/");
     revalidatePath("/admin/featured-videos");
@@ -243,6 +324,9 @@ export async function reorderTopPageShunDiaries(
   const { isAdmin } = await checkAdminPermission();
   if (!isAdmin) return { data: null, error: "管理者権限が必要です" };
 
+  const supabaseForUser = await createClient();
+  const { data: { user } } = await supabaseForUser.auth.getUser();
+
   if (orderedIds.length === 0) return { data: true, error: null };
 
   try {
@@ -257,6 +341,17 @@ export async function reorderTopPageShunDiaries(
         logger.error({ action: "reorderTopPageShunDiaries", err: error }, "しゅんダイアリーの並び替えに失敗しました");
         return { data: null, error: error.message };
       }
+    }
+
+    if (user) {
+      logAudit({
+        userId: user.id,
+        action: "shundiaries.reorder",
+        category: "content_edit",
+        resourceType: "top_page_shun_diaries",
+        app: "jobtv",
+        metadata: { orderedIds },
+      });
     }
 
     revalidatePath("/");

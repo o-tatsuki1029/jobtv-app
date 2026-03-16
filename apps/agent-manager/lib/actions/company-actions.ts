@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
+import { logAudit } from "@jobtv-app/shared/utils/audit";
 import { insertRecord, updateRecord, queryTable } from "./supabase-actions";
 import type { Tables, TablesInsert } from "@jobtv-app/shared/types";
 
@@ -68,12 +69,48 @@ export async function getCompanyJobs(companyId: string) {
  * 企業を作成
  */
 export async function createCompany(data: CompanyInsert) {
-  return insertRecord<Company>("companies", data, ["/admin/companies"]);
+  const result = await insertRecord<Company>("companies", data, ["/admin/companies"]);
+
+  if (!result.error && result.data) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      logAudit({
+        userId: user.id,
+        action: "company.create",
+        category: "account",
+        resourceType: "companies",
+        resourceId: (result.data as Company).id,
+        app: "agent-manager",
+        metadata: { name: (result.data as Company).name },
+      });
+    }
+  }
+
+  return result;
 }
 
 /**
  * 企業を更新
  */
 export async function updateCompany(id: string, data: CompanyInsert) {
-  return updateRecord<Company>("companies", id, data, ["/admin/companies"]);
+  const result = await updateRecord<Company>("companies", id, data, ["/admin/companies"]);
+
+  if (!result.error) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      logAudit({
+        userId: user.id,
+        action: "company.update",
+        category: "account",
+        resourceType: "companies",
+        resourceId: id,
+        app: "agent-manager",
+        metadata: { companyId: id },
+      });
+    }
+  }
+
+  return result;
 }
