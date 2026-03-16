@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { getUserCompanyId } from "@jobtv-app/shared/actions/company-utils";
 import type { TablesInsert } from "@jobtv-app/shared/types";
-import { sendJobApplicationNotification } from "@/lib/email/send-entry-notification";
+import { sendJobApplicationNotification, sendJobApplicationConfirmation } from "@/lib/email/send-entry-notification";
 import { logger } from "@/lib/logger";
 
 /**
@@ -250,6 +250,7 @@ export async function createApplicationsForCandidate(jobPostingIds: string[]) {
 
   if (created.length > 0) {
     sendJobApplicationNotification(created, candidateId).catch((e) => logger.error({ action: "createApplicationsForCandidate", err: e }, "エントリー通知メールの送信に失敗しました"));
+    sendJobApplicationConfirmation(created, candidateId).catch((e) => logger.error({ action: "createApplicationsForCandidate", err: e }, "エントリー確認メール（学生向け）の送信に失敗しました"));
   }
 
   return {

@@ -8,13 +8,15 @@ import { translateAuthError } from "@jobtv-app/shared/auth";
  */
 export async function signInWithPassword(
   email: string,
-  password: string
+  password: string,
+  captchaToken?: string
 ): Promise<{ error: string | null }> {
   const supabase = await createClient();
 
   const { error } = await supabase.auth.signInWithPassword({
     email,
     password,
+    options: { captchaToken },
   });
 
   if (error) {
@@ -30,7 +32,8 @@ export async function signInWithPassword(
 export async function signUp(
   email: string,
   password: string,
-  emailRedirectTo?: string
+  emailRedirectTo?: string,
+  captchaToken?: string
 ): Promise<{ error: string | null }> {
   const supabase = await createClient();
 
@@ -39,6 +42,7 @@ export async function signUp(
     password,
     options: {
       emailRedirectTo,
+      captchaToken,
     },
   });
 
@@ -69,12 +73,14 @@ export async function signOut(): Promise<{ error: string | null }> {
  */
 export async function resetPasswordForEmail(
   email: string,
-  redirectTo?: string
+  redirectTo?: string,
+  captchaToken?: string
 ): Promise<{ error: string | null }> {
   const supabase = await createClient();
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo,
+    captchaToken,
   });
 
   if (error) {

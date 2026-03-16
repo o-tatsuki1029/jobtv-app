@@ -21,8 +21,9 @@ export async function recruiterSignIn(formData: FormData): Promise<{
 }> {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
+  const captchaToken = (formData.get("captchaToken") as string) ?? "";
 
-  const result = await baseSignInWithPassword(email, password);
+  const result = await baseSignInWithPassword(email, password, captchaToken);
 
   if (result.error) {
     return { error: result.error };

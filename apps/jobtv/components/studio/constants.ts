@@ -12,8 +12,12 @@ import {
   MessageCircle,
   LayoutList,
   Mail,
+  FileText,
+  ClipboardList,
+  LayoutGrid,
   // MessageSquare, // チャット用（後々追加）
-  UserCog
+  UserCog,
+  HardDrive,
 } from "lucide-react";
 
 export const STUDIO_NAVIGATION = [
@@ -58,6 +62,7 @@ export const STUDIO_BOTTOM_NAVIGATION = [{ name: "設定", href: "/studio/settin
 export const ADMIN_NAVIGATION = [
   { name: "ダッシュボード", href: "/admin", icon: LayoutDashboard },
   { name: "トップ掲載", href: "/admin/featured-videos", icon: LayoutList },
+  { name: "LP管理", href: "/admin/lp-content", icon: FileText },
   { name: "審査管理", href: "/admin/review", icon: CheckCircle },
   { name: "イベント管理", href: "/admin/events", icon: Calendar },
   { name: "企業アカウント管理", href: "/admin/company-accounts", icon: Building },
@@ -77,6 +82,7 @@ export const ADMIN_NAVIGATION_SECTIONS: {
     sectionLabel: "コンテンツ管理",
     items: [
       { name: "トップ掲載", href: "/admin/featured-videos", icon: LayoutList },
+      { name: "LP管理", href: "/admin/lp-content", icon: FileText },
       { name: "審査管理", href: "/admin/review", icon: CheckCircle }
     ]
   },
@@ -100,6 +106,12 @@ export const ADMIN_NAVIGATION_SECTIONS: {
       { name: "LINE管理", href: "/admin/line", icon: MessageCircle },
       { name: "メール管理", href: "/admin/email/templates", icon: Mail }
     ]
+  },
+  {
+    sectionLabel: "システム管理",
+    items: [
+      { name: "ストレージ管理", href: "/admin/storage-cleanup", icon: HardDrive }
+    ]
   }
 ];
 
@@ -108,5 +120,8 @@ export const ADMIN_BOTTOM_NAVIGATION = [{ name: "設定", href: "/admin/settings
 /** LINE 管理エリア用サイドバー（/admin/line 配下） */
 export const ADMIN_LINE_NAVIGATION = [
   { name: "配信", href: "/admin/line/broadcast", icon: MessageCircle },
+  { name: "配信履歴", href: "/admin/line/history", icon: ClipboardList },
+  { name: "テンプレート", href: "/admin/line/templates", icon: FileText },
+  { name: "リッチメニュー", href: "/admin/line/richmenu", icon: LayoutGrid },
   { name: "管理トップへ", href: "/admin", icon: LayoutDashboard }
 ];

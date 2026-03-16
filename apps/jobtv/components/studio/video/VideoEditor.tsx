@@ -10,6 +10,12 @@ import { VIDEO_CATEGORIES } from "../../../types/video.types";
 import type { VideoFormData } from "../../../types/video.types";
 import { TITLE_MAX_LENGTH } from "@/constants/validation";
 
+interface UploadProgress {
+  percent: number;
+  loaded: number;
+  total: number;
+}
+
 interface VideoEditorProps {
   formData: VideoFormData;
   onChange: (data: VideoFormData) => void;
@@ -21,6 +27,8 @@ interface VideoEditorProps {
   readOnly?: boolean;
   /** カテゴリーを変更不可にする（一覧タブから開いた場合など） */
   categoryDisabled?: boolean;
+  /** S3直接アップロードの進捗情報 */
+  uploadProgress?: UploadProgress | null;
 }
 
 export default function VideoEditor({
@@ -29,7 +37,8 @@ export default function VideoEditor({
   onUploadVideo,
   onUploadThumbnail,
   readOnly = false,
-  categoryDisabled = false
+  categoryDisabled = false,
+  uploadProgress = null
 }: VideoEditorProps) {
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
@@ -208,9 +217,21 @@ export default function VideoEditor({
                   }`}
                 >
                   {isUploadingVideo ? (
-                    <div className="space-y-2">
+                    <div className="space-y-2 w-full px-8">
                       <Loader2 className="w-10 h-10 text-gray-400 animate-spin mx-auto" />
-                      <p className="text-sm text-gray-600 font-bold">アップロード中...</p>
+                      <p className="text-sm text-gray-600 font-bold text-center">
+                        {uploadProgress
+                          ? `アップロード中... ${uploadProgress.percent}%`
+                          : "アップロード準備中..."}
+                      </p>
+                      {uploadProgress && (
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${uploadProgress.percent}%` }}
+                          />
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <>
@@ -218,7 +239,7 @@ export default function VideoEditor({
                       <p className="text-sm font-bold text-gray-700 mb-1">
                         クリックまたはドラッグ＆ドロップで動画をアップロード
                       </p>
-                      <p className="text-[10px] text-gray-500">MP4, WebM, MOV, AVI (最大50MB)</p>
+                      <p className="text-[10px] text-gray-500">MP4, WebM, MOV, AVI (最大500MB)</p>
                     </>
                   )}
                 </div>

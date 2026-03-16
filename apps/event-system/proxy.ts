@@ -58,20 +58,25 @@ export async function proxy(request: NextRequest) {
   const basicAuthPassword = process.env.BASIC_AUTH_PASSWORD;
 
   if (basicAuthUsername && basicAuthPassword) {
-    // 静的ファイルやNext.jsの内部ファイルは除外
-    const isStaticFile =
-      pathname.startsWith("/_next") ||
-      pathname.startsWith("/favicon.ico") ||
-      pathname.match(/\.(svg|png|jpg|jpeg|gif|webp|ico|css|js|woff|woff2|ttf|eot)$/);
+    const scope = process.env.BASIC_AUTH_SCOPE || "all";
 
-    if (!isStaticFile && !checkBasicAuth(request)) {
-      return new NextResponse("Unauthorized", {
-        status: 401,
-        headers: {
-          "WWW-Authenticate": 'Basic realm="Secure Area"',
-        },
-      });
+    if (scope === "all") {
+      // 静的ファイルやNext.jsの内部ファイルは除外
+      const isStaticFile =
+        pathname.startsWith("/_next") ||
+        pathname.startsWith("/favicon.ico") ||
+        pathname.match(/\.(svg|png|jpg|jpeg|gif|webp|ico|css|js|woff|woff2|ttf|eot)$/);
+
+      if (!isStaticFile && !checkBasicAuth(request)) {
+        return new NextResponse("Unauthorized", {
+          status: 401,
+          headers: {
+            "WWW-Authenticate": 'Basic realm="Secure Area"',
+          },
+        });
+      }
     }
+    // scope === "admin" の場合: event-system に admin ルートはないためスキップ
   }
 
   // 静的ファイルやNext.jsの内部ファイルは認証チェックをスキップ

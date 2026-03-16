@@ -13,7 +13,11 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:unit": "vitest run",
-    "test:unit:watch": "vitest"
+    "test:unit:watch": "vitest",
+    "db:link:stg": "supabase link --project-ref tdewumilkltljbqryjpg",
+    "db:link:prod": "supabase link --project-ref voisychklptvavokrxox",
+    "db:push:stg": "supabase link --project-ref tdewumilkltljbqryjpg && supabase db push",
+    "db:push:prod": "supabase link --project-ref voisychklptvavokrxox && supabase db push"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",

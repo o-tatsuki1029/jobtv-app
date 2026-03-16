@@ -76,7 +76,8 @@ export default function Header() {
         <CandidateMenu
           isOpen={isMenuOpen}
           onClose={() => setIsMenuOpen(false)}
-          userName={user?.email?.split("@")[0] || "ユーザー"}
+          userName={user?.displayName || user?.email?.split("@")[0] || "ユーザー"}
+          email={user?.email ?? null}
         />
       )}
     </HeaderContainer>

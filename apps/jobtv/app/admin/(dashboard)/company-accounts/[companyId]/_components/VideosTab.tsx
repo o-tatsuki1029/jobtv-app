@@ -12,10 +12,12 @@ import {
   adminSaveVideo,
 } from "@/lib/actions/admin-company-detail-actions";
 import {
-  uploadVideoToS3Action,
+  getVideoUploadPresignedUrl,
+  confirmVideoUpload,
   uploadThumbnailToS3Action,
   saveMediaConvertJobToDraft,
 } from "@/lib/actions/video-actions";
+import { useS3Upload } from "@/hooks/useS3Upload";
 import { VIDEO_CATEGORIES } from "@/types/video.types";
 import type { VideoCategory } from "@/types/video.types";
 
@@ -41,6 +43,7 @@ export default function VideosTab({ companyId }: VideosTabProps) {
   const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const thumbnailInputRef = useRef<HTMLInputElement>(null);
+  const { upload: s3Upload, progress: s3Progress } = useS3Upload();
 
   const [form, setForm] = useState({
     title: "",
@@ -87,19 +90,40 @@ export default function VideosTab({ companyId }: VideosTabProps) {
     setUploading(true);
     setSaveError(null);
 
-    const { data, error } = await uploadVideoToS3Action(file, "landscape", editingVideo.id);
-
-    if (error) {
-      setSaveError(error);
+    // Step 1: Presigned URL を取得
+    const presigned = await getVideoUploadPresignedUrl(
+      file.name,
+      file.type,
+      file.size,
+      "landscape",
+      editingVideo.id
+    );
+    if (presigned.error || !presigned.data) {
+      setSaveError(presigned.error || "URL取得に失敗しました");
       setUploading(false);
       return;
     }
 
-    if (data?.jobId) {
-      await saveMediaConvertJobToDraft(editingVideo.id, data.jobId, "landscape", data.url || "");
-      // ドラフトの変換ステータスが更新される
+    // Step 2: S3 に直接アップロード
+    const uploadResult = await s3Upload(presigned.data.presignedUrl, file);
+    if (!uploadResult.success) {
+      setSaveError(uploadResult.error || "アップロードに失敗しました");
+      setUploading(false);
+      return;
+    }
+
+    // Step 3: 確認 → MediaConvert 起動
+    const confirm = await confirmVideoUpload(
+      presigned.data.s3Key,
+      presigned.data.s3VideoId,
+      "landscape",
+      editingVideo.id
+    );
+    if (confirm.error) {
+      setSaveError(confirm.error);
+    } else if (confirm.data?.jobId) {
+      await saveMediaConvertJobToDraft(editingVideo.id, confirm.data.jobId, "landscape", confirm.data.s3VideoId);
       await loadVideos();
-      // 編集中の動画を更新
       const { data: refreshed } = await adminGetVideosForCompany(companyId);
       if (refreshed) {
         const updated = refreshed.find((v: any) => v.id === editingVideo.id);

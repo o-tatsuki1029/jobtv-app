@@ -8,6 +8,9 @@ import ErrorMessage from "@/components/studio/atoms/ErrorMessage";
 import EmptyState from "@/components/studio/atoms/EmptyState";
 import HeroItemsContent from "@/components/admin/HeroItemsContent";
 import BannersContent from "@/components/admin/BannersContent";
+import AmbassadorsContent from "@/components/admin/AmbassadorsContent";
+import DocumentariesContent from "@/components/admin/DocumentariesContent";
+import ShunDiariesContent from "@/components/admin/ShunDiariesContent";
 import {
   getEligibleVideosForTopPage,
   getFeaturedVideosForTopPage,
@@ -37,7 +40,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-type TabId = "hero" | "banner" | TopPageVideoKind;
+type TabId = "hero" | "banner" | "ambassador" | "documentary-managed" | "shundiary" | TopPageVideoKind;
 
 interface VideoWithCompany extends Omit<Video, "display_order"> {
   company_name: string | null;
@@ -48,7 +51,10 @@ const TAB_OPTIONS: { id: TabId; label: string }[] = [
   { id: "hero", label: "トップ動画" },
   { id: "banner", label: "バナー" },
   { id: "short", label: "就活Shorts" },
-  { id: "documentary", label: "就活ドキュメンタリー" }
+  { id: "ambassador", label: "アンバサダー" },
+  { id: "documentary-managed", label: "就活ドキュメンタリー" },
+  { id: "documentary", label: "就活Videos" },
+  { id: "shundiary", label: "しゅんダイアリー" }
 ];
 
 function SortableFeaturedItem({
@@ -343,7 +349,10 @@ export default function FeaturedVideosPage() {
       {activeTab === "hero" && <HeroItemsContent />}
       {activeTab === "banner" && <BannersContent />}
       {activeTab === "short" && <FeaturedVideosContent kind="short" />}
+      {activeTab === "ambassador" && <AmbassadorsContent />}
+      {activeTab === "documentary-managed" && <DocumentariesContent />}
       {activeTab === "documentary" && <FeaturedVideosContent kind="documentary" />}
+      {activeTab === "shundiary" && <ShunDiariesContent />}
     </div>
   );
 }

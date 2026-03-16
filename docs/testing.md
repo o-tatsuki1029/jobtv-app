@@ -321,5 +321,5 @@ TEST_CANDIDATE_PASSWORD=...
 | `/admin/line`, `/admin/line/broadcast` | LINE 外部サービス連携のため手動確認 |
 | `/studio/videos/:id`, `/studio/jobs/:id` など詳細ページ | テストデータの ID に依存するため |
 | `/admin/companies/:id`, `/admin/sessions/:id` など詳細ページ | 同上 |
-| `/settings/line` | LINE OAuth のため手動確認 |
+| `/mypage`（LINE連携） | LINE OAuth のため手動確認 |
 | `event-system`, `agent-manager` | dev サーバー別途起動が必要（環境変数設定後に実行） |

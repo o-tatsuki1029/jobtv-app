@@ -3,6 +3,8 @@ alwaysApply: true
 description: トピック別の参照先一覧（docs のみ。詳細は常に docs を参照する）
 ---
 
+<!-- このファイルは CLAUDE.md のトピック別参照先テーブルと同一内容を維持する -->
+
 詳細は常に docs を参照する。以下はトピック別の doc 一覧。
 
 ## AI への指示
@@ -12,6 +14,7 @@ description: トピック別の参照先一覧（docs のみ。詳細は常に d
 - **用語・テーブルの解釈**: `docs/database-domain.md` を正とする。意味で迷ったらそこで確認する。
 - **DB を変更したとき**: マイグレーション・テーブル役割・RLS 等の変更後は、必ず `docs/database-domain.md` を更新する。該当セクションの「参照実装」に挙がる他機能の整合も確認する。
 - **複数 doc に影響する変更**: 該当する doc をすべて更新する（例: 新規テーブルなら database-domain と必要に応じて database.md 等）。
+- **doc の追加・削除時**: CLAUDE.md のトピック別参照先テーブルと `docs/README.md` の両方を更新する。
 
 ## トピック別参照先
 
@@ -25,7 +28,15 @@ description: トピック別の参照先一覧（docs のみ。詳細は常に d
 | スタイリング・コンポーネント・データフェッチ・テーマ | `docs/ui-and-styling.md` |
 | コード規約（命名・型・インポート） | `docs/code-style.md` |
 | Monorepo・パッケージ・環境変数 | `docs/monorepo.md` |
-| デプロイ・admin IP 制限 | `docs/deployment.md` |
+| デプロイ・admin IP 制限・環境構成（ローカル/STG/本番の違い） | `docs/deployment.md` |
 | アプリ構成・技術スタック | `docs/apps.md` |
 | MCP サーバー設定・用途・セットアップ | `docs/mcp.md` |
 | E2E テスト（Playwright） | `docs/testing.md` |
+| SEO・AIO 対策・構造化データ・llms.txt | `docs/seo-aio.md` |
+| LINE 連携・配信・CTA 動線 | `docs/line-integration.md` |
+| ロギング・監査ログ・エラーバウンダリ | `docs/logging.md` |
+| 会員登録通知（Slack・Google Sheets） | `docs/signup-notification.md` |
+| AWS 動画ストリーミング（S3・MediaConvert・CloudFront） | `docs/aws-video.md` |
+| イベント運営システム仕様 | `docs/event-specification.md` |
+| 環境構築・セットアップ | `docs/setup.md` |
+| テスト観点・バグ候補 | `docs/test/` |

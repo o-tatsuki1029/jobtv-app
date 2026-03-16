@@ -15,10 +15,20 @@ import type {
   VideoDraftItem
 } from "../../types/video.types";
 import { getUserCompanyId, checkCompanyEditPermission } from "@jobtv-app/shared/actions/company-utils";
-import { uploadVideoToS3, uploadThumbnailToS3 } from "@/lib/aws/s3-client";
+import { uploadThumbnailToS3 } from "@/lib/aws/s3-client";
+import { createVideoPresignedUrl } from "@/lib/aws/s3-presigned";
 import { createMediaConvertJob, getMediaConvertJobStatus } from "@/lib/aws/mediaconvert-client";
 import { getHlsManifestUrl, getMediaConvertThumbnailUrl } from "@/lib/aws/cloudfront-client";
 import { logger } from "@/lib/logger";
+import { enqueueStorageDeletion } from "@/lib/storage/deletion-queue";
+import crypto from "crypto";
+
+/**
+ * S3メタデータ用の32桁英数字（0-9a-f）を生成
+ */
+function randomAlphanumeric32(): string {
+  return crypto.randomBytes(16).toString("hex");
+}
 
 /**
  * ログイン企業の本番動画一覧を取得
@@ -436,8 +446,16 @@ export async function deleteVideoPhysically(id: string): Promise<{
       return { data: false, error: "下書き動画の削除に失敗しました" };
     }
 
-    // ストレージからの削除は、他の動画で同じURLが使われている可能性を考慮して
-    // ここでは行わない（または別途クリーンアップジョブで行うのが安全）
+    // S3 ストレージ削除をキューに登録（管理者承認後に実行）
+    const bucket = process.env.AWS_S3_BUCKET || "jobtv-videos-stg";
+    void enqueueStorageDeletion({
+      storageType: "s3",
+      bucket,
+      path: `companies/${companyId}/videos/${id}/`,
+      isPrefix: true,
+      source: "delete_video",
+      sourceDetail: `draftId=${id}, companyId=${companyId}`,
+    });
 
     revalidatePath("/studio/videos");
     revalidatePath(`/company/${companyId}`);
@@ -704,18 +722,17 @@ export async function uploadVideoAsset(
 }
 
 /**
- * 動画をS3にアップロード（新しいS3アップロード機能）
- * @param file アップロードする動画ファイル
- * @param aspectRatio 横長（landscape）または縦長（portrait）
- * @param videoId 動画ID（既存の動画を更新する場合）
- * @returns S3キーとURLを含む結果
+ * 動画アップロード用の Presigned URL を取得する Server Action。
+ * クライアントはこの URL を使って S3 に直接アップロードする。
  */
-export async function uploadVideoToS3Action(
-  file: File,
+export async function getVideoUploadPresignedUrl(
+  fileName: string,
+  contentType: string,
+  fileSize: number,
   aspectRatio: "landscape" | "portrait",
   videoId?: string
 ): Promise<{
-  data: { s3Key: string; url: string; s3Url: string; jobId?: string; s3VideoId?: string } | null;
+  data: { presignedUrl: string; s3Key: string; s3VideoId: string } | null;
   error: string | null;
 }> {
   try {
@@ -724,78 +741,132 @@ export async function uploadVideoToS3Action(
       return { data: null, error: companyIdError };
     }
 
-    // 権限チェック
     const permissionCheck = await checkCompanyEditPermission(companyId);
     if (!permissionCheck.allowed) {
       return { data: null, error: permissionCheck.error || "編集権限がありません" };
     }
 
-    // videoIdが指定されていない場合は一時的なIDを生成
     const targetVideoId = videoId || `temp-${Date.now()}`;
+    const fileExt = fileName.split(".").pop()?.toLowerCase() || "mp4";
+    const s3Key = `companies/${companyId}/videos/${targetVideoId}/original.${fileExt}`;
 
-    const result = await uploadVideoToS3(file, companyId, targetVideoId);
+    const result = await createVideoPresignedUrl({
+      s3Key,
+      contentType,
+      fileSize,
+      metadata: {
+        companyId,
+        videoId: targetVideoId,
+        originalFileName: randomAlphanumeric32(),
+        uploadedAt: new Date().toISOString()
+      }
+    });
 
-    if (result.error || !result.data) {
-      return result;
+    if (result.error) {
+      return { data: null, error: result.error };
     }
 
-    console.log("[VideoUpload] S3 done, starting MediaConvert: targetVideoId=" + targetVideoId);
-    // S3アップロード成功後、MediaConvertジョブを自動起動
+    return {
+      data: {
+        presignedUrl: result.presignedUrl!,
+        s3Key,
+        s3VideoId: targetVideoId
+      },
+      error: null
+    };
+  } catch (error) {
+    logger.error({ action: "getVideoUploadPresignedUrl", err: error }, "Presigned URL取得失敗");
+    return {
+      data: null,
+      error: error instanceof Error ? error.message : "アップロードURLの取得に失敗しました"
+    };
+  }
+}
+
+/**
+ * クライアントが S3 に直接アップロード完了後に呼び出す Server Action。
+ * MediaConvert ジョブを起動し DB を更新する。
+ */
+export async function confirmVideoUpload(
+  s3Key: string,
+  s3VideoId: string,
+  aspectRatio: "landscape" | "portrait",
+  videoId?: string
+): Promise<{
+  data: { url: string; jobId?: string; s3VideoId: string } | null;
+  error: string | null;
+}> {
+  try {
+    const { companyId, error: companyIdError } = await getUserCompanyId();
+    if (companyIdError) {
+      return { data: null, error: companyIdError };
+    }
+
+    const permissionCheck = await checkCompanyEditPermission(companyId);
+    if (!permissionCheck.allowed) {
+      return { data: null, error: permissionCheck.error || "編集権限がありません" };
+    }
+
+    // CloudFront URL を生成
+    const cloudFrontUrl = process.env.AWS_CLOUDFRONT_URL?.replace(/\/$/, "");
+    if (!cloudFrontUrl) {
+      return { data: null, error: "CloudFrontが設定されていません" };
+    }
+    const url = `${cloudFrontUrl}/${s3Key}`;
+
+    // MediaConvert ジョブを起動
     const jobResult = await createMediaConvertJob({
-      videoId: targetVideoId,
+      videoId: s3VideoId,
       companyId,
-      sourceS3Key: result.data.s3Key,
+      sourceS3Key: s3Key,
       aspectRatio
     });
 
     if (jobResult.error) {
-      console.log("[VideoUpload] MediaConvert job create NG: error=" + jobResult.error);
-      logger.error({ action: "uploadVideoToS3Action", err: jobResult.error, videoId: targetVideoId }, "MediaConvertジョブの作成に失敗しました");
-      // ジョブ作成失敗でもS3アップロードは成功しているので、警告のみ
-      // 必要に応じて後で手動でジョブを作成できる
-    } else if (jobResult.jobId) {
-      console.log("[VideoUpload] MediaConvert job create OK: jobId=" + jobResult.jobId + ", videoId=" + targetVideoId);
-      if (videoId) {
-        // 既存の動画の場合、ジョブID・ステータス・aspect_ratio・URLをDBに保存（Webhook未実装でも表示用URLを即時保存）
-        const supabase = await createClient();
-        let streamingUrl: string | null = null;
-        let autoThumbnailUrl: string | null = null;
-        try {
-          streamingUrl = await getHlsManifestUrl(companyId, targetVideoId, aspectRatio);
-          autoThumbnailUrl = await getMediaConvertThumbnailUrl(companyId, targetVideoId, aspectRatio);
-        } catch {
-          // CloudFront未設定時はnullのまま
-        }
-        await supabase
-          .from("videos_draft")
-          .update({
-            mediaconvert_job_id: jobResult.jobId,
-            conversion_status: "processing",
-            aspect_ratio: aspectRatio,
-            streaming_url: streamingUrl,
-            auto_thumbnail_url: autoThumbnailUrl,
-            updated_at: new Date().toISOString()
-          })
-          .eq("id", videoId)
-          .eq("company_id", companyId);
+      logger.error(
+        { action: "confirmVideoUpload", err: jobResult.error, s3VideoId },
+        "MediaConvertジョブの作成に失敗しました"
+      );
+    }
+
+    // 既存の動画の場合、DB を更新
+    if (videoId && jobResult.jobId) {
+      const supabase = await createClient();
+      let streamingUrl: string | null = null;
+      let autoThumbnailUrl: string | null = null;
+      try {
+        streamingUrl = await getHlsManifestUrl(companyId, s3VideoId, aspectRatio);
+        autoThumbnailUrl = await getMediaConvertThumbnailUrl(companyId, s3VideoId, aspectRatio);
+      } catch {
+        // CloudFront未設定時はnullのまま
       }
+      await supabase
+        .from("videos_draft")
+        .update({
+          mediaconvert_job_id: jobResult.jobId,
+          conversion_status: "processing",
+          aspect_ratio: aspectRatio,
+          streaming_url: streamingUrl,
+          auto_thumbnail_url: autoThumbnailUrl,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", videoId)
+        .eq("company_id", companyId);
     }
 
     return {
-      ...result,
-      data: result.data
-        ? {
-            ...result.data,
-            jobId: jobResult.jobId || undefined,
-            s3VideoId: targetVideoId
-          }
-        : null
+      data: {
+        url,
+        jobId: jobResult.jobId || undefined,
+        s3VideoId
+      },
+      error: null
     };
   } catch (error) {
-    logger.error({ action: "uploadVideoToS3Action", err: error }, "S3への動画アップロード中に予期しないエラーが発生しました");
+    logger.error({ action: "confirmVideoUpload", err: error }, "アップロード確認処理に失敗しました");
     return {
       data: null,
-      error: error instanceof Error ? error.message : "動画のアップロードに失敗しました"
+      error: error instanceof Error ? error.message : "アップロードの確認に失敗しました"
     };
   }
 }

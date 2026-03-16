@@ -4,11 +4,14 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { checkAdminPermission } from "@/lib/actions/admin-actions";
-import { uploadHeroVideoToS3 } from "@/lib/aws/s3-client";
+import { createVideoPresignedUrl } from "@/lib/aws/s3-presigned";
 import { createHeroMediaConvertJob, getMediaConvertJobStatus } from "@/lib/aws/mediaconvert-client";
 import { getHeroHlsManifestUrl, getHeroMediaConvertThumbnailUrl } from "@/lib/aws/cloudfront-client";
 import { logAudit } from "@jobtv-app/shared/utils/audit";
 import { logger } from "@/lib/logger";
+import { enqueueStorageDeletion, enqueueStorageDeletionBatch } from "@/lib/storage/deletion-queue";
+import { extractSupabaseStoragePath } from "@/lib/storage/storage-cleanup";
+import crypto from "crypto";
 
 const ALLOWED_HERO_MIME = ["image/jpeg", "image/png", "image/webp"];
 const MAX_HERO_SIZE = 5 * 1024 * 1024; // 5MB
@@ -131,10 +134,14 @@ export async function createTopPageHeroItem(formData: FormData): Promise<{
   const validationError = validateCommonFields(title, linkUrl);
   if (validationError) return { data: null, error: validationError };
 
-  const hasVideo = videoFile instanceof File && videoFile.size > 0;
+  // video_url / mediaconvert_job_id / auto_thumbnail_url はクライアントが
+  // Presigned URL アップロード＋confirmHeroVideoUpload() で取得して FormData に含める
+  const videoUrl = formData.get("video_url");
+  const mediaconvertJobId = formData.get("mediaconvert_job_id");
+  const autoThumbnailUrlField = formData.get("auto_thumbnail_url");
 
-  if (!hasVideo) {
-    return { data: null, error: "動画ファイルを選択してください" };
+  if (!videoUrl || typeof videoUrl !== "string" || videoUrl.trim() === "") {
+    return { data: null, error: "動画をアップロードしてください" };
   }
 
   // サムネイルがある場合はバリデーション
@@ -149,8 +156,12 @@ export async function createTopPageHeroItem(formData: FormData): Promise<{
 
   try {
     const supabase = createAdminClient();
-    const { randomUUID } = await import("crypto");
-    const id = randomUUID();
+
+    // クライアントが Presigned URL 用に事前生成した ID を使用（なければサーバーで生成）
+    const clientId = formData.get("hero_item_id");
+    const id = typeof clientId === "string" && clientId.trim() !== ""
+      ? clientId.trim()
+      : crypto.randomUUID();
 
     // サムネイルのアップロード（任意）
     let publicUrl: string | null = null;
@@ -174,32 +185,9 @@ export async function createTopPageHeroItem(formData: FormData): Promise<{
       publicUrl = url;
     }
 
-    // 動画ファイルがある場合はS3にアップロードしてMediaConvertジョブを起動
-    let videoUrl: string | null = null;
-    let isConverted = true;
-    let mediaconvertJobId: string | null = null;
-    let autoThumbnailUrl: string | null = null;
-
-    if (hasVideo) {
-      const uploadResult = await uploadHeroVideoToS3(videoFile, id);
-      if (uploadResult.error) {
-        return { data: null, error: uploadResult.error };
-      }
-      const jobResult = await createHeroMediaConvertJob(id, uploadResult.data!.s3Key);
-      if (jobResult.error) {
-        logger.error({ action: "createTopPageHeroItem", err: jobResult.error }, "MediaConvertジョブの起動に失敗しました");
-        return { data: null, error: `MediaConvertジョブの起動に失敗しました: ${jobResult.error}` };
-      }
-      try {
-        videoUrl = await getHeroHlsManifestUrl(id);
-      } catch (e) {
-        logger.error({ action: "createTopPageHeroItem", err: e }, "HLS URLの生成に失敗しました");
-        return { data: null, error: e instanceof Error ? e.message : "HLS URLの生成に失敗しました" };
-      }
-      isConverted = false;
-      mediaconvertJobId = jobResult.jobId ?? null;
-      autoThumbnailUrl = await getHeroMediaConvertThumbnailUrl(id);
-    }
+    // 動画情報はクライアントが Presigned URL + confirmHeroVideoUpload() で取得済み
+    const isConverted = false;
+    const resolvedAutoThumbnailUrl = typeof autoThumbnailUrlField === "string" ? autoThumbnailUrlField : null;
 
     const { data: maxOrder } = await supabase
       .from("top_page_hero_items")
@@ -214,10 +202,10 @@ export async function createTopPageHeroItem(formData: FormData): Promise<{
       id,
       title: (title as string).trim(),
       thumbnail_url: publicUrl,
-      auto_thumbnail_url: autoThumbnailUrl,
+      auto_thumbnail_url: resolvedAutoThumbnailUrl,
       is_converted: isConverted,
-      mediaconvert_job_id: mediaconvertJobId,
-      video_url: videoUrl,
+      mediaconvert_job_id: typeof mediaconvertJobId === "string" ? mediaconvertJobId : null,
+      video_url: (videoUrl as string).trim(),
       is_pr: isPrRaw === "on" || isPrRaw === "true",
       link_url: linkUrl && typeof linkUrl === "string" && linkUrl.trim() !== "" ? linkUrl.trim() : null,
       display_order: nextOrder
@@ -272,6 +260,13 @@ export async function updateTopPageHeroItem(
   try {
     const supabase = createAdminClient();
 
+    // 旧サムネイルURLを事前取得（ファイル差し替え時の旧ファイル削除用）
+    const { data: currentItem } = await supabase
+      .from("top_page_hero_items")
+      .select("thumbnail_url")
+      .eq("id", id)
+      .maybeSingle();
+
     const updates: Record<string, unknown> = {
       title: (title as string).trim(),
       is_pr: isPrRaw === "on" || isPrRaw === "true",
@@ -279,26 +274,16 @@ export async function updateTopPageHeroItem(
       updated_at: new Date().toISOString()
     };
 
-    // 動画ファイルがある場合はS3にアップロードしてMediaConvertジョブを起動
-    if (videoFile instanceof File && videoFile.size > 0) {
-      const uploadResult = await uploadHeroVideoToS3(videoFile, id);
-      if (uploadResult.error) {
-        return { data: null, error: uploadResult.error };
-      }
-      const jobResult = await createHeroMediaConvertJob(id, uploadResult.data!.s3Key);
-      if (jobResult.error) {
-        logger.error({ action: "updateTopPageHeroItem", err: jobResult.error }, "MediaConvertジョブの起動に失敗しました");
-        return { data: null, error: `MediaConvertジョブの起動に失敗しました: ${jobResult.error}` };
-      }
-      try {
-        updates.video_url = await getHeroHlsManifestUrl(id);
-      } catch (e) {
-        logger.error({ action: "updateTopPageHeroItem", err: e }, "HLS URLの生成に失敗しました");
-        return { data: null, error: e instanceof Error ? e.message : "HLS URLの生成に失敗しました" };
-      }
+    // 動画がクライアントから Presigned URL で再アップロードされた場合、
+    // FormData に video_url / mediaconvert_job_id / auto_thumbnail_url が含まれる
+    const newVideoUrl = formData.get("video_url");
+    const newJobId = formData.get("mediaconvert_job_id");
+    const newAutoThumbnail = formData.get("auto_thumbnail_url");
+    if (newVideoUrl && typeof newVideoUrl === "string" && newVideoUrl.trim() !== "") {
+      updates.video_url = newVideoUrl.trim();
       updates.is_converted = false;
-      updates.mediaconvert_job_id = jobResult.jobId ?? null;
-      updates.auto_thumbnail_url = await getHeroMediaConvertThumbnailUrl(id);
+      updates.mediaconvert_job_id = typeof newJobId === "string" ? newJobId : null;
+      updates.auto_thumbnail_url = typeof newAutoThumbnail === "string" ? newAutoThumbnail : null;
     }
 
     if (file instanceof File && file.size > 0) {
@@ -339,6 +324,21 @@ export async function updateTopPageHeroItem(
       return { data: null, error: updateError.message };
     }
 
+    // サムネイル差し替え時、旧ファイル削除をキューに登録
+    if (updates.thumbnail_url && currentItem?.thumbnail_url) {
+      const oldPath = extractSupabaseStoragePath(currentItem.thumbnail_url, "company-assets");
+      if (oldPath) {
+        void enqueueStorageDeletion({
+          storageType: "supabase",
+          bucket: "company-assets",
+          path: oldPath,
+          isPrefix: false,
+          source: "update_hero_thumbnail",
+          sourceDetail: `heroItemId=${id}`,
+        });
+      }
+    }
+
     if (user) {
       logAudit({
         userId: user.id,
@@ -373,10 +373,10 @@ export async function deleteTopPageHeroItem(
   try {
     const supabase = createAdminClient();
 
-    // 削除前にタイトルを取得（監査ログ用）
+    // 削除前にタイトルとサムネイルURLを取得（監査ログ + ストレージ削除用）
     const { data: heroItem } = await supabase
       .from("top_page_hero_items")
-      .select("title")
+      .select("title, thumbnail_url")
       .eq("id", id)
       .maybeSingle();
 
@@ -398,6 +398,27 @@ export async function deleteTopPageHeroItem(
         metadata: { heroItemId: id, title: heroItem?.title ?? null },
       });
     }
+
+    // ストレージ削除をキューに登録（管理者承認後に実行）
+    const s3Bucket = process.env.AWS_S3_BUCKET || "jobtv-videos-stg";
+    void enqueueStorageDeletionBatch([
+      {
+        storageType: "s3",
+        bucket: s3Bucket,
+        path: `admin/hero-items/${id}/`,
+        isPrefix: true,
+        source: "delete_hero_item",
+        sourceDetail: `heroItemId=${id}`,
+      },
+      {
+        storageType: "supabase",
+        bucket: "company-assets",
+        path: `admin/hero-items/${id}/`,
+        isPrefix: true,
+        source: "delete_hero_item",
+        sourceDetail: `heroItemId=${id}`,
+      },
+    ]);
 
     revalidatePath("/");
     revalidatePath("/admin/hero-items");
@@ -451,5 +472,94 @@ export async function reorderTopPageHeroItems(
   } catch (e) {
     logger.error({ action: "reorderTopPageHeroItems", err: e }, "ヒーローアイテムの並び替え中に例外が発生しました");
     return { data: null, error: e instanceof Error ? e.message : "並び替えに失敗しました" };
+  }
+}
+
+/**
+ * ヒーロー動画アップロード用の Presigned URL を取得する Server Action
+ */
+export async function getHeroVideoPresignedUrl(
+  fileName: string,
+  contentType: string,
+  fileSize: number,
+  heroItemId: string
+): Promise<{
+  data: { presignedUrl: string; s3Key: string } | null;
+  error: string | null;
+}> {
+  const { isAdmin } = await checkAdminPermission();
+  if (!isAdmin) return { data: null, error: "管理者権限が必要です" };
+
+  try {
+    const fileExt = fileName.split(".").pop()?.toLowerCase() || "mp4";
+    const s3Key = `admin/hero-items/${heroItemId}/original.${fileExt}`;
+
+    const result = await createVideoPresignedUrl({
+      s3Key,
+      contentType,
+      fileSize,
+      metadata: {
+        heroItemId,
+        originalFileName: crypto.randomBytes(16).toString("hex"),
+        uploadedAt: new Date().toISOString()
+      }
+    });
+
+    if (result.error) {
+      return { data: null, error: result.error };
+    }
+
+    return {
+      data: { presignedUrl: result.presignedUrl!, s3Key },
+      error: null
+    };
+  } catch (e) {
+    logger.error({ action: "getHeroVideoPresignedUrl", err: e }, "Presigned URL取得失敗");
+    return { data: null, error: e instanceof Error ? e.message : "アップロードURLの取得に失敗しました" };
+  }
+}
+
+/**
+ * ヒーロー動画のクライアント直接アップロード完了後に呼び出す Server Action。
+ * MediaConvert ジョブを起動し DB を更新する。
+ */
+export async function confirmHeroVideoUpload(
+  s3Key: string,
+  heroItemId: string
+): Promise<{
+  data: { videoUrl: string; jobId?: string; autoThumbnailUrl: string | null } | null;
+  error: string | null;
+}> {
+  const { isAdmin } = await checkAdminPermission();
+  if (!isAdmin) return { data: null, error: "管理者権限が必要です" };
+
+  try {
+    const jobResult = await createHeroMediaConvertJob(heroItemId, s3Key);
+    if (jobResult.error) {
+      logger.error({ action: "confirmHeroVideoUpload", err: jobResult.error, heroItemId }, "MediaConvertジョブの起動に失敗しました");
+      return { data: null, error: `MediaConvertジョブの起動に失敗しました: ${jobResult.error}` };
+    }
+
+    let videoUrl: string;
+    try {
+      videoUrl = await getHeroHlsManifestUrl(heroItemId);
+    } catch (e) {
+      logger.error({ action: "confirmHeroVideoUpload", err: e }, "HLS URLの生成に失敗しました");
+      return { data: null, error: e instanceof Error ? e.message : "HLS URLの生成に失敗しました" };
+    }
+
+    const autoThumbnailUrl = await getHeroMediaConvertThumbnailUrl(heroItemId);
+
+    return {
+      data: {
+        videoUrl,
+        jobId: jobResult.jobId,
+        autoThumbnailUrl
+      },
+      error: null
+    };
+  } catch (e) {
+    logger.error({ action: "confirmHeroVideoUpload", err: e }, "ヒーロー動画アップロード確認処理に失敗しました");
+    return { data: null, error: e instanceof Error ? e.message : "アップロードの確認に失敗しました" };
   }
 }

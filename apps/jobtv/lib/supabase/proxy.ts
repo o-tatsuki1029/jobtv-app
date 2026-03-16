@@ -47,7 +47,8 @@ export async function updateSession(request: NextRequest) {
     "/admin/login",
     "/studio/login",
     "/studio/forgot-password",
-    "/studio/update-password"
+    "/studio/update-password",
+    "/event"
   ];
   const isPublicRoute =
     publicRoutes.some((route) => request.nextUrl.pathname.startsWith(route)) || request.nextUrl.pathname === "/";

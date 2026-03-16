@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import type { Tables, TablesInsert } from "@jobtv-app/shared/types";
+import { logAudit } from "@jobtv-app/shared/utils/audit";
 import { logger } from "@/lib/logger";
 
 type Notification = Tables<"notifications">;
@@ -150,6 +151,16 @@ export async function createNotification(
     return { data: null, error: error.message };
   }
 
+  logAudit({
+    userId: user.id,
+    action: "notification.create",
+    category: "notification",
+    resourceType: "notifications",
+    resourceId: data.id,
+    app: "jobtv",
+    metadata: { title, type, targetCompanyId },
+  });
+
   revalidatePath("/studio/notifications");
   revalidatePath("/admin/notifications");
   return { data, error: null };
@@ -200,6 +211,16 @@ export async function updateNotification(
     return { data: null, error: error.message };
   }
 
+  logAudit({
+    userId: user.id,
+    action: "notification.update",
+    category: "notification",
+    resourceType: "notifications",
+    resourceId: notificationId,
+    app: "jobtv",
+    metadata: { title, type },
+  });
+
   revalidatePath("/studio/notifications");
   revalidatePath("/admin/notifications");
   return { data, error: null };
@@ -232,6 +253,15 @@ export async function deleteNotification(notificationId: string) {
     logger.error({ action: "deleteNotification", err: error }, "お知らせの削除に失敗");
     return { data: null, error: error.message };
   }
+
+  logAudit({
+    userId: user.id,
+    action: "notification.delete",
+    category: "notification",
+    resourceType: "notifications",
+    resourceId: notificationId,
+    app: "jobtv",
+  });
 
   revalidatePath("/studio/notifications");
   revalidatePath("/admin/notifications");

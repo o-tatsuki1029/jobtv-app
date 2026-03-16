@@ -16,7 +16,8 @@ import { sendTemplatedEmail } from "@/lib/email/send-templated-email";
 import { sendSignupSlackNotification } from "@/lib/email/slack";
 import { appendCandidateToSheet } from "@/lib/google/sheets";
 import { logger } from "@/lib/logger";
-import type { SignUpCandidatePayload } from "@/lib/types/signup";
+import { buildCandidatePayloadFromFormData } from "@/lib/utils/candidate-payload";
+import { resolveSchoolKcode } from "@/lib/actions/school-actions";
 
 /**
  * サインアップ処理。認証作成後、同一セッションで candidates 作成と profiles.candidate_id 紐付けを RPC で実行する。
@@ -24,12 +25,13 @@ import type { SignUpCandidatePayload } from "@/lib/types/signup";
 export async function signUp(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
+  const captchaToken = String(formData.get("captchaToken") ?? "");
 
   const supabase = await createClient();
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
     password,
-    options: { emailRedirectTo: `${getFullSiteUrl(3000)}/api/auth/callback` }
+    options: { emailRedirectTo: `${getFullSiteUrl(3000)}/api/auth/callback`, captchaToken }
   });
 
   if (authError) {
@@ -45,6 +47,9 @@ export async function signUp(formData: FormData) {
 
   const payload = buildCandidatePayloadFromFormData(formData, email);
   payload.user_id = authData.user?.id ?? null;
+  if (!payload.school_kcode && payload.school_name) {
+    payload.school_kcode = await resolveSchoolKcode(payload.school_name, payload.school_type);
+  }
   const { error: rpcError } = await supabase.rpc("create_candidate_and_link_profile", {
     payload: payload as unknown as Record<string, unknown>
   });
@@ -63,6 +68,7 @@ export async function signUp(formData: FormData) {
       last_name:  payload.last_name,
       site_url:   getFullSiteUrl(3000),
     },
+    recipientRole: "candidate",
   }).catch((e) => logger.error({ action: "signUp", err: e }, "候補者ウェルカムメールの送信に失敗しました"));
 
   // Slack 通知・Google Sheets 転記（失敗してもサインアップは成功とする）
@@ -128,59 +134,14 @@ export async function checkEmailForSignup(email: string): Promise<CheckEmailForS
 }
 
 /**
- * FormData から RPC 用の candidate payload を組み立てる
- */
-function buildCandidatePayloadFromFormData(
-  formData: FormData,
-  email: string
-): SignUpCandidatePayload {
-  const get = (key: string) => String(formData.get(key) ?? "").trim();
-  const getNum = (key: string) => {
-    const v = formData.get(key);
-    if (v === null || v === undefined) return 0;
-    const n = Number(v);
-    return Number.isFinite(n) ? n : 0;
-  };
-  const getArray = (key: string) => {
-    return formData.getAll(key).filter((x): x is string => typeof x === "string" && x !== "");
-  };
-
-  return {
-    email,
-    last_name: get("last_name"),
-    first_name: get("first_name"),
-    last_name_kana: get("last_name_kana"),
-    first_name_kana: get("first_name_kana"),
-    gender: get("gender"),
-    desired_work_location: get("desired_work_location"),
-    date_of_birth: get("date_of_birth"),
-    phone: get("phone"),
-    school_type: get("school_type"),
-    school_name: get("school_name"),
-    school_kcode: formData.get("school_kcode") ? String(formData.get("school_kcode")) : null,
-    faculty_name: get("faculty_name"),
-    department_name: get("department_name"),
-    major_field: get("major_field"),
-    graduation_year: getNum("graduation_year"),
-    desired_industry: getArray("desired_industry"),
-    desired_job_type: getArray("desired_job_type"),
-    referrer: formData.get("referrer") ? String(formData.get("referrer")) : null,
-    utm_source: formData.get("utm_source") ? String(formData.get("utm_source")) : null,
-    utm_medium: formData.get("utm_medium") ? String(formData.get("utm_medium")) : null,
-    utm_campaign: formData.get("utm_campaign") ? String(formData.get("utm_campaign")) : null,
-    utm_content: formData.get("utm_content") ? String(formData.get("utm_content")) : null,
-    utm_term: formData.get("utm_term") ? String(formData.get("utm_term")) : null
-  };
-}
-
-/**
  * ログイン処理（一般ユーザー用）
  * 管理者はログインできません
  */
 export async function signIn(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
-  const result = await baseSignInWithPassword(email, password);
+  const captchaToken = (formData.get("captchaToken") as string) ?? "";
+  const result = await baseSignInWithPassword(email, password, captchaToken);
 
   if (result.error) {
     return { error: result.error };
@@ -240,7 +201,8 @@ export async function signOut() {
  */
 export async function resetPassword(formData: FormData) {
   const email = formData.get("email") as string;
-  const result = await baseResetPasswordForEmail(email, `${getFullSiteUrl(3000)}/auth/update-password`);
+  const captchaToken = (formData.get("captchaToken") as string) ?? "";
+  const result = await baseResetPasswordForEmail(email, `${getFullSiteUrl(3000)}/auth/update-password`, captchaToken);
 
   if (result.error) {
     return { error: result.error };
@@ -356,7 +318,7 @@ export async function getRecruiterMenuInfo(): Promise<{
 export async function getHeaderAuthInfo(): Promise<
   | {
       data: {
-        user: { email: string | null } | null;
+        user: { email: string | null; displayName: string | null } | null;
         role: "recruiter" | "admin" | null;
         recruiterMenuInfo: {
           displayName: string;
@@ -386,16 +348,14 @@ export async function getHeaderAuthInfo(): Promise<
       .maybeSingle();
     const role =
       profile?.role === "recruiter" || profile?.role === "admin" ? profile.role : null;
+    const displayName =
+      [profile?.last_name, profile?.first_name].filter(Boolean).join(" ") || null;
     let recruiterMenuInfo: {
       displayName: string;
       companyName: string | null;
       email: string | null;
     } | null = null;
     if (role === "recruiter" && profile) {
-      const displayName =
-        [profile.last_name, profile.first_name].filter(Boolean).join(" ") ||
-        user.email?.split("@")[0] ||
-        "ユーザー";
       let companyName: string | null = null;
       if (profile.company_id) {
         const { data: company } = await supabase
@@ -406,14 +366,14 @@ export async function getHeaderAuthInfo(): Promise<
         companyName = company?.name ?? null;
       }
       recruiterMenuInfo = {
-        displayName,
+        displayName: displayName || user.email?.split("@")[0] || "ユーザー",
         companyName,
         email: profile.email ?? user.email ?? null
       };
     }
     return {
       data: {
-        user: { email: user.email ?? null },
+        user: { email: user.email ?? null, displayName },
         role,
         recruiterMenuInfo
       },

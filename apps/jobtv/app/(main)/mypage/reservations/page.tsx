@@ -1,9 +1,18 @@
 import { getMyReservations } from "@/lib/actions/candidate-actions";
+import { getLineLinkStatus } from "@/lib/actions/line-actions";
 import ReservationsView from "@/components/mypage/ReservationsView";
+import LineConnectionRequired from "@/components/mypage/LineConnectionRequired";
 
 export const metadata = { title: "説明会・インターン予約一覧 | マイページ | JOBTV" };
 
 export default async function ReservationsPage() {
+  const lineResult = await getLineLinkStatus();
+  const lineLinked = lineResult.data?.linked ?? false;
+
+  if (!lineLinked) {
+    return <LineConnectionRequired title="説明会・インターン予約一覧" />;
+  }
+
   const { data, error } = await getMyReservations();
 
   type ResRow = {

@@ -85,6 +85,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // タイムスタンプ鮮度チェック（±5分以内）
+  const webhookTimestampNum = parseInt(webhookTimestamp, 10);
+  const now = Math.floor(Date.now() / 1000);
+  if (isNaN(webhookTimestampNum) || Math.abs(now - webhookTimestampNum) > 300) {
+    logger.error({ action: "POST", hook: "email" }, "タイムスタンプが許容範囲外です");
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   let payload: HookPayload;
   try {
     payload = JSON.parse(rawBody);

@@ -13,6 +13,7 @@
         "SUPABASE_HOOK_SECRET",
         "BASIC_AUTH_USER",
         "BASIC_AUTH_PASSWORD",
+        "BASIC_AUTH_SCOPE",
         "AWS_REGION",
         "AWS_ACCESS_KEY_ID",
         "AWS_SECRET_ACCESS_KEY",

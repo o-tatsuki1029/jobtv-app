@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, Noto_Sans_JP } from "next/font/google";
+import { GoogleTagManager } from "@next/third-parties/google";
 import "./globals.css";
 import JsonLd from "./JsonLd";
 import {
@@ -15,16 +16,20 @@ import {
   THEME_COLOR
 } from "@/constants/site";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
-  display: "swap"
+  weight: ["400", "500", "700"],
+  display: "swap",
+  preload: true,
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const notoSansJP = Noto_Sans_JP({
+  variable: "--font-noto-sans-jp",
   subsets: ["latin"],
-  display: "swap"
+  weight: ["400", "500", "700"],
+  display: "swap",
+  preload: true,
 });
 
 export const metadata: Metadata = {
@@ -88,13 +93,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ja" className="no-js h-full overflow-x-clip" suppressHydrationWarning>
+    <html lang="ja" className={`${inter.variable} ${notoSansJP.variable} no-js h-full overflow-x-clip`} suppressHydrationWarning>
       <head>
         <JsonLd />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-full bg-background text-foreground overflow-x-clip`}
+        className="antialiased min-h-full bg-background text-foreground overflow-x-clip"
       >
+        {process.env.NEXT_PUBLIC_GTM_ID && (
+          <GoogleTagManager gtmId={process.env.NEXT_PUBLIC_GTM_ID} />
+        )}
         {children}
       </body>
     </html>

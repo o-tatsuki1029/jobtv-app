@@ -28,8 +28,11 @@ import {
   createTopPageHeroItem,
   updateTopPageHeroItem,
   deleteTopPageHeroItem,
-  reorderTopPageHeroItems
+  reorderTopPageHeroItems,
+  getHeroVideoPresignedUrl,
+  confirmHeroVideoUpload
 } from "@/lib/actions/top-page-hero-actions";
+import { useS3Upload } from "@/hooks/useS3Upload";
 
 type HeroItem = {
   id: string;
@@ -142,6 +145,7 @@ function SortableHeroItem({
 
 function HeroItemForm({
   initialValues,
+  heroItemId,
   onSubmit,
   onCancel,
   submitLabel
@@ -152,6 +156,8 @@ function HeroItemForm({
     link_url: string;
     video_url: string;
   };
+  /** 編集時: 既存のheroItemId。新規作成時: 事前生成されたID */
+  heroItemId: string;
   onSubmit: (formData: FormData) => Promise<void>;
   onCancel?: () => void;
   submitLabel: string;
@@ -161,6 +167,7 @@ function HeroItemForm({
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
   const [titleLength, setTitleLength] = useState(initialValues?.title.length ?? 0);
   const formRef = useRef<HTMLFormElement>(null);
+  const { upload: s3Upload, progress: s3Progress } = useS3Upload();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -169,10 +176,52 @@ function HeroItemForm({
     setSubmitting(true);
     try {
       const formData = new FormData(e.currentTarget);
-      const videoSelected = formData.get("video_file") instanceof File && (formData.get("video_file") as File).size > 0;
+      const videoFile = formData.get("video_file");
+      const videoSelected = videoFile instanceof File && videoFile.size > 0;
+
       if (videoSelected) {
-        setSubmitMessage("動画をアップロードしてHLS変換ジョブを起動中...");
+        // Step 1: Presigned URL を取得
+        setSubmitMessage("アップロードURLを取得中...");
+        const presignedResult = await getHeroVideoPresignedUrl(
+          videoFile.name,
+          videoFile.type,
+          videoFile.size,
+          heroItemId
+        );
+        if (presignedResult.error || !presignedResult.data) {
+          throw new Error(presignedResult.error || "URLの取得に失敗しました");
+        }
+
+        // Step 2: S3 に直接アップロード
+        setSubmitMessage("動画をアップロード中...");
+        const uploadResult = await s3Upload(presignedResult.data.presignedUrl, videoFile);
+        if (!uploadResult.success) {
+          throw new Error(uploadResult.error || "アップロードに失敗しました");
+        }
+
+        // Step 3: 確認 → MediaConvert 起動
+        setSubmitMessage("HLS変換ジョブを起動中...");
+        const confirmResult = await confirmHeroVideoUpload(presignedResult.data.s3Key, heroItemId);
+        if (confirmResult.error || !confirmResult.data) {
+          throw new Error(confirmResult.error || "確認処理に失敗しました");
+        }
+
+        // FormData にアップロード結果を追加（video_file は除去）
+        formData.delete("video_file");
+        formData.set("video_url", confirmResult.data.videoUrl);
+        if (confirmResult.data.jobId) {
+          formData.set("mediaconvert_job_id", confirmResult.data.jobId);
+        }
+        if (confirmResult.data.autoThumbnailUrl) {
+          formData.set("auto_thumbnail_url", confirmResult.data.autoThumbnailUrl);
+        }
+      } else {
+        formData.delete("video_file");
       }
+
+      // heroItemId をフォームデータに含める（サーバー側で使用）
+      formData.set("hero_item_id", heroItemId);
+      setSubmitMessage("保存中...");
       await onSubmit(formData);
       if (videoSelected) {
         setSubmitMessage("保存しました。動画変換が完了すると再生できるようになります。");
@@ -196,6 +245,17 @@ function HeroItemForm({
       {submitMessage && (
         <div className="rounded-md bg-blue-50 border border-blue-200 px-3 py-2 text-xs text-blue-700">
           {submitMessage}
+          {s3Progress && s3Progress.percent < 100 && (
+            <div className="mt-1.5">
+              <div className="w-full bg-blue-200 rounded-full h-1.5">
+                <div
+                  className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
+                  style={{ width: `${s3Progress.percent}%` }}
+                />
+              </div>
+              <p className="text-[10px] text-blue-500 mt-0.5">{s3Progress.percent}%</p>
+            </div>
+          )}
         </div>
       )}
       <div>
@@ -300,6 +360,7 @@ export default function HeroItemsContent() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [isReordering, setIsReordering] = useState(false);
   const [editingItem, setEditingItem] = useState<HeroItem | null>(null);
+  const [newItemId, setNewItemId] = useState(() => crypto.randomUUID());
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -352,6 +413,7 @@ export default function HeroItemsContent() {
       setActionError(res.error);
       return;
     }
+    setNewItemId(crypto.randomUUID());
     await fetchItems();
   };
 
@@ -429,6 +491,7 @@ export default function HeroItemsContent() {
                               link_url: editingItem.link_url ?? "",
                               video_url: editingItem.video_url ?? ""
                             }}
+                            heroItemId={editingItem.id}
                             onSubmit={handleUpdate}
                             onCancel={() => setEditingItem(null)}
                             submitLabel="更新する"
@@ -445,7 +508,7 @@ export default function HeroItemsContent() {
 
         <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
           <h2 className="mb-4 text-lg font-semibold text-gray-900">新規アイテムを追加</h2>
-          <HeroItemForm onSubmit={handleCreate} submitLabel="追加する" />
+          <HeroItemForm heroItemId={newItemId} onSubmit={handleCreate} submitLabel="追加する" />
         </section>
       </div>
     </div>

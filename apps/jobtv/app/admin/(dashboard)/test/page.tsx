@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 import { Upload, Loader2, CheckCircle2, XCircle } from "lucide-react";
-import { uploadVideoToS3Action, uploadThumbnailToS3Action } from "@/lib/actions/video-actions";
+import {
+  getVideoUploadPresignedUrl,
+  confirmVideoUpload,
+  uploadThumbnailToS3Action
+} from "@/lib/actions/video-actions";
+import { useS3Upload } from "@/hooks/useS3Upload";
 
 export default function AdminTestPage() {
   const [videoFile, setVideoFile] = useState<File | null>(null);
@@ -11,9 +16,10 @@ export default function AdminTestPage() {
   const [videoId, setVideoId] = useState<string>("");
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
+  const { upload: s3Upload, progress: s3Progress } = useS3Upload();
   const [videoResult, setVideoResult] = useState<{
     success: boolean;
-    data?: { s3Key: string; url: string; s3Url: string };
+    data?: { s3Key: string; url: string };
     error?: string;
   } | null>(null);
   const [thumbnailResult, setThumbnailResult] = useState<{
@@ -32,13 +38,42 @@ export default function AdminTestPage() {
     setVideoResult(null);
 
     try {
-      const result = await uploadVideoToS3Action(videoFile, aspectRatio, videoId || undefined);
-      if (result.error) {
-        setVideoResult({ success: false, error: result.error });
-      } else if (result.data) {
-        setVideoResult({ success: true, data: result.data });
+      // Step 1: Presigned URL を取得
+      const presigned = await getVideoUploadPresignedUrl(
+        videoFile.name,
+        videoFile.type,
+        videoFile.size,
+        aspectRatio,
+        videoId || undefined
+      );
+      if (presigned.error || !presigned.data) {
+        setVideoResult({ success: false, error: presigned.error || "URL取得失敗" });
+        setIsUploadingVideo(false);
+        return;
+      }
+
+      // Step 2: S3 に直接アップロード
+      const uploadResult = await s3Upload(presigned.data.presignedUrl, videoFile);
+      if (!uploadResult.success) {
+        setVideoResult({ success: false, error: uploadResult.error });
+        setIsUploadingVideo(false);
+        return;
+      }
+
+      // Step 3: 確認
+      const confirm = await confirmVideoUpload(
+        presigned.data.s3Key,
+        presigned.data.s3VideoId,
+        aspectRatio,
+        videoId || undefined
+      );
+      if (confirm.error || !confirm.data) {
+        setVideoResult({ success: false, error: confirm.error || "確認失敗" });
       } else {
-        setVideoResult({ success: false, error: "予期しないエラーが発生しました" });
+        setVideoResult({
+          success: true,
+          data: { s3Key: presigned.data.s3Key, url: confirm.data.url }
+        });
       }
     } catch (error) {
       setVideoResult({
@@ -178,17 +213,6 @@ export default function AdminTestPage() {
                             className="text-blue-600 hover:underline break-all"
                           >
                             {videoResult.data?.url}
-                          </a>
-                        </p>
-                        <p>
-                          <span className="font-bold">S3 URL:</span>{" "}
-                          <a
-                            href={videoResult.data?.s3Url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline break-all"
-                          >
-                            {videoResult.data?.s3Url}
                           </a>
                         </p>
                       </div>

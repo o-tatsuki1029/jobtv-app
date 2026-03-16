@@ -27,6 +27,27 @@ Next.js ベースの Monorepo。3 アプリ: **jobtv** (3000)、**event-system**
 
 ## 開発ワークフロー
 
+### ブランチ運用
+
+開発は `develop` ブランチを起点に行う（デフォルトブランチ）。
+
+```
+feature/* ──PR──▶ develop ──PR──▶ staging ──PR──▶ main
+                  (統合)          (STG デプロイ)    (PROD デプロイ)
+```
+
+```bash
+# 機能開発の開始
+git checkout develop && git pull
+git checkout -b feature/機能名
+
+# 開発・コミット後
+git push -u origin feature/機能名
+# GitHub で PR 作成: feature/機能名 → develop
+```
+
+ブランチ戦略・プロモーションフロー・ホットフィックスの詳細は [deployment.md](deployment.md) を参照。
+
 ### 開発サーバー
 
 ```bash
