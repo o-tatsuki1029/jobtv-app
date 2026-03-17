@@ -39,3 +39,4 @@
 | イベント運営システム仕様 | `docs/event-specification.md` |
 | 環境構築・セットアップ | `docs/setup.md` |
 | テスト観点・バグ候補 | `docs/test/` |
+| 機能台帳（全機能一覧・YAML正本） | `docs/feature-registry.yaml` |
