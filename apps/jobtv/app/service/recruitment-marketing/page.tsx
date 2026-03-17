@@ -135,7 +135,7 @@ interface SectionTitleProps {
 
 function SectionTitle({ label, title, description, center = false }: SectionTitleProps) {
   return (
-    <div className={center ? "text-center mb-12" : "mb-12"}>
+    <div className={center ? "text-left md:text-center mb-12" : "mb-12"}>
       <p className={styles.sectionLabel}>{label}</p>
       {typeof title === "string" ? (
         <h2 className={center ? styles.sectionTitleCenter : styles.sectionTitle}>{title}</h2>
@@ -151,6 +151,58 @@ function SectionTitle({ label, title, description, center = false }: SectionTitl
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// セクション下部CTA共通コンポーネント
+function SectionCTA({
+  dark = false,
+  onAnchorClick
+}: {
+  dark?: boolean;
+  onAnchorClick: (e: React.MouseEvent<HTMLAnchorElement>, href: string) => void;
+}) {
+  const secondaryClass = dark
+    ? "inline-flex items-center justify-center gap-1.5 px-6 py-4 rounded-full text-base font-semibold tracking-wide border border-white/[0.2] bg-transparent text-white hover:border-white/[0.4] hover:bg-white/[0.05] transition-all duration-[180ms] ease-out whitespace-nowrap cursor-pointer"
+    : "inline-flex items-center justify-center gap-1.5 px-6 py-4 rounded-full text-base font-semibold tracking-wide border border-black/[0.12] bg-transparent text-gray-800 hover:border-black/[0.24] hover:bg-black/[0.04] transition-all duration-[180ms] ease-out whitespace-nowrap cursor-pointer";
+  return (
+    <div className="flex flex-col md:flex-row gap-3 mt-10 items-center justify-center">
+      <a href="#contact" onClick={(e) => onAnchorClick(e, "#contact")} className={styles.buttonPrimaryNoShadowLarge}>
+        無料で相談・お見積り依頼
+        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/90 ml-2">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#ef4444"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M5 12h14" />
+            <path d="M13 6l6 6-6 6" />
+          </svg>
+        </span>
+      </a>
+      <button className={secondaryClass} type="button">
+        資料ダウンロード
+        <svg
+          className="ml-1.5"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M5 12h14" />
+          <path d="M13 6l6 6-6 6" />
+        </svg>
+      </button>
     </div>
   );
 }
@@ -456,7 +508,7 @@ export default function LPPage() {
         // 既に最後の動画に到達している場合は、そのまま（transitionendでリセットされるまで待つ）
         return prev;
       });
-    }, 4000); // 4秒ごとに切り替え
+    }, 2500); // 2.5秒ごとに切り替え
 
     return () => clearInterval(interval);
   }, [videoList.length]);
@@ -493,6 +545,21 @@ export default function LPPage() {
               className={`hidden md:inline-flex ${styles.buttonPrimaryNoShadow}`}
             >
               無料で相談・お見積り依頼
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-white/90 ml-1.5">
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#ef4444"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M5 12h14" />
+                  <path d="M13 6l6 6-6 6" />
+                </svg>
+              </span>
             </a>
             <a
               href="#contact"
@@ -500,6 +567,20 @@ export default function LPPage() {
               className={`hidden md:inline-flex ${styles.buttonOutline}`}
             >
               資料ダウンロード
+              <svg
+                className="ml-1.5"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M5 12h14" />
+                <path d="M13 6l6 6-6 6" />
+              </svg>
             </a>
             {/* モバイルメニューボタン */}
             <button
@@ -575,10 +656,10 @@ export default function LPPage() {
                     />
                   </svg>
                   <a
-                    href="tel:03-8888-8888"
+                    href="tel:070-1420-9873"
                     className="text-lg font-semibold text-white hover:text-[#ff5f6d] transition-colors"
                   >
-                    03-8888-8888
+                    070-1420-9873
                   </a>
                 </div>
                 <p className="text-sm text-gray-400">受付時間：平日 10:00 ～ 18:00（土日・祝日除く）</p>
@@ -608,71 +689,124 @@ export default function LPPage() {
           </div>
           <div className="relative z-10 w-full max-w-[1120px] mx-auto px-5 grid grid-cols-1 md:grid-cols-[1fr_1fr] lg:grid-cols-[1.1fr_1fr] gap-4 md:gap-0 items-center">
             <div className="order-1 md:order-2 mx-auto text-center md:text-left">
-              <h1 className="text-[clamp(32px,4vw,40px)] tracking-[0.02em] leading-[1.2] md:leading-[1.3] mb-[18px] text-gray-800 font-bold">
-                <span className="inline-block mb-1.5">就活生に選ばれる</span>
+              <div className="inline-flex mb-3 p-px rounded-full bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
+                <p className="flex items-center gap-1.5 text-xs md:text-sm text-gray-600 font-medium px-4 py-1.5 rounded-full bg-white">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2L15 12L12 22L9 12Z" fill="url(#sparkle-grad)" />
+                    <path d="M2 12L12 9L22 12L12 15Z" fill="url(#sparkle-grad)" />
+                    <defs>
+                      <linearGradient id="sparkle-grad" x1="4" y1="2" x2="20" y2="20">
+                        <stop stopColor="#22d3ee" />
+                        <stop offset="0.5" stopColor="#a855f7" />
+                        <stop offset="1" stopColor="#ec4899" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                  ターゲットに届く、攻めの採用。
+                </p>
+              </div>
+              <h1 className="tracking-[0.02em] leading-[1.4] md:leading-[1.5] mb-3 text-gray-800 font-bold">
+                <span className="inline-block text-2xl md:text-3xl mb-2">就活生を動かす</span>
                 <br />
-                <span className="inline-block">
-                  <span className={`${styles.gradientText} text-5xl md:text-6xl`}>採用特化</span>の
+                <span className="inline-block mb-2">
+                  <span className={`${styles.gradientText} text-5xl md:text-7xl`}>採用特化</span>
+                  <span className="text-3xl md:text-4xl">の</span>
                 </span>
                 <br />
-                <span className="inline-block">マーケティング支援</span>
+                <span className="inline-block text-3xl md:text-4xl">JOBTVマーケティング支援</span>
               </h1>
-              <p className="text-base md:text-lg text-gray-600 mb-[18px] font-bold text-left">
-                国内No.1*のPR集団「ベクトルグループ」が年間約3,000件、累計150業種以上のPRプロジェクトを手掛けたナレッジを活用してショート動画時代の採用活動を一気通貫で支援します。
-              </p>
-              <p className="text-xs text-gray-400 mb-[18px] text-left">
-                *「PRovoke」の「Global Top 250 PR Agency Rankings2024」にて、ベクトルグループがアジア1位、世界6位となりました。ベクトルグループ全体の年間PRプロジェクト実績（2026年時点）
-              </p>
 
-              <div className="flex flex-wrap gap-3 mb-4 justify-center md:justify-start">
+              <div className="flex flex-col md:flex-row gap-3 mb-8 items-center md:items-start justify-center md:justify-start">
                 <a
                   href="#contact"
                   onClick={(e) => handleAnchorClick(e, "#contact")}
                   className={styles.buttonPrimaryNoShadowLarge}
                 >
                   無料で相談・お見積り依頼
+                  <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/90 ml-2">
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#ef4444"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M5 12h14" />
+                      <path d="M13 6l6 6-6 6" />
+                    </svg>
+                  </span>
                 </a>
-                <button className={styles.buttonSecondary} type="button">
+                <button
+                  className="inline-flex items-center justify-center gap-1.5 px-6 py-4 rounded-full text-base font-semibold tracking-wide border border-black/[0.12] bg-transparent text-gray-800 hover:border-black/[0.24] hover:bg-black/[0.04] transition-all duration-[180ms] ease-out whitespace-nowrap cursor-pointer"
+                  type="button"
+                >
                   資料ダウンロード
+                  <svg
+                    className="ml-1.5"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M5 12h14" />
+                    <path d="M13 6l6 6-6 6" />
+                  </svg>
                 </button>
               </div>
-              <div className="flex flex-wrap items-center gap-2.5 gap-x-4 text-[11px] text-gray-600 justify-center md:justify-start">
-                <div className="px-2.5 py-1.5 rounded-xl border border-black/8 bg-white/90 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-                  <p className="text-[10px] text-gray-600">承諾率</p>
-                  <p className={`text-base font-bold ${styles.gradientTextRed}`}>300%</p>
-                  <p className="text-[9px] text-gray-400">テプコシステムズ</p>
+              <div className="flex items-center gap-4 justify-center md:justify-start">
+                <div className="flex-1 max-w-[220px] px-3 py-2 rounded-lg border border-black/8 bg-white/90 shadow-[0_2px_8px_rgba(0,0,0,0.04)] text-center">
+                  <p className="text-xs text-gray-700 font-bold">BtoB商社企業実績</p>
+                  <p className="text-[10px] text-gray-600">内定承諾率</p>
+                  <p className={`text-lg font-bold leading-tight ${styles.gradientTextRed}`}>最大300%UP</p>
+                  <p className="text-[9px] text-gray-400">ショート動画活用の一例</p>
                 </div>
-                <div className="px-2.5 py-1.5 rounded-xl border border-black/8 bg-white/90 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+                <div className="flex-1 max-w-[220px] px-3 py-2 rounded-lg border border-black/8 bg-white/90 shadow-[0_2px_8px_rgba(0,0,0,0.04)] text-center">
+                  <p className="text-xs text-gray-700 font-bold">建材メーカー企業実績</p>
                   <p className="text-[10px] text-gray-600">SNS経由応募率</p>
-                  <p className={`text-base font-bold ${styles.gradientTextRed}`}>200%</p>
-                  <p className="text-[9px] text-gray-400">田島ルーフィング</p>
+                  <p className={`text-lg font-bold leading-tight ${styles.gradientTextRed}`}>最大200%UP</p>
+                  <p className="text-[9px] text-gray-400">ショート動画×SNSアルゴリズム活用の一例</p>
                 </div>
               </div>
             </div>
             {/* スマホ表示 */}
             <div className="flex order-1 justify-center py-1 hero-screen">
-              <div className="relative w-full max-w-[40%] md:max-w-[260px] aspect-[9/16] rounded-[20px] p-1 md:p-2 bg-[#333] shadow-xl rotate-[-2deg] overflow-hidden">
-                <div className="absolute inset-[4px] md:inset-[8px] rounded-[16px] overflow-hidden">
-                  <div
-                    ref={heroVideoContainerRef}
-                    className="flex flex-col h-full"
-                    style={{
-                      transform: `translateY(-${heroVideoIndex * 100}%)`,
-                      transition: isTransitioning ? "transform 1000ms ease-in-out" : "none"
-                    }}
-                  >
-                    {heroVideoList.map((videoSrc, index) => (
-                      <div key={index} className="w-full h-full flex-shrink-0">
-                        <video
-                          className="w-full h-full object-cover block"
-                          src={videoSrc}
-                          autoPlay
-                          muted
-                          loop
-                          playsInline
-                        />
-                      </div>
-                    ))}
+              <div className="relative w-[60%] md:w-[260px]">
+                {/* グロー効果 */}
+                <div className="absolute -inset-4 bg-gradient-to-br from-[#ff2b4d]/20 via-purple-400/10 to-cyan-400/20 rounded-[32px] blur-2xl" />
+                {/* 端末フレーム */}
+                <div className="relative w-full aspect-[9/16] rounded-[28px] p-[3px] bg-gradient-to-br from-gray-700 via-gray-800 to-gray-900 shadow-[0_8px_30px_rgba(0,0,0,0.12)] rotate-[-2deg]">
+                  {/* ノッチ */}
+                  <div className="absolute top-[6px] left-1/2 -translate-x-1/2 w-[60px] h-[14px] bg-black rounded-full z-20" />
+                  {/* スクリーン */}
+                  <div className="absolute inset-[3px] rounded-[25px] overflow-hidden bg-black">
+                    <div
+                      ref={heroVideoContainerRef}
+                      className="flex flex-col h-full"
+                      style={{
+                        transform: `translateY(-${heroVideoIndex * 100}%)`,
+                        transition: isTransitioning ? "transform 600ms ease-in-out" : "none"
+                      }}
+                    >
+                      {heroVideoList.map((videoSrc, index) => (
+                        <div key={index} className="w-full h-full flex-shrink-0">
+                          <video
+                            className="w-full h-full object-cover block"
+                            src={videoSrc}
+                            autoPlay
+                            muted
+                            loop
+                            playsInline
+                          />
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -782,40 +916,40 @@ export default function LPPage() {
             </svg>
           </div>
           <div className="relative z-10 w-full max-w-[1120px] mx-auto px-5 items-center">
-            <div className="text-center">
+            <div className="text-left md:text-center mb-10">
               <p className={styles.sectionLabel}>About</p>
-              <h2 className="text-2xl md:text-[28px] font-semibold leading-[1.3] mb-4">
+              <h2 className="text-2xl md:text-[28px] font-semibold leading-[1.3] mb-3">
                 JOBTVの<span className="hero-highlight">採用マーケティング支援</span>とは？
               </h2>
-              <p className="text-lg leading-relaxed">
+              <p className="text-sm md:text-base text-gray-600 leading-relaxed">
                 若手人材が普段から利用するSNS媒体での発信を軸に、
-                <br />
+                <br className="hidden md:inline" />
                 認知拡大から歩留まり改善までを支援する、総合マーケティング支援サービスです。
               </p>
             </div>
-            <div className="mt-10 grid grid-cols-1 md:grid-cols-[1fr_1fr] gap-8 items-center">
-              {/* 正方形の画像 */}
-              <div>
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_1.1fr] gap-6 items-center">
+              {/* ファネル画像 */}
+              <div className="flex justify-center">
                 <img
                   src="/service/recruitment-marketing/images/about.png"
                   alt="JOBTVのマーケティング支援イメージ"
                   loading="lazy"
-                  className="block w-full h-full object-cover"
+                  className="block w-full max-w-[420px] h-auto object-contain"
                 />
               </div>
 
               {/* 3つのカード（縦並び、下に行くほど右にずれる） */}
-              <div className="space-y-4 relative">
+              <div className="space-y-3 relative">
                 {/* カード1: 採用ターゲットへの認知強化 */}
                 <div
-                  className="relative rounded-lg py-4 px-8 bg-gradient-to-br from-[#43afde] to-[#7C3AED] text-white shadow-lg md:mr-16 overflow-hidden fade-in-up"
+                  className="relative rounded-lg py-3 px-6 bg-gradient-to-br from-[#43afde] to-[#7C3AED] text-white shadow-lg md:mr-16 overflow-hidden fade-in-up"
                   style={{ animationDelay: "0s" }}
                 >
-                  <span className="absolute bottom-0 right-4 text-[120px] md:text-[150px] font-bold text-white/20 leading-none">
+                  <span className="absolute bottom-0 right-4 text-[80px] md:text-[100px] font-bold text-white/15 leading-none">
                     1
                   </span>
                   <div className="relative z-10">
-                    <h3 className="text-xl font-semibold mb-4 flex items-center gap-3">
+                    <h3 className="text-base md:text-lg font-semibold mb-2 flex items-center gap-2">
                       <svg className="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path
                           strokeLinecap="round"
@@ -826,7 +960,7 @@ export default function LPPage() {
                       </svg>
                       採用ターゲットへの認知強化
                     </h3>
-                    <ul className="space-y-2 text-base">
+                    <ul className="space-y-1.5 text-sm">
                       <li className="flex items-start gap-2">
                         <svg
                           className="w-5 h-5 mt-0.5 flex-shrink-0"
@@ -866,14 +1000,14 @@ export default function LPPage() {
 
                 {/* カード2: エントリー導線の最適化 */}
                 <div
-                  className="relative rounded-lg py-4 px-8 bg-gradient-to-br from-[#43afde] to-[#7C3AED] text-white shadow-lg md:ml-8 md:mr-8 overflow-hidden fade-in-up"
+                  className="relative rounded-lg py-3 px-6 bg-gradient-to-br from-[#43afde] to-[#7C3AED] text-white shadow-lg md:ml-8 md:mr-8 overflow-hidden fade-in-up"
                   style={{ animationDelay: "0.15s" }}
                 >
-                  <span className="absolute bottom-0 right-4 text-[120px] md:text-[150px] font-bold text-white/20 leading-none">
+                  <span className="absolute bottom-0 right-4 text-[80px] md:text-[100px] font-bold text-white/15 leading-none">
                     2
                   </span>
                   <div className="relative z-10">
-                    <h3 className="text-xl font-semibold mb-4 flex items-center gap-3">
+                    <h3 className="text-base md:text-lg font-semibold mb-2 flex items-center gap-2">
                       <svg className="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path
                           strokeLinecap="round"
@@ -884,7 +1018,7 @@ export default function LPPage() {
                       </svg>
                       エントリー導線の最適化
                     </h3>
-                    <ul className="space-y-2 text-base">
+                    <ul className="space-y-1.5 text-sm">
                       <li className="flex items-start gap-2">
                         <svg
                           className="w-5 h-5 mt-0.5 flex-shrink-0"
@@ -924,14 +1058,14 @@ export default function LPPage() {
 
                 {/* カード3: 動画接触による歩留まり改善 */}
                 <div
-                  className="relative rounded-lg py-4 px-8 bg-gradient-to-br from-[#43afde] to-[#7C3AED] text-white shadow-lg md:ml-16 overflow-hidden fade-in-up"
+                  className="relative rounded-lg py-3 px-6 bg-gradient-to-br from-[#43afde] to-[#7C3AED] text-white shadow-lg md:ml-16 overflow-hidden fade-in-up"
                   style={{ animationDelay: "0.3s" }}
                 >
-                  <span className="absolute bottom-0 right-4 text-[120px] md:text-[150px] font-bold text-white/20 leading-none">
+                  <span className="absolute bottom-0 right-4 text-[80px] md:text-[100px] font-bold text-white/15 leading-none">
                     3
                   </span>
                   <div className="relative z-10">
-                    <h3 className="text-xl font-semibold mb-4 flex items-center gap-3">
+                    <h3 className="text-base md:text-lg font-semibold mb-2 flex items-center gap-2">
                       <svg className="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path
                           strokeLinecap="round"
@@ -942,7 +1076,7 @@ export default function LPPage() {
                       </svg>
                       動画接触による歩留まり改善
                     </h3>
-                    <ul className="space-y-2 text-base">
+                    <ul className="space-y-1.5 text-sm">
                       <li className="flex items-start gap-2">
                         <svg
                           className="w-5 h-5 mt-0.5 flex-shrink-0"
@@ -981,25 +1115,21 @@ export default function LPPage() {
                 </div>
               </div>
             </div>
+            <SectionCTA onAnchorClick={handleAnchorClick} />
           </div>
         </section>
 
         {/* サンプル */}
         <section className="py-[60px] bg-[#1a1a22]" id="samples">
           <div className="w-full max-w-[1120px] mx-auto px-5">
-            <div className="text-center">
+            <div className="text-left md:text-center">
               <p className={styles.sectionLabel}>Samples</p>
-              <h2 className="text-2xl md:text-[28px] font-semibold leading-[1.3] mb-4">
-                「綺麗な動画」はいりません。
+              <h2 className="text-2xl md:text-[28px] font-semibold leading-[1.3] mb-3">採用ショート動画の作成事例</h2>
+              <p className="text-sm md:text-base leading-relaxed">
+                国内No.1<sup>*</sup>
+                のPR集団「ベクトルグループ」が、年間約3,000件のプロジェクトで培ったナレッジに基づき、
                 <br />
-                学生のスマホをジャックする。
-              </h2>
-              <p className="text-lg leading-relaxed">
-                一般的な制作会社は「映像美」を追求しますが、私たちは「再生数」と「視聴完了率」にこだわります。
-                <br />
-                建前ではないリアルな企画力と、SNSアルゴリズムをハックしてターゲットに「強制的に届ける」拡散力。
-                <br />
-                これがPR会社の強みです。
+                ショート動画×「アルゴリズムハック」で、狙った学生層のスマホへピンポイントにリーチ。
               </p>
             </div>
             <div className="mt-[22px] grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-4 max-w-[960px] mx-auto">
@@ -1017,6 +1147,13 @@ export default function LPPage() {
                 />
               ))}
             </div>
+            <p className="text-[10px] text-gray-500 mt-6 text-center leading-relaxed">
+              *「PRovoke」の「Global Top 250 PR Agency
+              Rankings2024」にて、ベクトルグループがアジア1位、世界6位となりました。
+              <br />
+              ベクトルグループ全体の年間PRプロジェクト実績（2026年時点）
+            </p>
+            <SectionCTA dark onAnchorClick={handleAnchorClick} />
           </div>
         </section>
 
@@ -1034,13 +1171,13 @@ export default function LPPage() {
           </div>
           <div className="relative w-full max-w-[1120px] mx-auto px-5">
             {/* セクションタイトル */}
-            <div className="text-center mb-12">
+            <div className="text-left md:text-center mb-12">
               <p className={styles.sectionLabel}>Solution</p>
-              <h2 className="text-2xl md:text-[28px] font-semibold text-gray-800 leading-[1.3] mb-4">
+              <h2 className="text-2xl md:text-[28px] font-semibold text-gray-800 leading-[1.3] mb-3">
                 「掲載」をしただけでは企業の魅力が伝わらない時代
               </h2>
-              <p className="text-base md:text-lg text-gray-600 leading-relaxed max-w-3xl mx-auto">
-                「PR×HR」の力で「毎年の広告費を『資産』に変え、SNSと動画で学生に『攻め』のアプローチを行う。それが、採用マーケティングパートナー『JOBTV』です。」
+              <p className="text-sm md:text-base text-gray-600 leading-relaxed max-w-3xl mx-auto">
+                制作から拡散、惹きつけまで。JOBTVが提供する3つの強み。
               </p>
             </div>
 
@@ -1076,7 +1213,7 @@ export default function LPPage() {
                         </div>
                         <h3 className="text-base font-semibold text-gray-800">母集団形成の限界</h3>
                       </div>
-                      <p className="text-base text-gray-700 leading-relaxed">
+                      <p className="text-sm text-gray-700 leading-relaxed">
                         ナビサイトに数百万円払っても、検索条件で弾かれて学生の目に触れない
                       </p>
                     </div>
@@ -1105,7 +1242,7 @@ export default function LPPage() {
                         </div>
                         <h3 className="text-base font-semibold text-gray-900">SNSで新たな母集団を形成</h3>
                       </div>
-                      <p className="text-base text-gray-800 leading-relaxed font-medium">
+                      <p className="text-sm text-gray-800 leading-relaxed font-medium">
                         TikTokなどのSNSで、まだ貴社を知らない学生のスマホ画面に情報を「強制的に」表示
                       </p>
                     </div>
@@ -1127,7 +1264,7 @@ export default function LPPage() {
                         </div>
                         <h3 className="text-base font-semibold text-gray-800">自社の魅力が求職者に伝わらない</h3>
                       </div>
-                      <p className="text-base text-gray-700 leading-relaxed">
+                      <p className="text-sm text-gray-700 leading-relaxed">
                         「アットホーム」と書いても信じてもらえない。現場のリアルは求人票では表現できない
                       </p>
                     </div>
@@ -1156,7 +1293,7 @@ export default function LPPage() {
                         </div>
                         <h3 className="text-base font-semibold text-gray-900">動画で可視化</h3>
                       </div>
-                      <p className="text-base text-gray-800 leading-relaxed font-medium">
+                      <p className="text-sm text-gray-800 leading-relaxed font-medium">
                         人の良さ・社風・仕事のリアルを動画で可視化。プロが企画・制作をサポート
                       </p>
                     </div>
@@ -1178,7 +1315,7 @@ export default function LPPage() {
                         </div>
                         <h3 className="text-base font-semibold text-gray-800">採用工数・リソース不足</h3>
                       </div>
-                      <p className="text-base text-gray-700 leading-relaxed">
+                      <p className="text-sm text-gray-700 leading-relaxed">
                         企画・撮影・編集できる人がいない。更新が止まった「墓場アカウント」がマイナスに
                       </p>
                     </div>
@@ -1207,7 +1344,7 @@ export default function LPPage() {
                         </div>
                         <h3 className="text-base font-semibold text-gray-900">ワンストップ支援</h3>
                       </div>
-                      <p className="text-base text-gray-800 leading-relaxed font-medium">
+                      <p className="text-sm text-gray-800 leading-relaxed font-medium">
                         企画から投稿・分析まで一気通貫で支援。リスク管理も万全。エース社員の熱量を動画化
                       </p>
                     </div>
@@ -1215,21 +1352,20 @@ export default function LPPage() {
                 </div>
               </div>
             </div>
+            <SectionCTA onAnchorClick={handleAnchorClick} />
           </div>
         </section>
 
         {/* できること一覧 */}
         <section className="py-[60px] bg-[#1a1a22]" id="services">
           <div className="w-full max-w-[1120px] mx-auto px-5">
-            <div className="text-center mb-12">
+            <div className="text-left md:text-center mb-12">
               <p className={styles.sectionLabel}>Services</p>
-              <h2 className="text-2xl md:text-[28px] font-semibold leading-[1.3] mb-4">
-                ショート動画起点のPRの力で採用をアップデートする
-              </h2>
-              <p className="text-base md:text-lg leading-relaxed max-w-3xl mx-auto">
-                採用ブランディングの戦略設計から、クリエイティブ制作・運用・社内浸透まで一気通貫のご支援。
+              <h2 className="text-2xl md:text-[28px] font-semibold leading-[1.3] mb-3">JOBTVが提供するサービス</h2>
+              <p className="text-sm md:text-base leading-relaxed max-w-3xl mx-auto">
+                採用ブランディングの戦略設計から、制作・運用まで一気通貫でご支援。
                 <br />
-                必要なポイントだけをピックアップしてご相談いただくことも可能です。
+                必要なポイントだけをご相談いただくことも可能です。
               </p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1347,7 +1483,7 @@ export default function LPPage() {
             </div>
           </div>
           <div className="w-full max-w-[1120px] mx-auto px-5 mt-16">
-            <h2 className="text-2xl md:text-[28px] font-semibold mb-8 text-center">ご支援フローの例</h2>
+            <h2 className="text-2xl md:text-[28px] font-semibold mb-8 text-left md:text-center">ご支援フローの例</h2>
             <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-6 mb-6">
               {/* ステップ1: コンセプト設計 */}
               <div className="bg-[rgba(28,28,38,0.98)] rounded-lg overflow-hidden w-full md:min-w-[180px] border border-white/[0.12]">
@@ -1461,6 +1597,7 @@ export default function LPPage() {
             <p className="text-center text-sm md:text-base text-[#b8b8c4] mt-6">
               *採用マーケティングのプロが、貴社の採用フローに合わせて・カスタマイズして一気通貫でご支援いたします！
             </p>
+            <SectionCTA dark onAnchorClick={handleAnchorClick} />
           </div>
         </section>
 
@@ -1476,7 +1613,10 @@ export default function LPPage() {
                   answer={
                     <p className="text-sm md:text-base text-gray-700 leading-relaxed">
                       {item.answer.split("\n").map((line, i, arr) => (
-                        <Fragment key={i}>{line}{i < arr.length - 1 && <br />}</Fragment>
+                        <Fragment key={i}>
+                          {line}
+                          {i < arr.length - 1 && <br />}
+                        </Fragment>
                       ))}
                     </p>
                   }
@@ -1489,26 +1629,23 @@ export default function LPPage() {
         {/* CTA / お問い合わせ */}
         <section className="py-[60px] border-t border-white/10" id="contact">
           <div className="w-full max-w-[1120px] mx-auto px-5">
-            <div className="text-center mb-12">
+            <div className="text-left md:text-center">
               <p className={styles.sectionLabel}>Contact</p>
-              <h2 className="text-2xl md:text-[28px] font-semibold mb-4">まずは、お気軽にご相談ください。</h2>
-              <p className="text-base md:text-lg text-[#b8b8c4] max-w-3xl mx-auto">
+              <h2 className="text-2xl md:text-[28px] font-semibold mb-3">まずは、お気軽にご相談ください。</h2>
+              <p className="text-sm md:text-base text-[#b8b8c4] max-w-3xl mx-auto">
                 弊社専属の採用コンサルタントが無料オンライン相談を実施いたします。
                 <br />
                 貴社の現状に合わせた施策イメージをお持ち帰りいただけます。
               </p>
             </div>
-            <div className="flex flex-col items-center gap-6">
-              <a
-                href="#contact"
-                onClick={(e) => handleAnchorClick(e, "#contact")}
-                className={styles.buttonPrimaryNoShadowLarge}
-              >
-                無料で相談・お見積り依頼
-              </a>
+            <div className="flex flex-col items-center">
+              <SectionCTA dark onAnchorClick={handleAnchorClick} />
 
-              <div className="flex flex-col items-center gap-2">
-                <div className="flex items-center gap-2">
+              <div className="flex flex-col items-center gap-3 mt-6">
+                <p className="text-sm text-[#b8b8c4] text-center">
+                  お問い合わせは、お電話またはメールでも承っております。
+                </p>
+                <div className="flex items-center gap-2.5">
                   <svg className="w-5 h-5 text-[#b8b8c4]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       strokeLinecap="round"
@@ -1518,15 +1655,33 @@ export default function LPPage() {
                     />
                   </svg>
                   <a
-                    href="tel:03-8888-8888"
-                    className="text-lg md:text-xl font-semibold text-white hover:text-[#ff5f6d] transition-colors"
+                    href="tel:070-1420-9873"
+                    className="text-base md:text-lg font-semibold text-white hover:text-[#ff5f6d] transition-colors"
                   >
-                    03-8888-8888
+                    070-1420-9873
                   </a>
                 </div>
-                <p className="text-sm text-[#b8b8c4] text-center">受付時間：平日 10:00 ～ 18:00（土日・祝日除く）</p>
+                <div className="flex items-center gap-2.5">
+                  <svg className="w-5 h-5 text-[#b8b8c4]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                    />
+                  </svg>
+                  <a
+                    href="mailto:is_jobtv@vectorinc.co.jp"
+                    className="text-base md:text-lg font-semibold text-white hover:text-[#ff5f6d] transition-colors"
+                  >
+                    is_jobtv@vectorinc.co.jp
+                  </a>
+                </div>
+                <p className="text-xs text-[#b8b8c4] text-center mt-1">
+                  受付時間：平日 10:00 ～ 18:00（土日・祝日除く）
+                </p>
+                <p className="text-xs text-[#b8b8c4]/60 text-center">※営業目的のご連絡はお断りしております。</p>
               </div>
-              <p className="text-sm text-center">※お問い合わせは、お電話またはメールにて承っております。</p>
             </div>
           </div>
         </section>
@@ -1539,7 +1694,7 @@ export default function LPPage() {
           onClick={closeVideoModal}
         >
           <div
-            className="relative w-full h-full md:w-auto md:max-w-[400px] md:max-h-[85vh] md:mx-5 md:aspect-[9/16] flex items-center justify-center"
+            className="relative w-full h-auto max-w-[min(100vw,400px)] max-h-[90dvh] md:max-h-[85vh] mx-auto aspect-[9/16] flex items-center justify-center"
             onClick={(e) => e.stopPropagation()}
           >
             {/* 閉じるボタン */}
@@ -1595,7 +1750,7 @@ export default function LPPage() {
             <video
               key={selectedVideoIndex}
               src={videoList[selectedVideoIndex]}
-              className="w-full h-full object-contain md:object-contain md:rounded-[18px]"
+              className="w-full h-full object-contain rounded-[18px]"
               controls
               autoPlay
               playsInline
@@ -1619,11 +1774,7 @@ export default function LPPage() {
             rel="noopener noreferrer"
             className="block transition-all duration-300 hover:scale-105"
           >
-            <img
-              src={scrollBanner.image_url}
-              alt=""
-              className="w-80 h-auto rounded-md shadow-xl"
-            />
+            <img src={scrollBanner.image_url} alt="" className="w-80 h-auto rounded-md shadow-xl" />
           </a>
         </div>
       )}

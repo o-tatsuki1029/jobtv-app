@@ -1,0 +1,242 @@
+/* ===========================
+   AGENT PAGE STYLES
+=========================== */
+
+/* ===========================
+   AGENT HERO SECTION
+=========================== */
+.agent-section {
+  background: linear-gradient(160deg, #0A0A0A 0%, #0A2540 100%);
+  padding: 120px 48px; padding-top: 80px;
+  position: relative; overflow: hidden; scroll-margin-top: 128px;
+}
+.agent-section::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--red); }
+.agent-circles {
+  position: absolute; right: -100px; top: 50%; transform: translateY(-50%);
+  width: 600px; height: 600px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(232,0,29,.06) 0%, transparent 70%); pointer-events: none;
+}
+.agent-inner { max-width: 1200px; margin: 0 auto; position: relative; z-index: 1; }
+.agent-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
+.agent-tag {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(232,0,29,.1); border: 1px solid rgba(232,0,29,.25);
+  color: var(--red); padding: 6px 14px; border-radius: 2px;
+  font-size: 12px; font-weight: 700; letter-spacing: 1px; margin-bottom: 28px;
+}
+.agent-h1 { font-size: 52px; font-weight: 900; color: #fff; line-height: 1.25; margin-bottom: 22px; }
+.agent-h1 em {
+  font-style: normal; color: var(--red);
+
+  font-size: 60px; display: block; line-height: 1;
+}
+.agent-desc { font-size: 15px; color: rgba(255,255,255,.6); line-height: 1.9; margin-bottom: 36px; }
+.agent-btns { display: flex; flex-direction: column; gap: 14px; max-width: 300px; }
+.btn-ag-main {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  background: var(--red); color: #fff;
+  padding: 17px 36px; border-radius: 4px; font-size: 16px; font-weight: 700; text-decoration: none; transition: all .25s;
+}
+.btn-ag-main:hover { background: #c4001a; transform: translateY(-2px); box-shadow: 0 10px 32px rgba(232,0,29,.4); }
+.btn-ag-sub {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.15);
+  color: #fff; padding: 15px 36px; border-radius: 4px;
+  font-size: 14px; font-weight: 500; text-decoration: none; transition: all .25s;
+}
+.btn-ag-sub:hover { background: rgba(255,255,255,.1); }
+.ag-note { font-size: 12px; color: rgba(255,255,255,.3); text-align: center; }
+
+/* Advisor card */
+.advisor-card { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); border-radius: 20px; padding: 30px; backdrop-filter: blur(10px); }
+.adv-header { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; }
+.adv-avatar { width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, var(--red), #ff4d63); display: flex; align-items: center; justify-content: center; font-size: 22px; }
+.adv-name { color: #fff; font-weight: 700; font-size: 15px; }
+.adv-title { color: rgba(255,255,255,.5); font-size: 12px; margin-top: 2px; }
+.adv-badge { margin-left: auto; background: rgba(232,0,29,.15); border: 1px solid rgba(232,0,29,.3); color: var(--red); padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+.adv-msg { background: rgba(255,255,255,.03); border-radius: 10px; padding: 14px; font-size: 13px; color: rgba(255,255,255,.65); line-height: 1.7; margin-bottom: 20px; border-left: 3px solid var(--red); }
+.adv-services { display: flex; flex-direction: column; gap: 8px; }
+.svc-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: rgba(255,255,255,.03); border-radius: 7px; border: 1px solid rgba(255,255,255,.06); }
+.svc-left { display: flex; align-items: center; gap: 10px; }
+.svc-ico { font-size: 16px; }
+.svc-name { color: rgba(255,255,255,.75); font-size: 13px; font-weight: 500; }
+.svc-status { font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 700; }
+.status-free { background: rgba(0,200,100,.15); color: #00c864; border: 1px solid rgba(0,200,100,.2); }
+.status-match { background: rgba(232,0,29,.15); color: var(--red); border: 1px solid rgba(232,0,29,.2); }
+
+/* ===========================
+   ACHIEVEMENT
+=========================== */
+.ag-achieve-sec { background: var(--white); padding: 96px 48px; color: var(--text); }
+.achieve-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 2px; background: #eee; border-radius: 16px; overflow: hidden; }
+.achieve-card { background: #fff; padding: 44px 32px; position: relative; overflow: hidden; transition: background .3s; }
+.achieve-card:hover { background: #fafafa; }
+.achieve-card--red { background: var(--red) !important; }
+.achieve-card--red .achieve-num { color: #fff; }
+.achieve-card--red .achieve-label { color: rgba(255,255,255,.9); }
+.achieve-card--red .achieve-desc { color: rgba(255,255,255,.7); }
+.achieve-num {
+
+  font-size: 56px; line-height: 1; color: var(--red); margin-bottom: 8px;
+}
+.achieve-num span { font-size: 28px; }
+.achieve-label { font-size: 14px; font-weight: 700; margin-bottom: 10px; }
+.achieve-desc { font-size: 13px; color: #666; line-height: 1.75; }
+
+/* ===========================
+   PARTNER LOGOS
+=========================== */
+.partner-sec { background: var(--cream); padding: 80px 48px; color: var(--text); }
+.logo-grid {
+  display: grid; grid-template-columns: repeat(6,1fr);
+  gap: 2px; background: #e5e3e0; border-radius: 12px; overflow: hidden;
+  margin-bottom: 20px;
+}
+.logo-item {
+  background: var(--cream); padding: 24px 16px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .2s;
+}
+.logo-item:hover { background: #fff; }
+.logo-item svg { width: 100%; max-width: 110px; height: 44px; }
+.logo-note { font-size: 11px; color: var(--muted); text-align: center; }
+
+/* ===========================
+   AGENT SERVICES GRID
+=========================== */
+.agent-services-sec { background: var(--white); padding: 96px 48px; color: var(--text); }
+.ag-svc-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 2px; margin-top: 56px; background: #eee; border-radius: 16px; overflow: hidden; }
+.ag-svc-card { background: #fff; padding: 44px 36px; transition: background .3s; }
+.ag-svc-card:hover { background: #fafafa; }
+.ag-svc-icon { font-size: 38px; margin-bottom: 14px; display: block; }
+.ag-svc-lbl { font-size: 11px; letter-spacing: 2px; color: var(--red); font-weight: 700; margin-bottom: 10px; }
+.ag-svc-title { font-size: 22px; font-weight: 900; margin-bottom: 10px; line-height: 1.4; }
+.ag-svc-desc { font-size: 14px; color: #666; line-height: 1.8; }
+.ag-svc-link { display: inline-flex; align-items: center; gap: 6px; color: var(--red); font-size: 13px; font-weight: 700; text-decoration: none; margin-top: 18px; transition: gap .2s; }
+.ag-svc-link:hover { gap: 10px; }
+
+/* ===========================
+   AGENT FLOW
+=========================== */
+.agent-flow { background: var(--cream); padding: 96px 48px; color: var(--text); }
+.flow-steps { max-width: 800px; margin: 56px auto 0; position: relative; }
+.flow-steps::before { content: ''; position: absolute; left: 28px; top: 0; bottom: 0; width: 2px; background: linear-gradient(to bottom, var(--red), rgba(232,0,29,.1)); }
+.flow-step { display: flex; gap: 28px; margin-bottom: 44px; position: relative; }
+.flow-circle { width: 58px; height: 58px; border-radius: 50%; background: var(--red); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; position: relative; z-index: 1; box-shadow: 0 0 0 8px var(--cream); }
+.flow-body { flex: 1; padding-top: 8px; }
+.flow-num { font-size: 11px; font-weight: 700; color: var(--red); letter-spacing: 2px; margin-bottom: 4px; }
+.flow-title { font-size: 20px; font-weight: 900; margin-bottom: 7px; }
+.flow-desc { font-size: 14px; color: #666; line-height: 1.8; }
+.flow-tag { display: inline-block; background: rgba(232,0,29,.08); border: 1px solid rgba(232,0,29,.2); color: var(--red); font-size: 11px; font-weight: 700; padding: 3px 12px; border-radius: 20px; margin-top: 8px; }
+
+/* ===========================
+   VOICE (agent)
+=========================== */
+.ag-voice-sec { background: var(--white); padding: 96px 48px; color: var(--text); }
+.voice-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 24px; }
+.voice-card-ag { background: #fff; border: 1px solid #eee; border-radius: 16px; padding: 32px; transition: transform .25s, box-shadow .25s; }
+.voice-card-ag:hover { transform: translateY(-4px); box-shadow: 0 16px 48px rgba(0,0,0,.08); }
+.vc-top { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+.vc-avatar { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900; color: #fff; flex-shrink: 0; }
+.vc-info { flex: 1; }
+.vc-name { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
+.vc-school { font-size: 12px; color: var(--muted); margin-bottom: 3px; }
+.vc-company { font-size: 12px; font-weight: 700; color: var(--red); }
+.vc-stars { font-size: 13px; color: #FFB800; flex-shrink: 0; }
+.vc-quote { font-size: 15px; font-weight: 700; line-height: 1.5; margin-bottom: 12px; color: var(--text); }
+.vc-text { font-size: 13px; color: #555; line-height: 1.8; }
+
+/* ===========================
+   AGENT CTA (無料面談)
+=========================== */
+.agent-cta-sec { position: relative; overflow: hidden; padding: 0; }
+.agent-cta-bg {
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, #0A0A0A 0%, #1a0005 50%, #0A0A0A 100%);
+  z-index: 0;
+}
+.agent-cta-bg::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(ellipse 60% 70% at 50% 50%, rgba(232,0,29,.18) 0%, transparent 65%);
+}
+.agent-cta-bg::after {
+  content: ''; position: absolute; inset: 0; opacity: .04;
+  background-image: linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+.agent-cta-inner { position: relative; z-index: 1; padding: 100px 48px; }
+.agent-cta-content { max-width: 720px; margin: 0 auto; text-align: center; }
+.agent-cta-label { font-size: 11px; letter-spacing: 4px; font-weight: 700; color: var(--red); margin-bottom: 16px; }
+.agent-cta-title {
+
+  font-size: 64px; color: #fff; letter-spacing: 2px; line-height: 1; margin-bottom: 18px;
+}
+.agent-cta-desc { font-size: 16px; color: rgba(255,255,255,.6); line-height: 1.9; margin-bottom: 32px; }
+.agent-cta-badges { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 40px; }
+.cta-badge { font-size: 12px; font-weight: 700; color: #fff; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2); padding: 6px 16px; border-radius: 20px; }
+.agent-cta-form { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); border-radius: 20px; padding: 40px; }
+.cta-form-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.cta-input {
+  width: 100%; padding: 14px 16px;
+  background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15);
+  border-radius: 8px; color: #fff; font-size: 14px;
+  outline: none; transition: border-color .2s;
+}
+.cta-input::placeholder { color: rgba(255,255,255,.3); }
+.cta-input:focus { border-color: var(--red); }
+.cta-select { cursor: pointer; }
+.cta-select option { background: #1a1a1a; color: #fff; }
+.btn-cta-submit {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  width: 100%; padding: 18px; border-radius: 8px;
+  background: var(--red); color: #fff;
+  font-size: 17px; font-weight: 700; text-decoration: none;
+  transition: all .25s; margin-bottom: 14px;
+  border: none; cursor: pointer;
+}
+.btn-cta-submit:hover { background: #c4001a; transform: translateY(-2px); box-shadow: 0 12px 40px rgba(232,0,29,.45); }
+.cta-note { font-size: 12px; color: rgba(255,255,255,.3); text-align: center; }
+
+/* ===========================
+   CROSS LINK → EVENT
+=========================== */
+.cross-link-event { background: #0A0005; border-top: 3px solid #E8001D; padding: 0; }
+
+/* ===========================
+   MOBILE (max-width: 768px)
+=========================== */
+@media (max-width: 768px) {
+  /* Agent hero */
+  .agent-section { padding: 60px 20px; padding-top: 80px; }
+  .agent-grid { grid-template-columns: 1fr; gap: 32px; }
+  .agent-h1 { font-size: 32px; }
+  .agent-h1 em { font-size: 38px; }
+  .agent-btns { max-width: 100%; }
+
+  /* Achievement */
+  .ag-achieve-sec { padding: 60px 20px; }
+  .achieve-grid { grid-template-columns: 1fr 1fr; }
+  .achieve-card { padding: 28px 20px; }
+  .achieve-num { font-size: 40px; }
+
+  /* Partner logos */
+  .partner-sec { padding: 48px 20px; }
+  .logo-grid { grid-template-columns: repeat(3, 1fr); }
+
+  /* Agent services */
+  .agent-services-sec { padding: 60px 20px; }
+  .ag-svc-grid { grid-template-columns: 1fr; }
+  .ag-svc-card { padding: 32px 24px; }
+
+  /* Flow */
+  .agent-flow { padding: 60px 20px; }
+
+  /* Voice */
+  .ag-voice-sec { padding: 60px 20px; }
+  .voice-grid { grid-template-columns: 1fr; }
+
+  /* Agent CTA */
+  .agent-cta-inner { padding: 60px 20px; }
+  .agent-cta-title { font-size: 36px; }
+  .cta-form-row { grid-template-columns: 1fr; }
+}
