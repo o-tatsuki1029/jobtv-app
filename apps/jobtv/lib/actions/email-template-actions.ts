@@ -3,6 +3,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { checkAdminPermission } from "@/lib/actions/admin-actions";
+import { logAudit } from "@jobtv-app/shared/utils/audit";
 import { logger } from "@/lib/logger";
 import type { Tables, TablesInsert, TablesUpdate } from "@jobtv-app/shared/types";
 
@@ -77,7 +78,7 @@ export async function createEmailTemplate(input: {
   variables?: string[];
   is_active?: boolean;
 }): Promise<{ data: EmailTemplate | null; error: string | null }> {
-  const { isAdmin } = await checkAdminPermission();
+  const { isAdmin, userId } = await checkAdminPermission();
   if (!isAdmin) return { data: null, error: "管理者権限が必要です" };
 
   try {
@@ -103,6 +104,18 @@ export async function createEmailTemplate(input: {
       return { data: null, error: error.message };
     }
 
+    if (userId) {
+      logAudit({
+        userId,
+        action: "email_template.create",
+        category: "email_template",
+        resourceType: "email_templates",
+        resourceId: data.id,
+        app: "jobtv",
+        metadata: { name: input.name },
+      });
+    }
+
     revalidatePath("/admin/email");
     return { data, error: null };
   } catch (e) {
@@ -125,7 +138,7 @@ export async function updateEmailTemplate(
     is_active?: boolean;
   }
 ): Promise<{ data: EmailTemplate | null; error: string | null }> {
-  const { isAdmin } = await checkAdminPermission();
+  const { isAdmin, userId } = await checkAdminPermission();
   if (!isAdmin) return { data: null, error: "管理者権限が必要です" };
 
   try {
@@ -144,6 +157,18 @@ export async function updateEmailTemplate(
       return { data: null, error: error.message };
     }
 
+    if (userId) {
+      logAudit({
+        userId,
+        action: "email_template.update",
+        category: "email_template",
+        resourceType: "email_templates",
+        resourceId: id,
+        app: "jobtv",
+        metadata: { templateId: id },
+      });
+    }
+
     revalidatePath("/admin/email");
     return { data, error: null };
   } catch (e) {
@@ -158,7 +183,7 @@ export async function updateEmailTemplate(
 export async function deleteEmailTemplate(
   id: string
 ): Promise<{ data: null; error: string | null }> {
-  const { isAdmin } = await checkAdminPermission();
+  const { isAdmin, userId } = await checkAdminPermission();
   if (!isAdmin) return { data: null, error: "管理者権限が必要です" };
 
   try {
@@ -171,6 +196,17 @@ export async function deleteEmailTemplate(
     if (error) {
       logger.error({ action: "deleteEmailTemplate", err: error, id }, "テンプレートの削除に失敗しました");
       return { data: null, error: error.message };
+    }
+
+    if (userId) {
+      logAudit({
+        userId,
+        action: "email_template.delete",
+        category: "email_template",
+        resourceType: "email_templates",
+        resourceId: id,
+        app: "jobtv",
+      });
     }
 
     revalidatePath("/admin/email");

@@ -109,7 +109,7 @@ export default function FAQPage() {
         <div className="text-center mb-12">
           <h1 className="text-4xl font-black text-gray-900 mb-4">よくある質問 (FAQ)</h1>
           <p className="text-gray-600 mb-6">
-            JobTV Studioの利用方法に関するよくある質問をまとめました。
+            JOBTV Studioの利用方法に関するよくある質問をまとめました。
           </p>
           
           {/* ベータ版の注意書き */}

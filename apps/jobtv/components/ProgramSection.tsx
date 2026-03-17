@@ -17,6 +17,7 @@ interface Program {
   isLive?: boolean;
   videoUrl?: string;
   streamingUrl?: string | null;
+  linkUrl?: string;
 }
 
 interface ProgramSectionProps {

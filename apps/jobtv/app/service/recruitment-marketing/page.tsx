@@ -1,10 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import Link from "next/link";
+import { Fragment, useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import Script from "next/script";
 import Footer from "@/components/Footer";
+import { getLpSampleVideos } from "@/lib/actions/lp-sample-video-actions";
+import { getLpFaqItems } from "@/lib/actions/lp-faq-actions";
+import { getLpCompanyLogos } from "@/lib/actions/lp-company-logo-actions";
+import { getActiveLpScrollBanner } from "@/lib/actions/lp-scroll-banner-actions";
 import "./lp.css";
 
 // 共通スタイル定数
@@ -69,6 +72,7 @@ function FAQItem({ question, answer, defaultOpen = false }: FAQItemProps) {
 // サンプル動画カードコンポーネント
 interface SampleVideoCardProps {
   videoSrc: string;
+  thumbnailUrl?: string | null;
   tag: string;
   duration: string;
   title: string;
@@ -79,6 +83,7 @@ interface SampleVideoCardProps {
 
 function SampleVideoCard({
   videoSrc,
+  thumbnailUrl,
   tag,
   duration,
   title,
@@ -95,7 +100,11 @@ function SampleVideoCard({
         className="relative rounded-lg overflow-hidden aspect-[9/16] max-h-[300px] bg-[radial-gradient(circle_at_top,rgba(255,100,120,0.12),rgba(245,245,250,1))] cursor-pointer group mx-auto"
         onClick={() => onOpenModal(videoSrc)}
       >
-        <video src={videoSrc} className="w-full h-full object-cover" muted playsInline preload="metadata" />
+        {thumbnailUrl ? (
+          <img src={thumbnailUrl} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <video src={videoSrc} className="w-full h-full object-cover" muted playsInline preload="metadata" />
+        )}
         <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/30 transition-colors">
           <div className="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
             <svg className="w-8 h-8 text-gray-800 ml-1" fill="currentColor" viewBox="0 0 24 24">
@@ -146,6 +155,29 @@ function SectionTitle({ label, title, description, center = false }: SectionTitl
   );
 }
 
+type SampleVideo = {
+  id: string;
+  video_url: string;
+  thumbnail_url: string | null;
+  tag: string;
+  title: string;
+  description: string;
+  duration: string;
+};
+
+type FaqItemData = {
+  id: string;
+  question: string;
+  answer: string;
+};
+
+type CompanyLogo = {
+  id: string;
+  name: string;
+  image_url: string;
+  row_position: string;
+};
+
 export default function LPPage() {
   const [formData, setFormData] = useState({
     company: "",
@@ -153,11 +185,13 @@ export default function LPPage() {
     email: "",
     message: ""
   });
-  const videoList = [
-    "/service/recruitment-marketing/images/shorts-sample-01.mp4",
-    "/service/recruitment-marketing/images/shorts-sample-02.mp4",
-    "/service/recruitment-marketing/images/shorts-sample-03.mp4"
-  ];
+  const [sampleVideos, setSampleVideos] = useState<SampleVideo[]>([]);
+  const [faqItems, setFaqItems] = useState<FaqItemData[]>([]);
+  const [companyLogosTop, setCompanyLogosTop] = useState<CompanyLogo[]>([]);
+  const [companyLogosBottom, setCompanyLogosBottom] = useState<CompanyLogo[]>([]);
+  const [scrollBanner, setScrollBanner] = useState<{ image_url: string; link_url: string } | null>(null);
+
+  const videoList = sampleVideos.map((v) => v.video_url);
   const [selectedVideoIndex, setSelectedVideoIndex] = useState<number | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMenuVisible, setIsMenuVisible] = useState(false);
@@ -168,187 +202,28 @@ export default function LPPage() {
   const heroVideoContainerRef = useRef<HTMLDivElement>(null);
   const heroVideoIndexRef = useRef(0);
 
+  // DBからデータ取得
+  useEffect(() => {
+    async function fetchLpData() {
+      const [videosRes, faqRes, logosRes, bannerRes] = await Promise.all([
+        getLpSampleVideos(),
+        getLpFaqItems(),
+        getLpCompanyLogos(),
+        getActiveLpScrollBanner()
+      ]);
+      if (videosRes.data) setSampleVideos(videosRes.data);
+      if (faqRes.data) setFaqItems(faqRes.data);
+      if (logosRes.data) {
+        setCompanyLogosTop(logosRes.data.filter((l) => l.row_position === "top"));
+        setCompanyLogosBottom(logosRes.data.filter((l) => l.row_position === "bottom"));
+      }
+      if (bannerRes.data) setScrollBanner(bannerRes.data);
+    }
+    fetchLpData();
+  }, []);
+
   // 最初の動画を最後にも追加（シームレスループ用）
-  const heroVideoList = [...videoList, videoList[0]];
-
-  // FAQデータ
-  const faqItems = [
-    {
-      question: "既存の採用活動（ナビサイト、説明会など）と併用できますか？",
-      answer: (
-        <>
-          はい、併用可能です。むしろ既存の採用チャネルと連携することで、より効果的な母集団形成が可能になります。
-          <br />
-          動画で認知を高めた後にナビサイトへ誘導したり、説明会の告知を動画で行うなど、既存施策と組み合わせた戦略設計もサポートします。
-        </>
-      )
-    },
-    {
-      question: "社内に動画のノウハウがないのですが大丈夫でしょうか？",
-      answer: (
-        <>
-          問題ございません。
-          <br />
-          企画〜撮影〜編集〜配信設計までワンストップでサポートいたします。
-          <br />
-          台本作成や出演者へのディレクションも弊社側で行うため、専任担当がいなくても問題ありません。
-        </>
-      )
-    },
-    {
-      question: "SNSアカウントの運用もお願いできますか？",
-      answer: (
-        <>
-          はい、可能です。既存アカウントの運用代行、新規アカウント立ち上げの双方に対応しています。
-          <br />
-          月次でレポートと改善提案もご提出します。
-        </>
-      )
-    },
-    {
-      question: "動画の制作本数や配信頻度はどのくらいですか？",
-      answer: (
-        <>
-          ご予算や目標設定により、最適な更新頻度をご提案いたします。
-          <br />
-          貴社の採用スケジュールに合わせて柔軟な配信設計が可能です。
-        </>
-      )
-    },
-    {
-      question: "効果測定や分析はどのように行いますか？",
-      answer: (
-        <>
-          各SNSプラットフォームの分析データをレポート化し、改善提案を行います。
-          <br />
-          再生数、エンゲージメント率、応募経路の分析など、採用活動に直結する指標を可視化します。
-          <br />
-          定期的な振り返りミーティングで、施策の効果を確認しながら改善を重ねていきます。
-        </>
-      )
-    },
-    {
-      question: "開始までのスケジュールを教えてください。",
-      answer: (
-        <>
-          初回のオンライン打ち合わせから最短2週間で初回動画の公開が可能です。
-          <br />
-          撮影の有無や本数によって変動しますので、まずはご希望のスケジュールをお聞かせください。
-        </>
-      )
-    }
-  ];
-
-  // サンプル動画データ
-  const sampleVideos = [
-    {
-      videoSrc: "/service/recruitment-marketing/images/shorts-sample-01.mp4",
-      tag: "企業説明",
-      duration: "01:13",
-      title: "企業研究動画",
-      description: "企業や業界の特徴をわかりやすく解説し、ターゲットの志望動機を形成します。"
-    },
-    {
-      videoSrc: "/service/recruitment-marketing/images/shorts-sample-02.mp4",
-      tag: "トレンド",
-      duration: "00:46",
-      title: "トレンドフォーマット",
-      description: "媒体トレンドに沿ったフォーマット投稿で、貴社名の露出を最大化します。"
-    },
-    {
-      videoSrc: "/service/recruitment-marketing/images/shorts-sample-03.mp4",
-      tag: "社員密着",
-      duration: "01:10",
-      title: "社員密着",
-      description: "実際の職場の雰囲気を表現し、ターゲットに貴社の魅力を伝えます。"
-    }
-  ];
-
-  // 導入企業ロゴリスト（上段用）
-  const companyLogosTop = [
-    "産業技術総合研究所.jpg",
-    "都城市役所.jpg",
-    "阪神グループ.jpg",
-    "株式会社電通.jpg",
-    "江崎グリコ株式会社.jpg",
-    "王子ホールディングス株式会社.jpg",
-    "株式会社三井住友銀行.jpg",
-    "株式会社明光ネットワークジャパン.jpg",
-    "株式会社電算システム.jpg",
-    "株式会社マネージビジネス.jpg",
-    "株式会社ミクシィ.jpg",
-    "株式会社リブ・コンサルティング.jpg",
-    "株式会社ホリプロ.jpg",
-    "株式会社ポニーキャニオン.jpg",
-    "株式会社マイクロアド.jpg",
-    "株式会社フルキャストホールディングス.jpg",
-    "株式会社ベクトル.jpg",
-    "株式会社ハイテックシステムズ.jpg",
-    "株式会社ハッチ・ワーク.jpg",
-    "株式会社ニューステクノロジー.jpg",
-    "株式会社パルコ.jpg",
-    "株式会社ケアリッツ・アンド・パートナーズ.jpg",
-    "株式会社スギ薬局.jpg",
-    "株式会社オープンハウス.jpg",
-    "株式会社グランバー東京ラスク.jpg",
-    "株式会社アールナイン.jpg",
-    "株式会社エフ・コード.jpg",
-    "株式会社アルファシステムズ.jpg",
-    "株式会社アルプス技研.jpg",
-    "株式会社アートリフォーム.jpg",
-    "株式会社いえらぶGroup.jpg",
-    "株式会社すき家.jpg",
-    "株式会社アイドマ・ホールディングス.jpg",
-    "株式会社Speee.jpg",
-    "株式会社TAKUTO.jpg",
-    "株式会社あきんどスシロー.jpg",
-    "株式会社PR TIMES.jpg",
-    "株式会社Plan･Do･See.jpg",
-    "松竹株式会社.jpg",
-    "株式会社CIRCUS.jpg"
-  ];
-
-  // 導入企業ロゴリスト（下段用）
-  const companyLogosBottom = [
-    "株式会社NewsTV.jpg",
-    "日本郵船株式会社.jpg",
-    "東和産業株式会社.jpg",
-    "亀田製菓株式会社.jpg",
-    "公正取引委員会.jpg",
-    "川元建設株式会社.jpg",
-    "三井化学株式会社.jpg",
-    "三菱自動車工業株式会社.jpg",
-    "ロート製薬株式会社.jpg",
-    "三井不動産株式会社.jpg",
-    "ライク株式会社.jpg",
-    "リック株式会社.jpg",
-    "マツダ株式会社.jpg",
-    "ヤフー株式会社.jpg",
-    "ブラザー工業.jpg",
-    "ホーユー株式会社.jpg",
-    "ヒューマンライフケア株式会社.jpg",
-    "ブックオフコーポレーション株式会社.jpg",
-    "バリューマネジメント株式会社.jpg",
-    "ビットスター株式会社.jpg",
-    "セガサミーホールディングス株式会社.jpg",
-    "ソフトバンク株式会社.jpg",
-    "ダイハツ工業株式会社.jpg",
-    "セイコーグループ株式会社.jpg",
-    "スズキ株式会社.jpg",
-    "スマートキャンプ株式会社.jpg",
-    "シチズン時計株式会社.jpg",
-    "アマゾンジャパン合同会社.jpg",
-    "キリンホールディングス株式会社.jpg",
-    "コクヨ株式会社.jpg",
-    "みずほリサーチ&テクノロジーズ株式会社.jpg",
-    "アイリスオーヤマ株式会社.jpg",
-    "KDDI株式会社.jpg",
-    "RIZAPグループ株式会社.jpg",
-    "GMOアドパートナーズ株式会社.jpg",
-    "HRクラウド株式会社.jpg",
-    "ENEOS株式会社.jpg",
-    "AnyMind Japan株式会社.jpg"
-  ];
+  const heroVideoList = videoList.length > 0 ? [...videoList, videoList[0]] : [];
 
   // ナビゲーションメニューアイテム
   const navItems = [
@@ -469,6 +344,8 @@ export default function LPPage() {
   }, []);
 
   // スクロールで画面内に入った時にアニメーションを実行
+  // sampleVideos/faqItems/companyLogosTop が変わった際にも再実行し、
+  // 非同期で追加された要素もオブザーバーに登録する
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -482,13 +359,13 @@ export default function LPPage() {
       { threshold: 0.1, rootMargin: "0px 0px -50px 0px" }
     );
 
-    const elements = document.querySelectorAll(".fade-in-up");
+    const elements = document.querySelectorAll(".fade-in-up:not(.fade-in-up-active)");
     elements.forEach((el) => observer.observe(el));
 
     return () => {
       elements.forEach((el) => observer.unobserve(el));
     };
-  }, []);
+  }, [sampleVideos, faqItems, companyLogosTop]);
 
   // スクロール位置を監視してバナーを表示
   useEffect(() => {
@@ -592,7 +469,7 @@ export default function LPPage() {
           <div className="flex items-center gap-4 md:gap-8">
             <div className="flex flex-col items-start">
               <img src="/logo.svg" alt="JOBTV" className="h-6 w-auto mb-1 mx-auto" />
-              <p className="text-[10px] md:text-xs text-white leading-tight font-bold">採用特化マーケティング</p>
+              <p className="text-[10px] md:text-xs text-white leading-tight font-bold">採用マーケティング支援</p>
             </div>
             {/* デスクトップナビゲーション */}
             <nav className="hidden md:flex gap-8 text-base font-medium text-gray-400">
@@ -741,8 +618,10 @@ export default function LPPage() {
                 <span className="inline-block">マーケティング支援</span>
               </h1>
               <p className="text-base md:text-lg text-gray-600 mb-[18px] font-bold text-left">
-                国内No.1*のPR集団「ベクトルグループ」が2800社○○業種以上を手掛けたナレッジを活用してショート動画時代の採用活動を一気通貫で支援します。
-                *○○調べ
+                国内No.1*のPR集団「ベクトルグループ」が年間約3,000件、累計150業種以上のPRプロジェクトを手掛けたナレッジを活用してショート動画時代の採用活動を一気通貫で支援します。
+              </p>
+              <p className="text-xs text-gray-400 mb-[18px] text-left">
+                *「PRovoke」の「Global Top 250 PR Agency Rankings2024」にて、ベクトルグループがアジア1位、世界6位となりました。ベクトルグループ全体の年間PRプロジェクト実績（2026年時点）
               </p>
 
               <div className="flex flex-wrap gap-3 mb-4 justify-center md:justify-start">
@@ -759,14 +638,15 @@ export default function LPPage() {
               </div>
               <div className="flex flex-wrap items-center gap-2.5 gap-x-4 text-[11px] text-gray-600 justify-center md:justify-start">
                 <div className="px-2.5 py-1.5 rounded-xl border border-black/8 bg-white/90 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-                  <p className="text-[10px] text-gray-600">応募数</p>
-                  <p className={`text-base font-bold ${styles.gradientTextRed}`}>+230%</p>
+                  <p className="text-[10px] text-gray-600">承諾率</p>
+                  <p className={`text-base font-bold ${styles.gradientTextRed}`}>300%</p>
+                  <p className="text-[9px] text-gray-400">テプコシステムズ</p>
                 </div>
                 <div className="px-2.5 py-1.5 rounded-xl border border-black/8 bg-white/90 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-                  <p className="text-[10px] text-gray-600">認知想起</p>
-                  <p className={`text-base font-bold ${styles.gradientTextRed}`}>+180%</p>
+                  <p className="text-[10px] text-gray-600">SNS経由応募率</p>
+                  <p className={`text-base font-bold ${styles.gradientTextRed}`}>200%</p>
+                  <p className="text-[9px] text-gray-400">田島ルーフィング</p>
                 </div>
-                <span className="text-[10px] text-gray-600">※既存クライアントの施策全体を通じた一例</span>
               </div>
             </div>
             {/* スマホ表示 */}
@@ -807,38 +687,36 @@ export default function LPPage() {
             <div className="flex animate-scroll-infinite select-none w-[200%]">
               {/* 1セット目 */}
               <div className="flex items-center flex-shrink-0 select-none w-1/2">
-                {companyLogosTop.map((logo, index) => (
+                {companyLogosTop.map((logo) => (
                   <div
-                    key={`logo-top-1-${index}`}
+                    key={`logo-top-1-${logo.id}`}
                     className="flex-shrink-0 w-[60px] h-[60px] md:w-[80px] md:h-[80px] flex items-center justify-center p-2 bg-white select-none"
                   >
                     <Image
-                      src={`/service/recruitment-marketing/images/logos/${logo}`}
-                      alt={logo.replace(".jpg", "")}
+                      src={logo.image_url}
+                      alt={logo.name}
                       width={160}
                       height={80}
                       className="w-full h-full object-contain pointer-events-none"
                       draggable={false}
-                      unoptimized
                     />
                   </div>
                 ))}
               </div>
               {/* 2セット目（シームレスループ用） */}
               <div className="flex items-center flex-shrink-0 select-none w-1/2">
-                {companyLogosTop.map((logo, index) => (
+                {companyLogosTop.map((logo) => (
                   <div
-                    key={`logo-top-2-${index}`}
+                    key={`logo-top-2-${logo.id}`}
                     className="flex-shrink-0 w-[60px] h-[60px] md:w-[80px] md:h-[80px] flex items-center justify-center p-2 bg-white select-none"
                   >
                     <Image
-                      src={`/service/recruitment-marketing/images/logos/${logo}`}
-                      alt={logo.replace(".jpg", "")}
+                      src={logo.image_url}
+                      alt={logo.name}
                       width={160}
                       height={80}
                       className="w-full h-full object-contain pointer-events-none"
                       draggable={false}
-                      unoptimized
                     />
                   </div>
                 ))}
@@ -848,38 +726,36 @@ export default function LPPage() {
             <div className="flex animate-scroll-infinite-reverse select-none w-[200%]">
               {/* 1セット目 */}
               <div className="flex items-center flex-shrink-0 select-none w-1/2">
-                {companyLogosBottom.map((logo, index) => (
+                {companyLogosBottom.map((logo) => (
                   <div
-                    key={`logo-bottom-1-${index}`}
+                    key={`logo-bottom-1-${logo.id}`}
                     className="flex-shrink-0 w-[60px] h-[60px] md:w-[80px] md:h-[80px] flex items-center justify-center p-2 bg-white select-none"
                   >
                     <Image
-                      src={`/service/recruitment-marketing/images/logos/${logo}`}
-                      alt={logo.replace(".jpg", "")}
+                      src={logo.image_url}
+                      alt={logo.name}
                       width={160}
                       height={80}
                       className="w-full h-full object-contain pointer-events-none"
                       draggable={false}
-                      unoptimized
                     />
                   </div>
                 ))}
               </div>
               {/* 2セット目（シームレスループ用） */}
               <div className="flex items-center flex-shrink-0 select-none w-1/2">
-                {companyLogosBottom.map((logo, index) => (
+                {companyLogosBottom.map((logo) => (
                   <div
-                    key={`logo-bottom-2-${index}`}
+                    key={`logo-bottom-2-${logo.id}`}
                     className="flex-shrink-0 w-[60px] h-[60px] md:w-[80px] md:h-[80px] flex items-center justify-center p-2 bg-white select-none"
                   >
                     <Image
-                      src={`/service/recruitment-marketing/images/logos/${logo}`}
-                      alt={logo.replace(".jpg", "")}
+                      src={logo.image_url}
+                      alt={logo.name}
                       width={160}
                       height={80}
                       className="w-full h-full object-contain pointer-events-none"
                       draggable={false}
-                      unoptimized
                     />
                   </div>
                 ))}
@@ -1114,19 +990,24 @@ export default function LPPage() {
             <div className="text-center">
               <p className={styles.sectionLabel}>Samples</p>
               <h2 className="text-2xl md:text-[28px] font-semibold leading-[1.3] mb-4">
-                <span className="hero-highlight">採用ショート動画</span>の制作事例
+                「綺麗な動画」はいりません。
+                <br />
+                学生のスマホをジャックする。
               </h2>
               <p className="text-lg leading-relaxed">
-                ここに説明文を入れる。
+                一般的な制作会社は「映像美」を追求しますが、私たちは「再生数」と「視聴完了率」にこだわります。
                 <br />
-                ここに説明文を入れる。
+                建前ではないリアルな企画力と、SNSアルゴリズムをハックしてターゲットに「強制的に届ける」拡散力。
+                <br />
+                これがPR会社の強みです。
               </p>
             </div>
             <div className="mt-[22px] grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-4 max-w-[960px] mx-auto">
               {sampleVideos.map((video, index) => (
                 <SampleVideoCard
-                  key={index}
-                  videoSrc={video.videoSrc}
+                  key={video.id}
+                  videoSrc={video.video_url}
+                  thumbnailUrl={video.thumbnail_url}
                   tag={video.tag}
                   duration={video.duration}
                   title={video.title}
@@ -1343,10 +1224,10 @@ export default function LPPage() {
             <div className="text-center mb-12">
               <p className={styles.sectionLabel}>Services</p>
               <h2 className="text-2xl md:text-[28px] font-semibold leading-[1.3] mb-4">
-                ショート動画起点で、ここまで一気通貫で支援できます
+                ショート動画起点のPRの力で採用をアップデートする
               </h2>
               <p className="text-base md:text-lg leading-relaxed max-w-3xl mx-auto">
-                採用ブランディングの戦略設計から、クリエイティブ制作・運用・社内浸透まで。
+                採用ブランディングの戦略設計から、クリエイティブ制作・運用・社内浸透まで一気通貫のご支援。
                 <br />
                 必要なポイントだけをピックアップしてご相談いただくことも可能です。
               </p>
@@ -1588,8 +1469,18 @@ export default function LPPage() {
           <div className="w-full max-w-[1120px] mx-auto px-5">
             <SectionTitle label="FAQ" title="よくあるご質問" center />
             <div className="mt-8 grid gap-4 max-w-3xl mx-auto">
-              {faqItems.map((item, index) => (
-                <FAQItem key={index} question={item.question} answer={item.answer} />
+              {faqItems.map((item) => (
+                <FAQItem
+                  key={item.id}
+                  question={item.question}
+                  answer={
+                    <p className="text-sm md:text-base text-gray-700 leading-relaxed">
+                      {item.answer.split("\n").map((line, i, arr) => (
+                        <Fragment key={i}>{line}{i < arr.length - 1 && <br />}</Fragment>
+                      ))}
+                    </p>
+                  }
+                />
               ))}
             </div>
           </div>
@@ -1716,20 +1607,23 @@ export default function LPPage() {
       <Footer />
 
       {/* スクロール追従バナー */}
-      {isBannerVisible && (
+      {isBannerVisible && scrollBanner && (
         <div
           className={`hidden md:block fixed bottom-4 right-4 md:bottom-6 md:right-6 z-50 ${
             showScrollBanner ? "animate-slideInFromRight" : "animate-slideOutToRight"
           }`}
         >
           <a
-            href="#contact"
-            onClick={(e) => handleAnchorClick(e, "#contact")}
-            className="block transition-all duration-300 hover:scale-105 "
+            href={scrollBanner.link_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block transition-all duration-300 hover:scale-105"
           >
-            <div className="w-80 h-40 rounded-md bg-gray-300 flex items-center justify-center shadow-xl">
-              <span className="text-gray-600 font-medium">バナーを入れる</span>
-            </div>
+            <img
+              src={scrollBanner.image_url}
+              alt=""
+              className="w-80 h-auto rounded-md shadow-xl"
+            />
           </a>
         </div>
       )}

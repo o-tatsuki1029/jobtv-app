@@ -9,6 +9,7 @@
 - **用語・テーブルの解釈**: `docs/database-domain.md` を正とする。意味で迷ったらそこで確認する。
 - **DB を変更したとき**: マイグレーション・テーブル役割・RLS 等の変更後は、必ず `docs/database-domain.md` を更新する。該当セクションの「参照実装」に挙がる他機能の整合も確認する。
 - **複数 doc に影響する変更**: 該当する doc をすべて更新する（例: 新規テーブルなら database-domain と必要に応じて database.md 等）。
+- **doc の追加・削除時**: CLAUDE.md のトピック別参照先テーブルと `docs/README.md` の両方を更新する。
 
 ## トピック別参照先
 
@@ -19,14 +20,23 @@
 | 認証・ロール・ルート保護・データ分離 | `docs/roles-and-auth.md` |
 | Server Actions | `docs/server-actions.md` |
 | データベース型・マイグレーション・Supabase クライアント | `docs/database.md` |
+| 本番 DB 変更ルール・承認フロー・禁止操作 | `docs/database.md`（「本番データベース変更ルール」セクション） |
 | スタイリング・コンポーネント・データフェッチ・テーマ | `docs/ui-and-styling.md` |
 | コード規約（命名・型・インポート） | `docs/code-style.md` |
 | Monorepo・パッケージ・環境変数 | `docs/monorepo.md` |
 | デプロイ・admin IP 制限・環境構成（ローカル/STG/本番の違い） | `docs/deployment.md` |
 | アプリ構成・技術スタック | `docs/apps.md` |
 | MCP サーバー設定・用途・セットアップ | `docs/mcp.md` |
+| CAPTCHA・ボット対策 | `docs/captcha.md` |
 | E2E テスト（Playwright） | `docs/testing.md` |
 | SEO・AIO 対策・構造化データ・llms.txt | `docs/seo-aio.md` |
 | LINE 連携・配信・CTA 動線 | `docs/line-integration.md` |
 | ロギング・監査ログ・エラーバウンダリ | `docs/logging.md` |
 | 会員登録通知（Slack・Google Sheets） | `docs/signup-notification.md` |
+| AWS 動画ストリーミング（S3・MediaConvert・CloudFront） | `docs/aws-video.md` |
+| スケジュール配信（Vercel Cron） | `docs/scheduled-jobs.md` |
+| 通知システム（メール・LINE・Slack・Sheets・アプリ内） | `docs/notifications.md` |
+| イベント運営システム仕様 | `docs/event-specification.md` |
+| 環境構築・セットアップ | `docs/setup.md` |
+| テスト観点・バグ候補 | `docs/test/` |
+| 機能台帳（全機能一覧・YAML正本） | `docs/feature-registry.yaml` |

@@ -32,6 +32,7 @@ yarn-error.log*
 .env*.local
 .env
 .env.staging
+.env.production
 .env.test
 e2e/.auth/
 
@@ -73,3 +74,9 @@ supabase/seed.sql
 apps/jobtv/public/lp/images/*-original.mp4
 apps/jobtv/public/lp/images/compress-videos.sh
 
+# Reference materials (Claude用参考資料)
+reference/
+
+
+# Serena tool local data
+.serena/

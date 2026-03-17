@@ -8,17 +8,17 @@ interface CandidateMenuProps {
   isOpen: boolean;
   onClose: () => void;
   userName: string;
+  email: string | null;
 }
 
 const menuItems = [
   { label: "マイページ", href: "/mypage" },
   { label: "イベント予約一覧", href: "/mypage/reservations" },
   { label: "エントリー中の企業", href: "/mypage/entries" },
-  { label: "LINE連携", href: "/settings/line" },
   { label: "よくある質問", href: "/mypage/faq" }
 ];
 
-export default function CandidateMenu({ isOpen, onClose, userName }: CandidateMenuProps) {
+export default function CandidateMenu({ isOpen, onClose, userName, email }: CandidateMenuProps) {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
@@ -86,6 +86,9 @@ export default function CandidateMenu({ isOpen, onClose, userName }: CandidateMe
           <nav className="flex-1 px-4 py-6 overflow-y-auto">
             <div className="mb-6 space-y-1.5">
               <p className="text-white font-semibold text-base leading-tight break-words">{userName}</p>
+              {email && (
+                <p className="text-gray-400 text-sm leading-tight break-words">{email}</p>
+              )}
             </div>
 
             <div className="flex flex-col gap-0 mb-6">

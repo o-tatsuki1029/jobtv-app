@@ -100,7 +100,7 @@ export async function unlinkLineAccount(): Promise<
       return { data: null, error: "連携の解除に失敗しました。" };
     }
 
-    revalidatePath("/settings/line", "layout");
+    revalidatePath("/mypage", "layout");
     return { data: true, error: null };
   } catch (e) {
     logger.error({ action: "unlinkLineAccount", err: e }, "LINE連携の解除に失敗");

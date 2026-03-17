@@ -16,10 +16,12 @@ import {
   createVideoDraft,
   updateVideoDraft,
   submitVideoForReview,
-  uploadVideoToS3Action,
+  getVideoUploadPresignedUrl,
+  confirmVideoUpload,
   uploadThumbnailToS3Action,
   saveMediaConvertJobToDraft
 } from "@/lib/actions/video-actions";
+import { useS3Upload } from "@/hooks/useS3Upload";
 import type { VideoFormData, VideoCategory, VideoDraft, VideoDraftItem } from "@/types/video.types";
 
 const VALID_CATEGORIES: VideoCategory[] = ["main", "short", "documentary"];
@@ -199,24 +201,53 @@ export default function VideoEditPage() {
     );
   }, [formData, initialVideo]);
 
-  // 動画アップロード
-  const handleVideoUpload = async (file: File, aspectRatio: "landscape" | "portrait") => {
-    const result = await uploadVideoToS3Action(file, aspectRatio, isNew ? undefined : id);
+  const { upload: s3Upload, isUploading: isS3Uploading, progress: s3Progress } = useS3Upload();
 
-    // 新規動画の場合はジョブ情報をrefに保存し、保存後に紐付ける（s3VideoIdでURLをDBに書き込む）
-    if (isNew && result.data?.jobId && result.data?.s3VideoId) {
+  // 動画アップロード（Presigned URL → S3 直接アップロード → 確認）
+  const handleVideoUpload = async (file: File, aspectRatio: "landscape" | "portrait") => {
+    // Step 1: Presigned URL を取得
+    const presignedResult = await getVideoUploadPresignedUrl(
+      file.name,
+      file.type,
+      file.size,
+      aspectRatio,
+      isNew ? undefined : id
+    );
+    if (presignedResult.error || !presignedResult.data) {
+      return { success: false, url: null, error: presignedResult.error || "URLの取得に失敗しました" };
+    }
+
+    // Step 2: S3 に直接アップロード
+    const uploadResult = await s3Upload(presignedResult.data.presignedUrl, file);
+    if (!uploadResult.success) {
+      return { success: false, url: null, error: uploadResult.error };
+    }
+
+    // Step 3: アップロード完了を通知 → MediaConvert 起動
+    const confirmResult = await confirmVideoUpload(
+      presignedResult.data.s3Key,
+      presignedResult.data.s3VideoId,
+      aspectRatio,
+      isNew ? undefined : id
+    );
+    if (confirmResult.error || !confirmResult.data) {
+      return { success: false, url: null, error: confirmResult.error || "確認処理に失敗しました" };
+    }
+
+    // 新規動画の場合はジョブ情報をrefに保存し、保存後に紐付ける
+    if (isNew && confirmResult.data.jobId && confirmResult.data.s3VideoId) {
       pendingJobRef.current = {
-        jobId: result.data.jobId,
+        jobId: confirmResult.data.jobId,
         aspectRatio,
-        s3VideoId: result.data.s3VideoId
+        s3VideoId: confirmResult.data.s3VideoId
       };
     }
 
     return {
-      success: !result.error,
-      url: result.data?.url || null,
-      error: result.error || undefined,
-      jobId: result.data?.jobId
+      success: true,
+      url: confirmResult.data.url,
+      error: undefined,
+      jobId: confirmResult.data.jobId
     };
   };
 
@@ -306,6 +337,7 @@ export default function VideoEditPage() {
           onUploadThumbnail={handleThumbnailUpload}
           readOnly={isReadOnly}
           categoryDisabled
+          uploadProgress={s3Progress}
         />
       </div>
 

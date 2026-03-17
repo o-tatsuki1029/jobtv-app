@@ -1,4 +1,4 @@
-# JobTV App Monorepo
+# JOBTV App Monorepo
 
 agent-manager、event-system、jobtv の 3 つの Next.js アプリケーションを統合した Monorepo です。
 
@@ -66,7 +66,7 @@ pnpm types
 ```
 jobtv-app/
 ├── apps/
-│   ├── jobtv/              # JobTVアプリ (port 3000)
+│   ├── jobtv/              # JOBTVアプリ (port 3000)
 │   ├── event-system/       # イベントシステム (port 3001)
 │   └── agent-manager/      # エージェント管理 (port 3002)
 ├── packages/

@@ -5,6 +5,7 @@ import { resetPassword } from "@/lib/actions/auth-actions";
 import { primaryButtonClass } from "@/constants/navigation";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
+import TurnstileWidget from "@/components/common/TurnstileWidget";
 
 export default function ForgotPasswordPage() {
   const [error, setError] = useState<string | null>(null);
@@ -77,6 +78,8 @@ export default function ForgotPasswordPage() {
             {error && (
               <div className="p-3 bg-red-50 border border-red-100 rounded-md text-red-600 text-sm">{error}</div>
             )}
+
+            <TurnstileWidget theme="light" action="forgot-password" />
 
             <button
               type="submit"

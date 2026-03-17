@@ -8,7 +8,11 @@ type AuditCategory =
   | "access"
   | "matching"
   | "hero"
-  | "auth";
+  | "auth"
+  | "storage"
+  | "line"
+  | "notification"
+  | "email_template";
 
 export async function logAudit(opts: {
   userId: string;

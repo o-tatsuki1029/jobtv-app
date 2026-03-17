@@ -23,6 +23,33 @@ function toDbSchoolType(uiValue: string): string {
 }
 
 /**
+ * 学校名 + 学校種別の完全一致で school_master を検索し、一意に特定できる場合のみ school_kcode を返す。
+ * サジェスト未選択で手入力された場合に、サーバー側で school_kcode を自動補完するために使う。
+ */
+export async function resolveSchoolKcode(
+  schoolName: string,
+  schoolType?: string | null
+): Promise<string | null> {
+  if (!schoolName?.trim()) return null;
+
+  const supabase = await createClient();
+  let query = supabase
+    .from("school_master")
+    .select("school_kcode")
+    .eq("school_name", schoolName.trim());
+
+  if (schoolType) {
+    query = query.eq("school_type", toDbSchoolType(schoolType));
+  }
+
+  const { data, error } = await query.limit(50);
+  if (error || !data?.length) return null;
+
+  const uniqueKcodes = new Set(data.map((r) => r.school_kcode));
+  return uniqueKcodes.size === 1 ? [...uniqueKcodes][0] : null;
+}
+
+/**
  * 学校名サジェスト: 名前または読み仮名の先頭一致、DISTINCT、最大20件
  * schoolType を指定すると DB の school_type でフィルターする
  */

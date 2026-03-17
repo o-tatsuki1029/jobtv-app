@@ -3,6 +3,82 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
+import { resolveSchoolKcode } from "@/lib/actions/school-actions";
+
+/**
+ * マイページトップ用サマリー（1リクエストで必要最小限のデータを取得）
+ */
+export async function getMypageSummary(): Promise<{
+  data: {
+    fullName: string;
+    graduationYear: number | null;
+    lineLinked: boolean;
+    eventReservationCount: number;
+    applicationCount: number;
+    reservationCount: number;
+  } | null;
+  error: string | null;
+}> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { data: null, error: "ログインが必要です" };
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("candidate_id, role, last_name, first_name")
+      .eq("id", user.id)
+      .single();
+
+    if (!profile?.candidate_id || profile.role !== "candidate") {
+      return { data: null, error: "候補者プロフィールを取得できませんでした" };
+    }
+
+    const candidateId = profile.candidate_id;
+
+    // 全て並列で取得（JOINなし・countのみ）
+    const [candidateResult, eventResCount, appCount, resCount] = await Promise.all([
+      supabase
+        .from("candidates")
+        .select("graduation_year, line_user_id")
+        .eq("id", candidateId)
+        .single(),
+      supabase
+        .from("event_reservations")
+        .select("id", { count: "exact", head: true })
+        .eq("candidate_id", candidateId)
+        .eq("status", "reserved"),
+      supabase
+        .from("applications")
+        .select("id", { count: "exact", head: true })
+        .eq("candidate_id", candidateId),
+      supabase
+        .from("session_reservations")
+        .select("id", { count: "exact", head: true })
+        .eq("candidate_id", candidateId)
+        .eq("status", "reserved"),
+    ]);
+
+    const candidate = candidateResult.data;
+
+    return {
+      data: {
+        fullName: `${profile.last_name} ${profile.first_name}`,
+        graduationYear: candidate?.graduation_year ?? null,
+        lineLinked: candidate?.line_user_id != null,
+        eventReservationCount: eventResCount.count ?? 0,
+        applicationCount: appCount.count ?? 0,
+        reservationCount: resCount.count ?? 0,
+      },
+      error: null,
+    };
+  } catch (e) {
+    logger.error({ action: "getMypageSummary", err: e }, "マイページサマリーの取得に失敗");
+    return { data: null, error: "マイページ情報の取得に失敗しました" };
+  }
+}
 
 /**
  * ログイン中の候補者プロフィール（candidates + email）を取得
@@ -57,9 +133,7 @@ export interface UpdateCandidateProfileData {
   first_name: string;
   last_name_kana: string;
   first_name_kana: string;
-  phone: string | null;
   gender: string | null;
-  date_of_birth: string | null;
   school_type: string | null;
   school_name: string | null;
   school_kcode: string | null;
@@ -110,13 +184,16 @@ export async function updateMyCandidateProfile(data: UpdateCandidateProfileData)
     return { error: "プロフィールの更新に失敗しました" };
   }
 
+  // school_kcode が未設定で学校名がある場合、自動マッチング
+  if (!data.school_kcode && data.school_name) {
+    data.school_kcode = await resolveSchoolKcode(data.school_name, data.school_type);
+  }
+
   // その他のフィールドは candidates に更新
   const { error: updateError } = await supabase
     .from("candidates")
     .update({
-      phone: data.phone || null,
       gender: data.gender || null,
-      date_of_birth: data.date_of_birth || null,
       school_type: data.school_type || null,
       school_name: data.school_name || null,
       school_kcode: data.school_kcode || null,
@@ -175,6 +252,46 @@ export async function getMyApplications({ limit = 50, offset = 0 }: { limit?: nu
   if (error) {
     logger.error({ action: "getMyApplications", err: error }, "エントリー一覧の取得に失敗");
     return { data: null, error: "エントリー一覧の取得に失敗しました" };
+  }
+
+  return { data, error: null };
+}
+
+/**
+ * ログイン中の候補者のイベント予約一覧を取得（イベント・イベントタイプ情報含む）
+ */
+export async function getMyEventReservations() {
+  const supabase = await createClient();
+
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+  if (!user) return { data: null, error: "ログインが必要です" };
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("candidate_id, role")
+    .eq("id", user.id)
+    .single();
+
+  if (profileError || !profile?.candidate_id || profile.role !== "candidate") {
+    return { data: null, error: "候補者プロフィールを取得できませんでした" };
+  }
+
+  const { data, error } = await supabase
+    .from("event_reservations")
+    .select(
+      `id, status, web_consultation, created_at,
+       events (event_date, start_time, end_time, venue_name,
+         display_name, gathering_time, venue_address, google_maps_url, status,
+         event_types (id, name, area))`
+    )
+    .eq("candidate_id", profile.candidate_id)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    logger.error({ action: "getMyEventReservations", err: error }, "イベント予約一覧の取得に失敗");
+    return { data: null, error: "イベント予約一覧の取得に失敗しました" };
   }
 
   return { data, error: null };

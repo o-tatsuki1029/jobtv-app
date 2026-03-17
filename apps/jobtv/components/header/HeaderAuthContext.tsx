@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { getHeaderAuthInfo } from "@/lib/actions/auth-actions";
 
 export type HeaderAuthInfo = {
-  user: { email: string | null } | null;
+  user: { email: string | null; displayName: string | null } | null;
   role: "recruiter" | "admin" | "candidate" | null;
   recruiterMenuInfo: {
     displayName: string;

@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
+import { logAudit } from "@jobtv-app/shared/utils/audit";
 
 /**
  * 全ての管理者アカウントを取得（削除されていないもののみ）
@@ -104,6 +105,16 @@ export async function createAdmin(
       return { data: null, error: "プロフィールの更新に失敗しました" };
     }
 
+    logAudit({
+      userId: newUser.user.id,
+      action: "admin.create",
+      category: "account",
+      resourceType: "profiles",
+      resourceId: newUser.user.id,
+      app: "jobtv",
+      metadata: { email, lastName, firstName },
+    });
+
     revalidatePath("/admin/users");
     return { data: { message: "管理者アカウントを作成しました" }, error: null };
   } catch (error) {
@@ -150,6 +161,16 @@ export async function deleteAdmin(adminId: string): Promise<{
       return { data: null, error: deleteError.message };
     }
 
+    logAudit({
+      userId: user.id,
+      action: "admin.delete",
+      category: "account",
+      resourceType: "profiles",
+      resourceId: adminId,
+      app: "jobtv",
+      metadata: { adminId },
+    });
+
     revalidatePath("/admin/users");
     return { data: { message: "管理者アカウントを削除しました" }, error: null };
   } catch (error) {
@@ -177,6 +198,8 @@ export async function updateAdmin(
   try {
     const supabase = await createClient();
 
+    const { data: { user } } = await supabase.auth.getUser();
+
     const { error: updateError } = await supabase
       .from("profiles")
       .update({
@@ -190,6 +213,18 @@ export async function updateAdmin(
     if (updateError) {
       logger.error({ action: "updateAdmin", err: updateError, adminId }, "管理者プロフィールの更新に失敗しました");
       return { data: null, error: "プロフィールの更新に失敗しました" };
+    }
+
+    if (user) {
+      logAudit({
+        userId: user.id,
+        action: "admin.update",
+        category: "account",
+        resourceType: "profiles",
+        resourceId: adminId,
+        app: "jobtv",
+        metadata: { adminId, lastName, firstName },
+      });
     }
 
     revalidatePath("/admin/users");

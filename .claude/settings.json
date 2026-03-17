@@ -1,0 +1,33 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/prod-guard.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__supabase__execute_sql",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/prod-guard.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__supabase__apply_migration",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/prod-guard.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

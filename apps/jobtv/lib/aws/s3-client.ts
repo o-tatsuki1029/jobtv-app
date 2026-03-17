@@ -33,28 +33,7 @@ function getCloudFrontUrl(s3Key: string): string {
   return `${baseUrl}${key}`;
 }
 
-/**
- * S3クライアントを作成（内部関数）
- */
-function createS3Client() {
-  const region = process.env.AWS_REGION || "ap-northeast-1";
-  const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
-  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
-
-  if (!accessKeyId || !secretAccessKey) {
-    throw new Error(
-      "AWS認証情報が設定されていません。AWS_ACCESS_KEY_IDとAWS_SECRET_ACCESS_KEYを環境変数に設定してください。"
-    );
-  }
-
-  return new S3Client({
-    region,
-    credentials: {
-      accessKeyId,
-      secretAccessKey
-    }
-  });
-}
+import { getS3Client } from "@/lib/aws/s3-singleton";
 
 /**
  * S3にファイルをアップロード
@@ -72,7 +51,7 @@ export async function uploadToS3(
   error?: string;
 }> {
   try {
-    const s3Client = createS3Client();
+    const s3Client = getS3Client();
 
     // Fileオブジェクトの場合はArrayBufferに変換
     let body: Buffer;

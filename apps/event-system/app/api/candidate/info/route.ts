@@ -1,3 +1,4 @@
+import { NextRequest } from "next/server";
 import { getCandidateInfo } from "@/utils/api/routes/candidate-info";
 import {
   unauthorizedResponse,
@@ -5,9 +6,16 @@ import {
   errorResponse,
   successResponse,
 } from "@/utils/api/response";
+import { checkRateLimit } from "@/utils/validation/rate-limit";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    // レート制限（30回/分）
+    const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0] ?? "unknown";
+    if (!checkRateLimit(`candidate-info:${clientIp}`, 30, 60000)) {
+      return errorResponse("リクエストが多すぎます", 429);
+    }
+
     const result = await getCandidateInfo();
     return successResponse(result);
   } catch (error: unknown) {

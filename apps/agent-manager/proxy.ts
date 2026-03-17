@@ -36,20 +36,25 @@ export async function proxy(request: NextRequest) {
 
   // Basic認証のチェック（環境変数が設定されている場合のみ）
   if (process.env.BASIC_AUTH_USER && process.env.BASIC_AUTH_PASSWORD) {
-    // 静的ファイルやNext.jsの内部ファイルは除外
-    const isStaticFile =
-      pathname.startsWith("/_next/") ||
-      pathname.startsWith("/favicon.ico") ||
-      /\.(svg|png|jpg|jpeg|gif|webp)$/.test(pathname);
+    const scope = process.env.BASIC_AUTH_SCOPE || "all";
 
-    if (!isStaticFile && !checkBasicAuth(request)) {
-      return new NextResponse("Unauthorized", {
-        status: 401,
-        headers: {
-          "WWW-Authenticate": 'Basic realm="Secure Area"',
-        },
-      });
+    if (scope === "all") {
+      // 静的ファイルやNext.jsの内部ファイルは除外
+      const isStaticFile =
+        pathname.startsWith("/_next/") ||
+        pathname.startsWith("/favicon.ico") ||
+        /\.(svg|png|jpg|jpeg|gif|webp)$/.test(pathname);
+
+      if (!isStaticFile && !checkBasicAuth(request)) {
+        return new NextResponse("Unauthorized", {
+          status: 401,
+          headers: {
+            "WWW-Authenticate": 'Basic realm="Secure Area"',
+          },
+        });
+      }
     }
+    // scope === "admin" の場合: agent-manager に admin ルートはないためスキップ
   }
 
   // 静的ファイルやNext.jsの内部ファイルは認証チェックをスキップ

@@ -4,12 +4,12 @@ import { exchangeCodeForLineUserId, getLineCallbackRedirectUri } from "@/lib/lin
 import { logger } from "@/lib/logger";
 
 const LINE_LINK_STATE_COOKIE = "line_link_state";
-const SETTINGS_LINE_PATH = "/settings/line";
+const MYPAGE_PATH = "/mypage";
 
-function redirectToSettingsLine(searchParams: URLSearchParams = new URLSearchParams()) {
+function redirectToMypage(searchParams: URLSearchParams = new URLSearchParams()) {
   const base = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
   const q = searchParams.toString();
-  const path = q ? `${SETTINGS_LINE_PATH}?${q}` : SETTINGS_LINE_PATH;
+  const path = q ? `${MYPAGE_PATH}?${q}` : MYPAGE_PATH;
   return NextResponse.redirect(new URL(path, base));
 }
 
@@ -22,12 +22,12 @@ export async function GET(request: NextRequest) {
   const state = searchParams.get("state");
 
   if (!code || !state) {
-    return redirectToSettingsLine(new URLSearchParams({ error: "invalid_callback" }));
+    return redirectToMypage(new URLSearchParams({ error: "invalid_callback" }));
   }
 
   const savedState = request.cookies.get(LINE_LINK_STATE_COOKIE)?.value;
   if (!savedState || savedState !== state) {
-    return redirectToSettingsLine(new URLSearchParams({ error: "invalid_state" }));
+    return redirectToMypage(new URLSearchParams({ error: "invalid_state" }));
   }
 
   const supabase = await createClient();
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const clearCookieAndRedirect = (params: URLSearchParams) => {
-    const res = redirectToSettingsLine(params);
+    const res = redirectToMypage(params);
     res.cookies.delete(LINE_LINK_STATE_COOKIE);
     return res;
   };

@@ -31,23 +31,29 @@ export async function proxy(request: NextRequest) {
   const basicAuthPassword = process.env.BASIC_AUTH_PASSWORD;
 
   if (basicAuthUsername && basicAuthPassword) {
-    const isStaticFile =
-      pathname.startsWith("/_next") ||
-      pathname.startsWith("/favicon.ico") ||
-      /\.(svg|png|jpg|jpeg|gif|webp|ico|css|js|woff|woff2|ttf|eot)$/.test(pathname);
-    const isWebhook = pathname.startsWith("/api/webhooks/");
-    const isAuthCallback =
-      pathname === "/api/auth/callback" ||
-      pathname === "/api/line/callback";
-    const basicOk = checkBasicAuth(request);
+    const scope = process.env.BASIC_AUTH_SCOPE || "all";
+    const isAdminRoute = pathname.startsWith("/admin");
+    const routeInScope = scope === "all" || (scope === "admin" && isAdminRoute);
 
-    if (!isStaticFile && !isWebhook && !isAuthCallback && !basicOk) {
-      return new NextResponse("Unauthorized", {
-        status: 401,
-        headers: {
-          "WWW-Authenticate": 'Basic realm="Secure Area"'
-        }
-      });
+    if (routeInScope) {
+      const isStaticFile =
+        pathname.startsWith("/_next") ||
+        pathname.startsWith("/favicon.ico") ||
+        /\.(svg|png|jpg|jpeg|gif|webp|ico|css|js|woff|woff2|ttf|eot)$/.test(pathname);
+      const isWebhook = pathname.startsWith("/api/webhooks/");
+      const isAuthCallback =
+        pathname === "/api/auth/callback" ||
+        pathname === "/api/line/callback";
+      const basicOk = checkBasicAuth(request);
+
+      if (!isStaticFile && !isWebhook && !isAuthCallback && !basicOk) {
+        return new NextResponse("Unauthorized", {
+          status: 401,
+          headers: {
+            "WWW-Authenticate": 'Basic realm="Secure Area"'
+          }
+        });
+      }
     }
   }
 

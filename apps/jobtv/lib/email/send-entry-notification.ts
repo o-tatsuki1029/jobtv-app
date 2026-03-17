@@ -113,6 +113,70 @@ export async function sendJobApplicationNotification(
 }
 
 /**
+ * 求人エントリー確認メールを学生に送信する。
+ * エラーが起きても例外を投げない（呼び出し元の処理と切り離す）。
+ */
+export async function sendJobApplicationConfirmation(
+  jobPostingIds: string[],
+  candidateId: string
+): Promise<void> {
+  try {
+    const supabase = createAdminClient();
+
+    // 求人タイトルと company_id を取得
+    const { data: jobs, error: jobsError } = await supabase
+      .from("job_postings")
+      .select("id, title, company_id")
+      .in("id", jobPostingIds);
+
+    if (jobsError || !jobs || jobs.length === 0) {
+      logger.error({ action: "sendJobApplicationConfirmation", err: jobsError, jobPostingIds }, "求人の取得に失敗しました");
+      return;
+    }
+
+    // 候補者情報を取得
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("email, last_name, first_name")
+      .eq("candidate_id", candidateId)
+      .single();
+
+    if (profileError || !profile || !profile.email) {
+      logger.error({ action: "sendJobApplicationConfirmation", err: profileError, candidateId }, "候補者プロフィールの取得に失敗しました");
+      return;
+    }
+
+    // 企業名を取得
+    const companyIds = [...new Set(jobs.map((j) => j.company_id))];
+    const { data: companies } = await supabase
+      .from("companies")
+      .select("id, name")
+      .in("id", companyIds);
+
+    const companyMap = new Map((companies ?? []).map((c) => [c.id, c.name]));
+    const companyNames = companyIds.map((id) => companyMap.get(id) ?? "").filter(Boolean).join("、");
+    const jobTitles = jobs.map((j) => `・${j.title}`).join("\n");
+    const appliedAt = formatJstDateTime(new Date().toISOString());
+
+    await sendTemplatedEmail({
+      templateName: "job_application_confirmation",
+      recipientEmail: profile.email,
+      variables: {
+        last_name: profile.last_name ?? "",
+        first_name: profile.first_name ?? "",
+        company_names: companyNames,
+        job_titles: jobTitles,
+        applied_at: appliedAt,
+        site_url: SITE_URL,
+      },
+      recipientRole: "candidate",
+    });
+  } catch (err) {
+    logger.error({ action: "sendJobApplicationConfirmation", err }, "予期しないエラーが発生しました");
+  }
+}
+
+/**
  * 説明会予約通知を企業リクルーター全員に送信する。
  * エラーが起きても例外を投げない（呼び出し元の処理と切り離す）。
  */
@@ -203,5 +267,84 @@ export async function sendSessionReservationNotification(
     }
   } catch (err) {
     logger.error({ action: "sendSessionReservationNotification", err }, "予期しないエラーが発生しました");
+  }
+}
+
+/**
+ * 説明会予約確認メールを学生に送信する。
+ * エラーが起きても例外を投げない（呼び出し元の処理と切り離す）。
+ */
+export async function sendSessionReservationConfirmation(
+  sessionDateId: string,
+  candidateId: string
+): Promise<void> {
+  try {
+    const supabase = createAdminClient();
+
+    // 日程・説明会情報を取得
+    const { data: sessionDate, error: sessionDateError } = await supabase
+      .from("session_dates")
+      .select("event_date, start_time, end_time, session_id, sessions(title, company_id)")
+      .eq("id", sessionDateId)
+      .single();
+
+    if (sessionDateError || !sessionDate) {
+      logger.error({ action: "sendSessionReservationConfirmation", err: sessionDateError, sessionDateId }, "日程情報の取得に失敗しました");
+      return;
+    }
+
+    const session = Array.isArray(sessionDate.sessions)
+      ? sessionDate.sessions[0]
+      : sessionDate.sessions;
+
+    if (!session?.company_id || !session?.title) {
+      logger.error({ action: "sendSessionReservationConfirmation", sessionDateId }, "説明会情報が不完全です");
+      return;
+    }
+
+    // 候補者情報を取得
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("email, last_name, first_name")
+      .eq("candidate_id", candidateId)
+      .single();
+
+    if (profileError || !profile || !profile.email) {
+      logger.error({ action: "sendSessionReservationConfirmation", err: profileError, candidateId }, "候補者プロフィールの取得に失敗しました");
+      return;
+    }
+
+    // 企業名を取得
+    const { data: company, error: companyError } = await supabase
+      .from("companies")
+      .select("name")
+      .eq("id", session.company_id)
+      .single();
+
+    if (companyError || !company) {
+      logger.error({ action: "sendSessionReservationConfirmation", err: companyError, companyId: session.company_id }, "企業情報の取得に失敗しました");
+      return;
+    }
+
+    const reservedAt = formatJstDateTime(new Date().toISOString());
+
+    await sendTemplatedEmail({
+      templateName: "session_reservation_confirmation",
+      recipientEmail: profile.email,
+      variables: {
+        last_name: profile.last_name ?? "",
+        first_name: profile.first_name ?? "",
+        company_name: company.name,
+        session_title: session.title,
+        event_date: sessionDate.event_date,
+        start_time: sessionDate.start_time,
+        end_time: sessionDate.end_time,
+        reserved_at: reservedAt,
+        site_url: SITE_URL,
+      },
+      recipientRole: "candidate",
+    });
+  } catch (err) {
+    logger.error({ action: "sendSessionReservationConfirmation", err }, "予期しないエラーが発生しました");
   }
 }

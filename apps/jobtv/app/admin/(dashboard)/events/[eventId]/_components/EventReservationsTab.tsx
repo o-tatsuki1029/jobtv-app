@@ -7,7 +7,6 @@ import StudioBadge from "@/components/studio/atoms/StudioBadge";
 import PaginationBar from "@/components/studio/molecules/PaginationBar";
 import {
   getEventReservations,
-  updateReservationAttendance,
   type ReservationWithProfile,
 } from "@/lib/actions/event-admin-actions";
 
@@ -25,8 +24,6 @@ export default function EventReservationsTab({ eventId }: EventReservationsTabPr
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState<PageSizeOption>(10);
   const [totalCount, setTotalCount] = useState<number | null>(null);
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
-
   const loadReservations = useCallback(async (currentPage = page) => {
     setLoading(true);
     setError(null);
@@ -50,19 +47,6 @@ export default function EventReservationsTab({ eventId }: EventReservationsTabPr
   useEffect(() => {
     loadReservations(page);
   }, [page, loadReservations]);
-
-  const handleAttendanceChange = async (id: string, attended: boolean) => {
-    setUpdatingId(id);
-    const { error: updateError } = await updateReservationAttendance(id, attended);
-    if (updateError) {
-      setError(updateError);
-    } else {
-      setReservations((prev) =>
-        prev.map((r) => (r.id === id ? { ...r, attended } : r))
-      );
-    }
-    setUpdatingId(null);
-  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -142,16 +126,9 @@ export default function EventReservationsTab({ eventId }: EventReservationsTabPr
                     </td>
                     <td className="px-6 py-4">{getStatusBadge(r.status)}</td>
                     <td className="px-6 py-4">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={r.attended}
-                          onChange={(e) => handleAttendanceChange(r.id, e.target.checked)}
-                          disabled={updatingId === r.id}
-                          className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
-                        />
-                        <span className="text-sm text-gray-700">{r.attended ? "出席" : "未出席"}</span>
-                      </label>
+                      <span className={`text-sm font-bold ${r.attended ? "text-green-700" : "text-gray-400"}`}>
+                        {r.attended ? "出席" : "未出席"}
+                      </span>
                     </td>
                     <td className="px-6 py-4">
                       <span className="text-gray-600">{r.seat_number || "-"}</span>

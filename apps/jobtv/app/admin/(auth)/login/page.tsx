@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { Shield } from "lucide-react";
+import TurnstileWidget from "@/components/common/TurnstileWidget";
 
 function AdminLoginPageContent() {
   const searchParams = useSearchParams();
@@ -60,6 +61,8 @@ function AdminLoginPageContent() {
                 {errorFromQuery}
               </div>
             )}
+
+            <TurnstileWidget theme="dark" action="admin-login" />
 
             <button
               type="submit"
