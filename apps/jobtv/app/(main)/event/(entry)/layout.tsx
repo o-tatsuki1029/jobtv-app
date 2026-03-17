@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   robots: ROBOTS_NOINDEX,
 };
 
-export default function EventLayout({
+export default function EventEntryLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;

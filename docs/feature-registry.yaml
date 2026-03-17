@@ -1,0 +1,2067 @@
+# =============================================================================
+# JOBTV 機能台帳 (Feature Registry)
+# =============================================================================
+#
+# 機能一覧の正本。Excel / PPTX はこのファイルから自動生成する。
+#
+# 書き方ルール:
+#   - app: アプリ名（JOBTV / Event System / Agent Manager / 共通基盤）
+#   - category: 大カテゴリ
+#   - subcategory: 中カテゴリ
+#   - name: 機能名（簡潔に）
+#   - detail: 機能詳細（複数行可）
+#   - role: 対象ロール（admin / recruiter / candidate / system / 全ユーザー）
+#   - tables: 関連テーブル/API（なければ "—"）
+#
+# 機能を追加するときは、該当アプリ・カテゴリのブロック末尾にエントリを追加する。
+# =============================================================================
+
+features:
+
+  # ===========================================================================
+  # JOBTV - 公開ページ
+  # ===========================================================================
+
+  # --- トップページ ---
+  - app: JOBTV
+    category: 公開ページ
+    subcategory: トップページ
+    name: ヒーローセクション
+    detail: 動画/画像ベースの動的スライドショー（top_page_hero_items）
+    role: 全ユーザー
+    tables: top_page_hero_items
+
+  - app: JOBTV
+    category: 公開ページ
+    subcategory: トップページ
+    name: 注目動画表示
+    detail: 就活Shorts・就活ドキュメンタリーの動画カルーセル（top_page_featured_videos）
+    role: 全ユーザー
+    tables: top_page_featured_videos, videos
+
+  - app: JOBTV
+    category: 公開ページ
+    subcategory: トップページ
+    name: アンバサダーカルーセル
+    detail: トップページアンバサダーの表示（top_page_ambassadors）
+    role: 全ユーザー
+    tables: top_page_ambassadors
+
+  - app: JOBTV
+    category: 公開ページ
+    subcategory: トップページ
+    name: バナー表示
+    detail: スクロールバナー・告知バナー（top_page_banners）
+    role: 全ユーザー
+    tables: top_page_banners
+
+  - app: JOBTV
+    category: 公開ページ
+    subcategory: トップページ
+    name: Shun Diariesカルーセル
+    detail: コンテンツカルーセル表示（top_page_shun_diaries）
+    role: 全ユーザー
+    tables: top_page_shun_diaries
+
+  - app: JOBTV
+    category: 公開ページ
+    subcategory: トップページ
+    name: 企業カード一覧
+    detail: 企業ロゴ・サムネイル付きカードグリッド表示
+    role: 全ユーザー
+    tables: companies, company_pages
+
+  - app: JOBTV
+    category: 公開ページ
+    subcategory: トップページ
+    name: SEO構造化データ
+    detail: JSON-LD（VideoObjectList, BreadcrumbList）の自動出力
+    role: 全ユーザー
+    tables: "—"
+
+  # --- 企業詳細 ---
+  - app: JOBTV
+    category: 公開ページ
+    subcategory: 企業詳細
+    name: 企業プロフィール表示
+    detail: 企業情報（ロゴ・タグライン・福利厚生・SNSリンク等）の表示
+    role: 全ユーザー
+    tables: companies, company_pages
+
+  - app: JOBTV
+    category: 公開ページ
+    subcategory: 企業詳細
+    name: 企業動画一覧
+    detail: カテゴリ別（main/shorts/documentary）の動画表示
+    role: 全ユーザー
+    tables: videos
+
+  - app: JOBTV
+    category: 公開ページ
+    subcategory: 企業詳細
+    name: 関連求人一覧
+    detail: 企業に紐づくアクティブ求人の表示
+    role: 全ユーザー
+    tables: job_postings
+
+  - app: JOBTV
+    category: 公開ページ
+    subcategory: 企業詳細
+    name: 関連説明会一覧
+    detail: 企業に紐づくアクティブ説明会の表示
+    role: 全ユーザー
+    tables: sessions
+
+  - app: JOBTV
+    category: 公開ページ
+    subcategory: 企業詳細
+    name: エントリーモーダル
+    detail: エントリーボタン → モーダルフォームで応募
+    role: candidate
+    tables: applications
+
+  - app: JOBTV
+    category: 公開ページ
+    subcategory: 企業詳細
+    name: SEO構造化データ
+    detail: JSON-LD（Organization, JobPosting, BreadcrumbList）
+    role: 全ユーザー
+    tables: "—"
+
+  # --- 求人詳細 ---
+  - app: JOBTV
+    category: 公開ページ
+    subcategory: 求人詳細
+    name: 求人情報表示
+    detail: タイトル・詳細・応募要件・給与・勤務地の表示
+    role: 全ユーザー
+    tables: job_postings
+
+  - app: JOBTV
+    category: 公開ページ
+    subcategory: 求人詳細
+    name: エントリー機能
+    detail: ログイン済み学生のエントリーボタン → エントリーモーダル
+    role: candidate
+    tables: applications
+
+  - app: JOBTV
+    category: 公開ページ
+    subcategory: 求人詳細
+    name: 応募状況表示
+    detail: ログイン済み学生の応募ステータス表示
+    role: candidate
+    tables: applications
+
+  - app: JOBTV
+    category: 公開ページ
+    subcategory: 求人詳細
+    name: SEO構造化データ
+    detail: JSON-LD（JobPosting）
+    role: 全ユーザー
+    tables: "—"
+
+  # --- 説明会詳細 ---
+  - app: JOBTV
+    category: 公開ページ
+    subcategory: 説明会詳細
+    name: 説明会情報表示
+    detail: タイトル・日時・会場（名前・住所・Google Maps）・集合時間
+    role: 全ユーザー
+    tables: sessions
+
+  - app: JOBTV
+    category: 公開ページ
+    subcategory: 説明会詳細
+    name: 予約モーダル
+    detail: 予約フォーム → 予約確定（定員管理・満席バッジ表示）
+    role: candidate
+    tables: session_reservations
+
+  - app: JOBTV
+    category: 公開ページ
+    subcategory: 説明会詳細
+    name: SEO構造化データ
+    detail: JSON-LD（Event）
+    role: 全ユーザー
+    tables: "—"
+
+  # --- イベントエントリー ---
+  - app: JOBTV
+    category: 公開ページ
+    subcategory: イベントエントリー
+    name: イベント日程選択
+    detail: event_type_ids / from_days / to_days パラメータによるフィルタリング
+    role: 全ユーザー
+    tables: events
+
+  - app: JOBTV
+    category: 公開ページ
+    subcategory: イベントエントリー
+    name: WEB相談チェック
+    detail: WEB相談希望チェックボックス
+    role: candidate
+    tables: event_reservations
+
+  - app: JOBTV
+    category: 公開ページ
+    subcategory: イベントエントリー
+    name: ログイン/新規登録フロー
+    detail: 既存候補者ログイン or 新規登録＋予約の統合フロー
+    role: candidate
+    tables: candidates, profiles
+
+  - app: JOBTV
+    category: 公開ページ
+    subcategory: イベントエントリー
+    name: CAPTCHA認証
+    detail: Cloudflare Turnstile（Supabase native）によるボット対策
+    role: 全ユーザー
+    tables: "—"
+
+  - app: JOBTV
+    category: 公開ページ
+    subcategory: イベントエントリー
+    name: 予約確定通知
+    detail: 確認メール（SendGrid）/ LINE Push / Slack通知 / Sheets追記
+    role: candidate
+    tables: event_reservations
+
+  - app: JOBTV
+    category: 公開ページ
+    subcategory: イベントエントリー
+    name: サンクスページ
+    detail: Googleカレンダー追加ボタン + LINE CTA表示
+    role: candidate
+    tables: "—"
+
+  - app: JOBTV
+    category: 公開ページ
+    subcategory: イベントエントリー
+    name: UTMパラメータ追跡
+    detail: utm_source/medium/campaign/content/term のキャプチャ・保存
+    role: 全ユーザー
+    tables: event_reservations
+
+  # --- LPコンテンツ ---
+  - app: JOBTV
+    category: 公開ページ
+    subcategory: LPコンテンツ
+    name: サンプル動画
+    detail: LP用サンプル動画一覧（タグ・再生時間付き）
+    role: 全ユーザー
+    tables: lp_sample_videos
+
+  - app: JOBTV
+    category: 公開ページ
+    subcategory: LPコンテンツ
+    name: FAQ
+    detail: よくある質問（Q&Aペア、display_order順）
+    role: 全ユーザー
+    tables: lp_faq_items
+
+  - app: JOBTV
+    category: 公開ページ
+    subcategory: LPコンテンツ
+    name: 企業ロゴ帯
+    detail: 導入企業ロゴ表示（top/bottomの行位置指定）
+    role: 全ユーザー
+    tables: lp_company_logos
+
+  - app: JOBTV
+    category: 公開ページ
+    subcategory: LPコンテンツ
+    name: スクロールバナー
+    detail: LP用スクロールバナー（is_active管理）
+    role: 全ユーザー
+    tables: lp_scroll_banners
+
+  # --- 利用規約 ---
+  - app: JOBTV
+    category: 公開ページ
+    subcategory: 利用規約
+    name: 利用規約ページ
+    detail: 静的コンテンツ + SEO JSON-LD（WebPage）
+    role: 全ユーザー
+    tables: "—"
+
+  # ===========================================================================
+  # JOBTV - 認証
+  # ===========================================================================
+
+  # --- 学生認証 ---
+  - app: JOBTV
+    category: 認証
+    subcategory: 学生認証
+    name: 新規会員登録
+    detail: |-
+      メール+パスワード+詳細プロフィール（氏名・性別・卒年・学校・学部・学科・専攻・希望勤務地・業界・職種・電話番号）
+      利用規約同意・Turnstile CAPTCHA
+      RPC create_candidate_and_link_profile() で candidates + profiles 作成
+    role: candidate
+    tables: candidates, profiles
+
+  - app: JOBTV
+    category: 認証
+    subcategory: 学生認証
+    name: 登録後通知
+    detail: ウェルカムメール（LINE CTA付き）/ Slack通知 / Google Sheets追記
+    role: candidate
+    tables: "—"
+
+  - app: JOBTV
+    category: 認証
+    subcategory: 学生認証
+    name: ログイン
+    detail: メール+パスワード + Turnstile CAPTCHA
+    role: candidate
+    tables: "—"
+
+  - app: JOBTV
+    category: 認証
+    subcategory: 学生認証
+    name: パスワードリセット
+    detail: メールアドレス入力 → リセットメール → 新パスワード設定（Turnstile付き）
+    role: candidate
+    tables: "—"
+
+  # --- 企業認証 ---
+  - app: JOBTV
+    category: 認証
+    subcategory: 企業認証
+    name: Studioログイン
+    detail: メール+パスワード + Turnstile CAPTCHA（MFAはrecruiterは任意）
+    role: recruiter
+    tables: "—"
+
+  - app: JOBTV
+    category: 認証
+    subcategory: 企業認証
+    name: チームメンバー招待
+    detail: メールアドレスでの招待リンク生成・送信（invite_team_member テンプレート）
+    role: recruiter
+    tables: profiles
+
+  # --- 管理者認証 ---
+  - app: JOBTV
+    category: 認証
+    subcategory: 管理者認証
+    name: 管理者ログイン
+    detail: メール+パスワード + Turnstile CAPTCHA + MFA必須（TOTP）
+    role: admin
+    tables: "—"
+
+  - app: JOBTV
+    category: 認証
+    subcategory: 管理者認証
+    name: MFA設定
+    detail: |-
+      初回: QRコード生成・バックアップコード発行
+      以降: 6桁コード検証（AAL2セッション）
+    role: admin
+    tables: "—"
+
+  - app: JOBTV
+    category: 認証
+    subcategory: 管理者認証
+    name: 代理ログイン
+    detail: |-
+      管理者がrecruiterアカウントにマジックリンクでログイン（120分タイムアウト）
+      監査ログ記録・AAL2維持
+    role: admin
+    tables: "—"
+
+  # ===========================================================================
+  # JOBTV - マイページ
+  # ===========================================================================
+  - app: JOBTV
+    category: マイページ
+    subcategory: プロフィール
+    name: プロフィール編集
+    detail: |-
+      個人情報（氏名・電話・生年月日・学校・学部等）の閲覧・編集
+      SuggestInput（school_master参照）・卒年選択・業界/職種チェックボックス
+    role: candidate
+    tables: candidates, school_master
+
+  - app: JOBTV
+    category: マイページ
+    subcategory: エントリー
+    name: 応募一覧
+    detail: 提出済みエントリー一覧・ステータス表示
+    role: candidate
+    tables: applications
+
+  - app: JOBTV
+    category: マイページ
+    subcategory: 説明会予約
+    name: 説明会予約一覧
+    detail: 予約済み説明会一覧・キャンセルボタン・詳細表示
+    role: candidate
+    tables: session_reservations
+
+  - app: JOBTV
+    category: マイページ
+    subcategory: イベント予約
+    name: イベント予約一覧
+    detail: 予約済みイベント一覧・ステータスバッジ（reserved/cancelled/attended）
+    role: candidate
+    tables: event_reservations
+
+  - app: JOBTV
+    category: マイページ
+    subcategory: FAQ
+    name: FAQ
+    detail: よくある質問ページ
+    role: candidate
+    tables: "—"
+
+  - app: JOBTV
+    category: マイページ
+    subcategory: ホーム
+    name: マイページホーム
+    detail: ユーザー挨拶・LINE連携ステータス+CTAボタン・今後のイベント/説明会サマリ
+    role: candidate
+    tables: candidates
+
+  # ===========================================================================
+  # JOBTV - Studio（企業向け）
+  # ===========================================================================
+
+  # --- 企業ページ管理 ---
+  - app: JOBTV
+    category: Studio（企業向け）
+    subcategory: 企業ページ管理
+    name: 企業ページ編集（Draft）
+    detail: |-
+      タグライン・企業説明（Markdown）・カバー画像・ロゴ・SNSリンク・福利厚生JSON
+      動画選択・営業時間/アクセス情報の編集
+    role: recruiter
+    tables: company_pages_draft
+
+  - app: JOBTV
+    category: Studio（企業向け）
+    subcategory: 企業ページ管理
+    name: 審査申請
+    detail: Draft → submitted に変更して管理者レビューへ提出
+    role: recruiter
+    tables: company_pages_draft
+
+  - app: JOBTV
+    category: Studio（企業向け）
+    subcategory: 企業ページ管理
+    name: 承認状況確認
+    detail: 現在のdraft_status（draft/submitted/approved/rejected）の表示
+    role: recruiter
+    tables: company_pages_draft
+
+  - app: JOBTV
+    category: Studio（企業向け）
+    subcategory: 企業ページ管理
+    name: プレビュー
+    detail: 承認前のDraftコンテンツプレビュー画面
+    role: recruiter
+    tables: company_pages_draft
+
+  # --- 動画管理 ---
+  - app: JOBTV
+    category: Studio（企業向け）
+    subcategory: 動画管理
+    name: 動画一覧（カテゴリタブ）
+    detail: |-
+      main/short/documentary カテゴリ別タブ切り替え
+      動画タイトル・サムネイル・ステータスバッジ表示
+    role: recruiter
+    tables: videos_draft, videos
+
+  - app: JOBTV
+    category: Studio（企業向け）
+    subcategory: 動画管理
+    name: 動画アップロード
+    detail: |-
+      署名付きURL（Presigned URL）によるS3直接アップロード（500MB上限・15分有効期限）
+      アップロード進捗バー（useS3Upload hook）
+    role: recruiter
+    tables: videos_draft
+
+  - app: JOBTV
+    category: Studio（企業向け）
+    subcategory: 動画管理
+    name: 動画編集
+    detail: タイトル・説明・サムネイル画像・動画向き（landscape/portrait）・カテゴリ選択
+    role: recruiter
+    tables: videos_draft
+
+  - app: JOBTV
+    category: Studio（企業向け）
+    subcategory: 動画管理
+    name: MediaConvert自動変換
+    detail: |-
+      アップロード確認後にMediaConvertジョブ自動起動
+      HLSマスターマニフェスト生成（1080p + 720p）
+    role: recruiter
+    tables: videos_draft
+
+  - app: JOBTV
+    category: Studio（企業向け）
+    subcategory: 動画管理
+    name: 動画審査申請
+    detail: |-
+      Draft → submitted に変更、管理者レビューへ提出
+      編集時は submitted → draft に戻る
+    role: recruiter
+    tables: videos_draft
+
+  - app: JOBTV
+    category: Studio（企業向け）
+    subcategory: 動画管理
+    name: 動画プレビュー
+    detail: HLSマニフェスト再生（CloudFront or S3）・HLS.jsプレーヤー
+    role: recruiter
+    tables: videos_draft
+
+  - app: JOBTV
+    category: Studio（企業向け）
+    subcategory: 動画管理
+    name: 動画削除
+    detail: 論理削除 + storage_deletion_queue への登録
+    role: recruiter
+    tables: videos_draft, storage_deletion_queue
+
+  - app: JOBTV
+    category: Studio（企業向け）
+    subcategory: 動画管理
+    name: カテゴリ上限管理
+    detail: main=1本、shorts/documentary=各10本の上限チェック
+    role: recruiter
+    tables: videos_draft
+
+  # --- 求人管理 ---
+  - app: JOBTV
+    category: Studio（企業向け）
+    subcategory: 求人管理
+    name: 求人一覧
+    detail: タイトル・企業名・ステータスバッジ・検索/フィルタ
+    role: recruiter
+    tables: job_postings_draft, job_postings
+
+  - app: JOBTV
+    category: Studio（企業向け）
+    subcategory: 求人管理
+    name: 求人作成/編集
+    detail: |-
+      タイトル・説明・応募要件・給与・雇用形態・勤務地
+      Draft/Production ワークフロー
+    role: recruiter
+    tables: job_postings_draft
+
+  - app: JOBTV
+    category: Studio（企業向け）
+    subcategory: 求人管理
+    name: 応募者一覧
+    detail: 求人別の応募者リスト（名前・プロフィール・応募日・ステータス・コメント）
+    role: recruiter
+    tables: applications
+
+  # --- 説明会管理 ---
+  - app: JOBTV
+    category: Studio（企業向け）
+    subcategory: 説明会管理
+    name: 説明会一覧
+    detail: タイトル・日時・会場・ステータスの表示
+    role: recruiter
+    tables: sessions_draft, sessions
+
+  - app: JOBTV
+    category: Studio（企業向け）
+    subcategory: 説明会管理
+    name: 説明会作成/編集
+    detail: |-
+      タイトル・説明・日時・集合時間・会場・Google Maps URL
+      複数日程管理（session_dates_draft）
+    role: recruiter
+    tables: sessions_draft, session_dates_draft
+
+  - app: JOBTV
+    category: Studio（企業向け）
+    subcategory: 説明会管理
+    name: 予約者一覧
+    detail: |-
+      予約者リスト（名前・連絡先・予約日・出席ステータス・リマインダー送信状況）
+      CSVエクスポート
+    role: recruiter
+    tables: session_reservations
+
+  # --- 候補者一覧 ---
+  - app: JOBTV
+    category: Studio（企業向け）
+    subcategory: 候補者一覧
+    name: 候補者検索・表示
+    detail: |-
+      名前・メール・電話・卒年・学校での検索/フィルタ
+      候補者プロフィールカード表示（読み取り専用）
+    role: recruiter
+    tables: candidates
+
+  # --- ダッシュボード ---
+  - app: JOBTV
+    category: Studio（企業向け）
+    subcategory: ダッシュボード
+    name: Studioダッシュボード
+    detail: |-
+      動画・求人・説明会の総数/承認待ち件数
+      最近の応募・予約・承認ステータスアラート
+      チームメンバー一覧
+    role: recruiter
+    tables: "—"
+
+  # --- 通知 ---
+  - app: JOBTV
+    category: Studio（企業向け）
+    subcategory: 通知
+    name: アプリ内通知
+    detail: 通知一覧（全て/未読/success/warning フィルタ）・既読マーク・削除
+    role: recruiter
+    tables: notifications, notification_reads
+
+  # --- 設定 ---
+  - app: JOBTV
+    category: Studio（企業向け）
+    subcategory: 設定
+    name: プロフィール設定
+    detail: recruiterプロフィール（氏名・メール・電話）の更新・アバターアップロード
+    role: recruiter
+    tables: profiles
+
+  - app: JOBTV
+    category: Studio（企業向け）
+    subcategory: 設定
+    name: 企業情報設定
+    detail: 企業基本情報（ロゴ・業界・従業員数・設立年等）の閲覧・更新
+    role: recruiter
+    tables: companies
+
+  - app: JOBTV
+    category: Studio（企業向け）
+    subcategory: 設定
+    name: パスワード変更
+    detail: 現在のパスワード → 新パスワードへの変更
+    role: recruiter
+    tables: "—"
+
+  - app: JOBTV
+    category: Studio（企業向け）
+    subcategory: 設定
+    name: チームメンバー管理
+    detail: チームメンバー一覧・招待・削除
+    role: recruiter
+    tables: profiles
+
+  - app: JOBTV
+    category: Studio（企業向け）
+    subcategory: 設定
+    name: ヘルプ
+    detail: FAQ・ドキュメントリンク・サポート連絡先
+    role: recruiter
+    tables: "—"
+
+  # ===========================================================================
+  # JOBTV - 管理画面
+  # ===========================================================================
+
+  # --- コンテンツ審査 ---
+  - app: JOBTV
+    category: 管理画面
+    subcategory: コンテンツ審査
+    name: 企業ページ審査
+    detail: |-
+      submitted状態のcompany_pages_draftの一覧・プレビュー
+      承認（→ company_pages更新 + production_page_id設定）/ 却下
+    role: admin
+    tables: company_pages_draft, company_pages
+
+  - app: JOBTV
+    category: 管理画面
+    subcategory: コンテンツ審査
+    name: 求人審査
+    detail: |-
+      submitted状態のjob_postings_draftの一覧・プレビュー
+      承認（→ job_postings更新）/ 却下
+    role: admin
+    tables: job_postings_draft, job_postings
+
+  - app: JOBTV
+    category: 管理画面
+    subcategory: コンテンツ審査
+    name: 説明会審査
+    detail: |-
+      submitted状態のsessions_draftの一覧・プレビュー
+      承認（→ sessions更新）/ 却下
+    role: admin
+    tables: sessions_draft, sessions
+
+  - app: JOBTV
+    category: 管理画面
+    subcategory: コンテンツ審査
+    name: 動画審査
+    detail: |-
+      submitted状態のvideos_draftの一覧・サムネイル・HLS動画プレビュー
+      承認（→ videos更新）/ 却下
+    role: admin
+    tables: videos_draft, videos
+
+  # --- 企業アカウント管理 ---
+  - app: JOBTV
+    category: 管理画面
+    subcategory: 企業アカウント管理
+    name: 企業一覧
+    detail: 全企業リスト・検索/フィルタ（名前・業界・ステータス）・ページネーション
+    role: admin
+    tables: companies
+
+  - app: JOBTV
+    category: 管理画面
+    subcategory: 企業アカウント管理
+    name: 企業情報編集
+    detail: |-
+      企業名・ロゴ・業界・従業員数・Webサイト・本社
+      サムネイルアップロード（Draftバイパス）
+    role: admin
+    tables: companies
+
+  - app: JOBTV
+    category: 管理画面
+    subcategory: 企業アカウント管理
+    name: 企業ページ直接編集
+    detail: production company_pagesの直接編集（Draft/審査フローバイパス）
+    role: admin
+    tables: company_pages
+
+  - app: JOBTV
+    category: 管理画面
+    subcategory: 企業アカウント管理
+    name: 求人直接管理
+    detail: 企業別の求人追加/編集/削除（Draftバイパス）・ステータス切替（active/closed）
+    role: admin
+    tables: job_postings
+
+  - app: JOBTV
+    category: 管理画面
+    subcategory: 企業アカウント管理
+    name: 説明会直接管理
+    detail: 企業別の説明会追加/編集/削除・ステータス切替
+    role: admin
+    tables: sessions
+
+  - app: JOBTV
+    category: 管理画面
+    subcategory: 企業アカウント管理
+    name: 動画直接管理
+    detail: 企業別の動画追加/編集/削除・ステータス切替・HLS再生
+    role: admin
+    tables: videos
+
+  - app: JOBTV
+    category: 管理画面
+    subcategory: 企業アカウント管理
+    name: Recruiter管理
+    detail: |-
+      企業別のrecruiterアカウント一覧・追加/削除・詳細編集・パスワードリセット
+      監査ログ記録
+    role: admin
+    tables: profiles
+
+  # --- 学生アカウント管理 ---
+  - app: JOBTV
+    category: 管理画面
+    subcategory: 学生アカウント管理
+    name: 学生一覧
+    detail: |-
+      名前・メール・電話・卒年・学校での検索/フィルタ
+      CSVインポート/エクスポート
+    role: admin
+    tables: candidates, profiles
+
+  - app: JOBTV
+    category: 管理画面
+    subcategory: 学生アカウント管理
+    name: 学生作成/招待
+    detail: |-
+      フォーム入力 or CSVファイルアップロードでの一括登録
+      Supabase Auth generateLink → 招待メール送信
+      profiles(role=candidate) + candidates行の作成
+    role: admin
+    tables: candidates, profiles
+
+  # --- Recruiter管理 ---
+  - app: JOBTV
+    category: 管理画面
+    subcategory: Recruiter管理
+    name: Recruiterアカウント作成
+    detail: |-
+      メール・氏名・企業選択 → 招待リンク生成/パスワード設定
+      招待メール（invite_recruiter）送信・監査ログ
+    role: admin
+    tables: profiles
+
+  - app: JOBTV
+    category: 管理画面
+    subcategory: Recruiter管理
+    name: Recruiter一覧・編集
+    detail: 検索/フィルタ（企業別）・氏名/メール/電話編集・パスワードリセット・アカウント無効化
+    role: admin
+    tables: profiles
+
+  # --- 管理者アカウント管理 ---
+  - app: JOBTV
+    category: 管理画面
+    subcategory: 管理者アカウント管理
+    name: 管理者一覧
+    detail: 管理者ユーザー一覧・MFAステータス表示
+    role: admin
+    tables: profiles
+
+  - app: JOBTV
+    category: 管理画面
+    subcategory: 管理者アカウント管理
+    name: 管理者作成/削除
+    detail: 新規管理者アカウント作成・パスワードリセット・アカウント削除
+    role: admin
+    tables: profiles
+
+  # --- イベント管理 ---
+  - app: JOBTV
+    category: 管理画面
+    subcategory: イベント管理
+    name: イベント一覧
+    detail: |-
+      イベントタイプ・エリア・日付・卒年でのフィルタ
+      ステータス（active/paused/cancelled）・論理削除
+    role: admin
+    tables: events
+
+  - app: JOBTV
+    category: 管理画面
+    subcategory: イベント管理
+    name: イベント作成/編集
+    detail: |-
+      日時（event_date, start_time, end_time, gathering_time）
+      会場（venue_name, venue_address, google_maps_url）
+      表示設定（display_name, form_label, form_area）
+      イベントタイプ選択・目標参加者数・ステータス
+    role: admin
+    tables: events, event_types
+
+  - app: JOBTV
+    category: 管理画面
+    subcategory: イベント管理
+    name: 参加企業管理
+    detail: イベントごとの参加企業追加/削除（event_companies）
+    role: admin
+    tables: event_companies
+
+  - app: JOBTV
+    category: 管理画面
+    subcategory: イベント管理
+    name: 予約者管理
+    detail: |-
+      予約者一覧（名前・電話・メール・ステータス・WEB相談希望）
+      予約追加/削除・一括インポート/エクスポート
+      監査ログ
+    role: admin
+    tables: event_reservations
+
+  - app: JOBTV
+    category: 管理画面
+    subcategory: イベント管理
+    name: マスタデータ管理
+    detail: |-
+      イベントタイプCRUD（名称・エリア・対象卒年）
+      エリアCRUD / 卒年CRUD
+    role: admin
+    tables: event_types, event_areas, event_graduation_years
+
+  # --- LINE配信管理 ---
+  - app: JOBTV
+    category: 管理画面
+    subcategory: LINE配信管理
+    name: セグメント配信
+    detail: |-
+      卒年・学校種別・専攻・業界/職種希望によるターゲット絞り込み
+      対象者数リアルタイム表示
+    role: admin
+    tables: candidates
+
+  - app: JOBTV
+    category: 管理画面
+    subcategory: LINE配信管理
+    name: メッセージビルダー
+    detail: |-
+      テキスト（5000字・変数挿入: {{last_name}}等）
+      Bubble（ヒーロー画像・タイトル・説明・ボタン1-3）
+      Carousel（複数Bubble・ドラッグ並替）
+      Image（画像URL・10MB上限）
+      Imagemap（画像+クリッカブルエリア・URI/messageアクション）
+    role: admin
+    tables: line_broadcast_logs
+
+  - app: JOBTV
+    category: 管理画面
+    subcategory: LINE配信管理
+    name: テンプレート管理
+    detail: メッセージテンプレートCRUD（line_message_templates）・テンプレートからの読み込み・保存
+    role: admin
+    tables: line_message_templates
+
+  - app: JOBTV
+    category: 管理画面
+    subcategory: LINE配信管理
+    name: 即時/スケジュール配信
+    detail: 即時送信 or 日時指定スケジュール配信（Cron 5分間隔で実行）
+    role: admin
+    tables: line_broadcast_logs
+
+  - app: JOBTV
+    category: 管理画面
+    subcategory: LINE配信管理
+    name: テスト送信
+    detail: 管理者LINE ID（admin_line_user_ids）へのテスト送信
+    role: admin
+    tables: "—"
+
+  - app: JOBTV
+    category: 管理画面
+    subcategory: LINE配信管理
+    name: プレビュー
+    detail: |-
+      LINE Chat Frame風プレビューペイン・Flex Messageレンダリング
+      JSON直接編集モード切替
+    role: admin
+    tables: "—"
+
+  - app: JOBTV
+    category: 管理画面
+    subcategory: LINE配信管理
+    name: 配信履歴
+    detail: |-
+      全配信ログ一覧（ステータス: draft/scheduled/sending/sent/failed/cancelled）
+      対象数・送信数・失敗数・ブロック数
+    role: admin
+    tables: line_broadcast_logs
+
+  - app: JOBTV
+    category: 管理画面
+    subcategory: LINE配信管理
+    name: 配信詳細・個別配信結果
+    detail: |-
+      配信サマリ（フィルタ・メッセージ・ターゲット）
+      個別配信結果テーブル（候補者名・ステータス・エラーコード・リトライ回数）
+      CSVエクスポート
+    role: admin
+    tables: line_broadcast_deliveries
+
+  - app: JOBTV
+    category: 管理画面
+    subcategory: LINE配信管理
+    name: リッチメニュー管理
+    detail: 現在のリッチメニュー表示・編集（画像・エリア・アクション）・保存/公開・デフォルトリセット
+    role: admin
+    tables: "—"
+
+  # --- メール管理 ---
+  - app: JOBTV
+    category: 管理画面
+    subcategory: メール管理
+    name: メールテンプレート管理
+    detail: テンプレート一覧（14種類）・件名/HTML編集・変数リスト・プレビュー・テスト送信
+    role: admin
+    tables: email_templates
+
+  - app: JOBTV
+    category: 管理画面
+    subcategory: メール管理
+    name: メール送信ログ
+    detail: |-
+      全送信メール一覧（宛先・テンプレート・ステータス・日付フィルタ）
+      詳細モーダル（HTML プレビュー・エラー表示）・リトライボタン
+    role: admin
+    tables: email_logs
+
+  # --- トップページCMS ---
+  - app: JOBTV
+    category: 管理画面
+    subcategory: トップページCMS
+    name: ヒーローアイテム管理
+    detail: |-
+      一覧・作成/編集（タイトル・説明・サムネイル・動画URL・チャンネル・視聴者数・PR・リンクURL・表示順）
+      ドラッグ並替・削除
+    role: admin
+    tables: top_page_hero_items
+
+  - app: JOBTV
+    category: 管理画面
+    subcategory: トップページCMS
+    name: バナー管理
+    detail: 一覧・作成/編集（タイトル・画像アップロード・リンクURL・表示順）・ドラッグ並替・削除
+    role: admin
+    tables: top_page_banners
+
+  - app: JOBTV
+    category: 管理画面
+    subcategory: トップページCMS
+    name: 注目動画管理
+    detail: |-
+      就活Shorts/就活ドキュメンタリータブ切替
+      現在のフィーチャー動画（ドラッグ並替・削除）
+      利用可能動画からの追加（検索/フィルタ付き・UNIQUE制約）
+    role: admin
+    tables: top_page_featured_videos, videos
+
+  - app: JOBTV
+    category: 管理画面
+    subcategory: トップページCMS
+    name: アンバサダー管理
+    detail: 一覧・作成/編集（名前・アバターURL・リンクURL・表示順）・並替・削除
+    role: admin
+    tables: top_page_ambassadors
+
+  - app: JOBTV
+    category: 管理画面
+    subcategory: トップページCMS
+    name: Shun Diaries管理
+    detail: 一覧・作成/編集（タイトル・サムネイルURL・リンクURL・チャンネル・表示順）・並替・削除
+    role: admin
+    tables: top_page_shun_diaries
+
+  # --- LP CMS ---
+  - app: JOBTV
+    category: 管理画面
+    subcategory: LP CMS
+    name: サンプル動画管理
+    detail: 一覧・作成/編集（動画URL・タグ・タイトル・説明・再生時間・表示順）・並替・削除
+    role: admin
+    tables: lp_sample_videos
+
+  - app: JOBTV
+    category: 管理画面
+    subcategory: LP CMS
+    name: FAQ管理
+    detail: 一覧・作成/編集（質問・回答・表示順）・並替・削除
+    role: admin
+    tables: lp_faq_items
+
+  - app: JOBTV
+    category: 管理画面
+    subcategory: LP CMS
+    name: 企業ロゴ管理
+    detail: 一覧・作成/編集（企業名・画像URL・行位置top/bottom・表示順）・並替・削除
+    role: admin
+    tables: lp_company_logos
+
+  - app: JOBTV
+    category: 管理画面
+    subcategory: LP CMS
+    name: スクロールバナー管理
+    detail: 現在のアクティブバナー表示・作成/編集（画像URL・リンクURL・is_active）
+    role: admin
+    tables: lp_scroll_banners
+
+  # --- アプリ内通知 ---
+  - app: JOBTV
+    category: 管理画面
+    subcategory: アプリ内通知
+    name: 通知送信
+    detail: |-
+      対象選択（全ユーザー or 特定企業）・タイプ（success/info/warning/system）
+      メッセージ入力 → notifications テーブルへINSERT
+    role: admin
+    tables: notifications
+
+  - app: JOBTV
+    category: 管理画面
+    subcategory: アプリ内通知
+    name: 通知一覧
+    detail: 送信済み通知の一覧表示（読み取り専用）・古い通知の削除
+    role: admin
+    tables: notifications
+
+  # --- ストレージ管理 ---
+  - app: JOBTV
+    category: 管理画面
+    subcategory: ストレージ管理
+    name: 削除キュー管理
+    detail: |-
+      storage_deletion_queue一覧（ステータス: pending/approved/completed/failed）
+      ソース・ストレージタイプ（S3/Supabase）・バケット・パス表示
+      承認（pending→approved）・実行（approved→completed/failed）・完了クリア
+    role: admin
+    tables: storage_deletion_queue
+
+  - app: JOBTV
+    category: 管理画面
+    subcategory: ストレージ管理
+    name: クリーンアップスケジュール
+    detail: |-
+      storage_cleanup_schedules一覧（ステータス: pending/running/completed/failed）
+      スキャン日付範囲・結果サマリ（孤立ファイル数）
+      スケジュール作成・即時実行・削除
+    role: admin
+    tables: storage_cleanup_schedules
+
+  # --- ダッシュボード ---
+  - app: JOBTV
+    category: 管理画面
+    subcategory: ダッシュボード
+    name: 管理者ダッシュボード
+    detail: |-
+      承認待ち件数（企業ページ/求人/説明会/動画）
+      最近の応募/予約/登録
+      チームアクティビティ・システムヘルス・クイックアクション
+    role: admin
+    tables: "—"
+
+  # ===========================================================================
+  # JOBTV - 動画配信基盤
+  # ===========================================================================
+  - app: JOBTV
+    category: 動画配信基盤
+    subcategory: アップロード
+    name: 署名付きURLアップロード
+    detail: |-
+      Server Actionで署名付きURL生成（15分有効・500MB上限・MIMEバリデーション）
+      ブラウザからS3へXMLHttpRequest PUT直接アップロード
+    role: recruiter
+    tables: "—"
+
+  - app: JOBTV
+    category: 動画配信基盤
+    subcategory: 変換
+    name: MediaConvert HLS変換
+    detail: |-
+      アップロード確認後にMediaConvertジョブ自動起動
+      Landscape/Portraitテンプレート選択
+      HLSマスターマニフェスト生成（1080p + 720p）
+    role: system
+    tables: "—"
+
+  - app: JOBTV
+    category: 動画配信基盤
+    subcategory: 配信
+    name: CloudFront CDN配信
+    detail: |-
+      HLSアダプティブビットレートストリーミング
+      署名付きURLによるセキュアアクセス
+      CORS設定（S3 + CloudFront）
+    role: system
+    tables: "—"
+
+  - app: JOBTV
+    category: 動画配信基盤
+    subcategory: 再生
+    name: HLS動画プレーヤー
+    detail: HLS.jsベースのアダプティブビットレートプレーヤー・ポスター/サムネイル表示・全画面・再生制御・品質選択
+    role: 全ユーザー
+    tables: videos
+
+  - app: JOBTV
+    category: 動画配信基盤
+    subcategory: ストレージパス
+    name: 動画ストレージ管理
+    detail: |-
+      オリジナル: companies/{companyId}/videos/{draftId}/original.{ext}
+      変換後: transcoded/{landscape|portrait}/{companyId}/videos/{videoId}/hls/
+      出力: original.m3u8, master_1080p.m3u8, master_720p.m3u8 + .tsセグメント
+    role: system
+    tables: "—"
+
+  - app: JOBTV
+    category: 動画配信基盤
+    subcategory: 削除管理
+    name: ストレージ削除キュー
+    detail: |-
+      全削除はstorage_deletion_queue経由（直接削除禁止）
+      S3プレフィックス削除・Supabase Storage削除対応
+      管理者承認ワークフロー
+    role: admin
+    tables: storage_deletion_queue
+
+  # ===========================================================================
+  # JOBTV - LINE連携
+  # ===========================================================================
+  - app: JOBTV
+    category: LINE連携
+    subcategory: LINEログイン
+    name: OAuth連携
+    detail: |-
+      /api/line/authorize → LINE認証 → /api/line/callback
+      candidates.line_user_id に保存（UNIQUE）
+      連携状態表示・連携解除ボタン
+    role: candidate
+    tables: candidates
+
+  - app: JOBTV
+    category: LINE連携
+    subcategory: Push通知
+    name: イベント予約確認
+    detail: event_reservations INSERT時にLINE Pushメッセージ送信
+    role: candidate
+    tables: event_reservations
+
+  - app: JOBTV
+    category: LINE連携
+    subcategory: Push通知
+    name: イベントリマインダー
+    detail: |-
+      7日前・3日前・1日前リマインダー（Vercel Cron: 毎日JST 10:00）
+      last_reminder_sent_at で重複送信防止
+    role: candidate
+    tables: event_reservations
+
+  - app: JOBTV
+    category: LINE連携
+    subcategory: Push通知
+    name: 管理者配信（Broadcast）
+    detail: |-
+      セグメント配信（卒年・学校種別等）
+      即時/スケジュール配信
+      リトライ機構（Cron 15分間隔・最大3回）
+      配信ログ記録
+    role: admin
+    tables: line_broadcast_logs, line_broadcast_deliveries
+
+  - app: JOBTV
+    category: LINE連携
+    subcategory: リッチメニュー
+    name: リッチメニュー管理
+    detail: |-
+      管理画面からリッチメニュー作成/編集/公開
+      画像 + クリッカブルエリア（5行×3列）
+    role: admin
+    tables: "—"
+
+  - app: JOBTV
+    category: LINE連携
+    subcategory: CTAタッチポイント
+    name: LINE CTA配置
+    detail: 会員登録サンクスページ・ウェルカムメール・マイページ・エントリー完了メッセージ・全候補者メールフッター
+    role: candidate
+    tables: "—"
+
+  # ===========================================================================
+  # JOBTV - 通知基盤
+  # ===========================================================================
+
+  # --- メール（SendGrid）---
+  - app: JOBTV
+    category: 通知基盤
+    subcategory: メール（SendGrid）
+    name: 認証メール
+    detail: signup_confirmation / password_reset（Supabase Auth Hook経由）
+    role: system
+    tables: "—"
+
+  - app: JOBTV
+    category: 通知基盤
+    subcategory: メール（SendGrid）
+    name: 候補者向けメール
+    detail: |-
+      candidate_welcome（LINE CTA付き）/ event_reservation_confirmation
+      session_reservation_confirmation / job_application_confirmation
+    role: candidate
+    tables: email_logs
+
+  - app: JOBTV
+    category: 通知基盤
+    subcategory: メール（SendGrid）
+    name: 企業向けメール
+    detail: |-
+      invite_recruiter / invite_team_member
+      job_application_notification / session_reservation_notification
+    role: recruiter
+    tables: email_logs
+
+  - app: JOBTV
+    category: 通知基盤
+    subcategory: メール（SendGrid）
+    name: リマインダーメール
+    detail: event_reservation_reminder_7d / 3d / 1d（Cron経由）
+    role: candidate
+    tables: email_logs
+
+  - app: JOBTV
+    category: 通知基盤
+    subcategory: メール（SendGrid）
+    name: 招待メール
+    detail: invite_student（管理者からの学生招待メール）
+    role: admin
+    tables: email_logs
+
+  - app: JOBTV
+    category: 通知基盤
+    subcategory: メール（SendGrid）
+    name: HTMLメール機能
+    detail: LINE CTA自動挿入（候補者メール）・レスポンシブデザイン・テキストフォールバック
+    role: system
+    tables: "—"
+
+  # --- Slack通知 ---
+  - app: JOBTV
+    category: 通知基盤
+    subcategory: Slack通知
+    name: 会員登録通知
+    detail: Block Kit形式でStudent情報サマリ + UTMパラメータ（SLACK_SIGNUP_WEBHOOK_URL）
+    role: system
+    tables: "—"
+
+  - app: JOBTV
+    category: 通知基盤
+    subcategory: Slack通知
+    name: イベント予約通知
+    detail: イベント詳細 + 学生情報 + WEB相談希望（SLACK_EVENT_RESERVATION_WEBHOOK_URL）
+    role: system
+    tables: "—"
+
+  - app: JOBTV
+    category: 通知基盤
+    subcategory: Slack通知
+    name: メール失敗通知
+    detail: SendGrid失敗時のアラート（SLACK_EMAIL_WEBHOOK_URL）
+    role: system
+    tables: "—"
+
+  # --- Google Sheets ---
+  - app: JOBTV
+    category: 通知基盤
+    subcategory: Google Sheets
+    name: 会員登録シート
+    detail: |-
+      25列（A-Y）: 登録日・アカウントID・卒年・性別・氏名・電話・メール・学校情報・希望業界/職種・UTM
+      登録時に自動追記（fire-and-forget）
+    role: system
+    tables: "—"
+
+  - app: JOBTV
+    category: 通知基盤
+    subcategory: Google Sheets
+    name: イベント予約シート
+    detail: |-
+      20列（A-T）: 予約日・学生氏名/メール/電話・イベント情報・UTM
+      予約時に自動追記
+    role: system
+    tables: "—"
+
+  # --- アプリ内通知 ---
+  - app: JOBTV
+    category: 通知基盤
+    subcategory: アプリ内通知
+    name: 通知配信/閲覧
+    detail: |-
+      notificationsテーブル（message, type, target_company_id）
+      notification_reads（ユーザー別既読管理）
+      管理者→全体or特定企業向け配信
+    role: admin/recruiter
+    tables: notifications, notification_reads
+
+  # ===========================================================================
+  # JOBTV - セキュリティ
+  # ===========================================================================
+  - app: JOBTV
+    category: セキュリティ
+    subcategory: 認可
+    name: RLS（行レベルセキュリティ）
+    detail: |-
+      全テーブルにRLSポリシー適用
+      ロール・テナント（company_id）に基づくデータ分離
+      IDOR攻撃防止
+    role: system
+    tables: 全テーブル
+
+  - app: JOBTV
+    category: セキュリティ
+    subcategory: 認証強化
+    name: MFA（多要素認証）
+    detail: 管理者アカウントにTOTPベースMFA必須・QRコード・バックアップコード・AAL2セッション管理
+    role: admin
+    tables: "—"
+
+  - app: JOBTV
+    category: セキュリティ
+    subcategory: コンテンツ品質
+    name: Draft/Production審査
+    detail: |-
+      企業コンテンツ（ページ・動画・求人・説明会）の2段階ワークフロー
+      Draft→submitted→approved/rejected
+    role: recruiter/admin
+    tables: 各draftテーブル
+
+  - app: JOBTV
+    category: セキュリティ
+    subcategory: ボット対策
+    name: CAPTCHA
+    detail: Cloudflare Turnstile（Supabase native統合）・全認証フォーム + エントリーフォームに適用
+    role: 全ユーザー
+    tables: "—"
+
+  - app: JOBTV
+    category: セキュリティ
+    subcategory: アクセス制御
+    name: IP制限
+    detail: /admin ルートへのIPホワイトリスト（Vercel Firewall or Middleware）
+    role: admin
+    tables: "—"
+
+  - app: JOBTV
+    category: セキュリティ
+    subcategory: 監査
+    name: 監査ログ
+    detail: 重要操作（LINE配信・コンテンツ編集・アカウント管理・ストレージ操作・代理ログイン等）の記録
+    role: system
+    tables: audit_logs
+
+  - app: JOBTV
+    category: セキュリティ
+    subcategory: その他
+    name: XSS/CSRF対策
+    detail: 入力サニタイゼーション・CSRFトークン・署名付きURL・エラーバウンダリ
+    role: system
+    tables: "—"
+
+  # ===========================================================================
+  # JOBTV - SEO/AIO
+  # ===========================================================================
+  - app: JOBTV
+    category: SEO/AIO
+    subcategory: 構造化データ
+    name: JSON-LD出力
+    detail: |-
+      VideoObjectList / Organization / JobPosting / Event / BreadcrumbList / WebPage
+      各ページで自動生成
+    role: system
+    tables: "—"
+
+  - app: JOBTV
+    category: SEO/AIO
+    subcategory: メタデータ
+    name: メタデータ最適化
+    detail: Next.js generateMetadata / generateStaticParams・OGP・Twitter Card自動生成
+    role: system
+    tables: "—"
+
+  - app: JOBTV
+    category: SEO/AIO
+    subcategory: AI対応
+    name: llms.txt
+    detail: AI/LLMクローラー向けの機械可読ドキュメント
+    role: system
+    tables: "—"
+
+  # ===========================================================================
+  # JOBTV - スケジュールジョブ
+  # ===========================================================================
+  - app: JOBTV
+    category: スケジュールジョブ
+    subcategory: Cron
+    name: イベントリマインダー
+    detail: Vercel Cron 毎日JST 10:00・イベント7日前/3日前/1日前にメール+LINE送信
+    role: system
+    tables: event_reservations
+
+  - app: JOBTV
+    category: スケジュールジョブ
+    subcategory: Cron
+    name: LINE配信実行
+    detail: Vercel Cron 5分間隔・スケジュール済み配信の実行
+    role: system
+    tables: line_broadcast_logs
+
+  - app: JOBTV
+    category: スケジュールジョブ
+    subcategory: Cron
+    name: LINE配信リトライ
+    detail: Vercel Cron 15分間隔・失敗配信のリトライ（最大3回）
+    role: system
+    tables: line_broadcast_deliveries
+
+  - app: JOBTV
+    category: スケジュールジョブ
+    subcategory: Cron
+    name: ストレージクリーンアップ
+    detail: 承認済み削除キューの実行・孤立ファイルスキャン
+    role: system
+    tables: storage_deletion_queue, storage_cleanup_schedules
+
+  # ===========================================================================
+  # Event System
+  # ===========================================================================
+
+  # --- 認証 ---
+  - app: Event System
+    category: 認証
+    subcategory: ログイン
+    name: 管理者/Recruiterログイン
+    detail: メール+パスワード（Supabase Auth）→ ロール別リダイレクト（/admin or /recruiter）
+    role: admin/recruiter
+    tables: "—"
+
+  - app: Event System
+    category: 認証
+    subcategory: ログイン
+    name: 学生ログイン
+    detail: |-
+      イベント選択 + 座席番号 + 電話番号によるCookieベース認証
+      パスワード不要・httpOnly Cookie（candidate_id, candidate_event_id）
+    role: candidate
+    tables: event_reservations
+
+  - app: Event System
+    category: 認証
+    subcategory: パスワード
+    name: パスワードリセット
+    detail: リセットメール送信 → 新パスワード設定
+    role: admin/recruiter
+    tables: "—"
+
+  # --- 管理画面 ---
+  - app: Event System
+    category: 管理画面
+    subcategory: ダッシュボード
+    name: 管理者ダッシュボード
+    detail: イベント数・企業数・候補者数・Recruiter数のサマリ・クイックアクションボタン
+    role: admin
+    tables: "—"
+
+  - app: Event System
+    category: 管理画面
+    subcategory: イベント管理
+    name: イベント作成/編集
+    detail: |-
+      日時・集合時間・会場情報・イベントタイプ・表示カスタマイズ
+      目標参加者数・ステータス・論理削除
+    role: admin
+    tables: events, event_types
+
+  - app: Event System
+    category: 管理画面
+    subcategory: イベント管理
+    name: イベント一覧
+    detail: タイプ・エリア・日付・卒年フィルタ・ステータスバッジ・編集/削除/詳細ボタン
+    role: admin
+    tables: events
+
+  - app: Event System
+    category: 管理画面
+    subcategory: 企業管理
+    name: 企業CRUD
+    detail: 企業名・業界・ロゴURLの作成/編集/検索・企業別Recruiter管理・コメントテンプレート管理
+    role: admin
+    tables: companies, recruiters, comment_templates
+
+  - app: Event System
+    category: 管理画面
+    subcategory: 候補者管理
+    name: 候補者CRUD
+    detail: |-
+      メール・氏名（漢字/カナ）・電話・性別・卒年・学校・専攻の作成/編集
+      CSVインポート/エクスポート・一括操作
+    role: admin
+    tables: candidates
+
+  - app: Event System
+    category: 管理画面
+    subcategory: Recruiter管理
+    name: Recruiter CRUD
+    detail: Recruiterアカウント作成・企業割当・編集・CSV一括登録
+    role: admin
+    tables: recruiters
+
+  - app: Event System
+    category: 管理画面
+    subcategory: 管理者管理
+    name: 管理者CRUD
+    detail: 管理者アカウント作成・パスワードリセット・削除
+    role: admin
+    tables: users
+
+  - app: Event System
+    category: 管理画面
+    subcategory: 予約・出席管理
+    name: 予約管理
+    detail: |-
+      候補者選択→予約追加・座席番号割当・ステータス管理（reserved/cancelled）
+      予約者一覧（名前・電話・メール・座席番号・出席チェック）
+    role: admin
+    tables: event_reservations
+
+  - app: Event System
+    category: 管理画面
+    subcategory: 参加企業管理
+    name: イベント企業登録
+    detail: イベント別の参加企業追加/削除（チェックボックス式）
+    role: admin
+    tables: event_companies
+
+  # --- マッチング ---
+  - app: Event System
+    category: マッチング
+    subcategory: 設定
+    name: マッチング設定
+    detail: |-
+      イベント選択・セッション数スライダー（=参加企業数）
+      重み設定表示（Recruiter評価0.7 / 学生評価0.3・固定）
+    role: admin
+    tables: "—"
+
+  - app: Event System
+    category: マッチング
+    subcategory: 評価状況
+    name: 評価進捗表示
+    detail: Recruiter評価進捗（S/A/B/C件数）・学生評価進捗（件数）・完了率
+    role: admin
+    tables: event_ratings_recruiter_to_candidate, event_ratings_candidate_to_company
+
+  - app: Event System
+    category: マッチング
+    subcategory: 特別面談
+    name: 特別面談設定
+    detail: 企業×セッション番号のマトリクス・チェックボックスで特別面談フラグ設定
+    role: admin
+    tables: event_special_interviews
+
+  - app: Event System
+    category: マッチング
+    subcategory: 実行
+    name: マッチング実行
+    detail: |-
+      Recruiter評価（S=4/A=3/B=2/C=1）× 0.7 + 学生評価（1-5）× 0.3 = スコア
+      スコアに基づくセッション別マッチング生成
+    role: admin
+    tables: matching_results, event_matching_sessions
+
+  - app: Event System
+    category: マッチング
+    subcategory: 結果
+    name: マッチング結果表示
+    detail: |-
+      セッション別のマッチング結果テーブル（座席番号・候補者名・企業名・特別面談バッジ【特】）
+      CSVエクスポート
+    role: admin
+    tables: matching_results
+
+  - app: Event System
+    category: マッチング
+    subcategory: 帳票
+    name: スコアシートPDF出力
+    detail: |-
+      全候補者分の一括PDF（1名1ページ）
+      ヘッダー（イベント名・日付・学生名・座席番号）
+      企業別評価表（総合・論理性・主体性・協調性・コメント・評価者名）
+    role: admin
+    tables: event_ratings_recruiter_to_candidate
+
+  # --- Recruiter機能 ---
+  - app: Event System
+    category: Recruiter機能
+    subcategory: 評価
+    name: 学生評価（Rating）
+    detail: |-
+      参加イベント選択 → 出席学生一覧表示
+      総合評価（S/A/B/C・S上限5名/企業/イベント）
+      詳細評価（論理性・主体性・協調性: 各S/A/B/C）
+      コメント（60文字制限・S/A評価時は必須）
+      テンプレート選択・内部メモ（1000文字）
+    role: recruiter
+    tables: event_ratings_recruiter_to_candidate
+
+  - app: Event System
+    category: Recruiter機能
+    subcategory: 評価
+    name: 評価競合検出
+    detail: 他のRecruiterが同じ学生を評価済みの場合に確認ダイアログ表示
+    role: recruiter
+    tables: event_ratings_recruiter_to_candidate
+
+  - app: Event System
+    category: Recruiter機能
+    subcategory: フィードバック
+    name: 学生評価レビュー
+    detail: |-
+      イベント別の学生評価統計（合計・平均・分布グラフ）
+      学生別評価詳細テーブル（座席番号・名前・星評価・コメント）
+    role: recruiter
+    tables: event_ratings_candidate_to_company
+
+  - app: Event System
+    category: Recruiter機能
+    subcategory: テンプレート
+    name: コメントテンプレート管理
+    detail: テンプレート一覧・作成/編集/削除（60文字制限・バリデータ）・企業別保存
+    role: recruiter
+    tables: comment_templates
+
+  # --- 学生機能 ---
+  - app: Event System
+    category: 学生機能
+    subcategory: 評価
+    name: 企業評価（Rating）
+    detail: |-
+      イベント参加企業一覧表示
+      星評価（1-5）+ コメント（60文字制限）
+      UNIQUE制約（candidate_id, company_id, event_id）
+    role: candidate
+    tables: event_ratings_candidate_to_company
+
+  # --- マスタ管理 ---
+  - app: Event System
+    category: マスタ管理
+    subcategory: イベントタイプ
+    name: イベントタイプCRUD
+    detail: 名称・エリア・対象卒年の作成/編集/削除
+    role: admin
+    tables: event_types
+
+  - app: Event System
+    category: マスタ管理
+    subcategory: エリア
+    name: エリアCRUD
+    detail: エリア名の作成/編集/削除
+    role: admin
+    tables: event_areas
+
+  - app: Event System
+    category: マスタ管理
+    subcategory: 卒年
+    name: 卒年CRUD
+    detail: 年度・ラベルの作成/編集/削除
+    role: admin
+    tables: event_graduation_years
+
+  # --- エクスポート ---
+  - app: Event System
+    category: エクスポート
+    subcategory: CSV
+    name: 候補者CSVエクスポート
+    detail: 全フィールドの候補者データCSV出力
+    role: admin
+    tables: candidates
+
+  - app: Event System
+    category: エクスポート
+    subcategory: CSV
+    name: RecruiterCSVエクスポート
+    detail: 全フィールドのRecruiterデータCSV出力
+    role: admin
+    tables: recruiters
+
+  - app: Event System
+    category: エクスポート
+    subcategory: CSV
+    name: マッチング結果CSVエクスポート
+    detail: 座席番号・候補者名・企業名・マッチセッションのCSV出力
+    role: admin
+    tables: matching_results
+
+  - app: Event System
+    category: エクスポート
+    subcategory: CSV
+    name: 出席者CSVエクスポート
+    detail: 候補者名・イベント・出席ステータスのCSV出力
+    role: admin
+    tables: event_reservations
+
+  # --- UI/UX ---
+  - app: Event System
+    category: UI/UX
+    subcategory: レスポンシブ
+    name: マルチデバイス対応
+    detail: |-
+      デスクトップ（サイドバー+コンテンツ）
+      タブレット（大きなボタン・タッチフレンドリー）
+      モバイル（ハンバーガーメニュー・ボトム固定メニュー）
+    role: 全ユーザー
+    tables: "—"
+
+  - app: Event System
+    category: UI/UX
+    subcategory: テーブル
+    name: 高機能テーブル
+    detail: |-
+      ページネーション（10/25/50行）・ソート（名前/日付/ステータス）
+      検索フィルタバー・CSVインポート/エクスポート
+    role: admin/recruiter
+    tables: "—"
+
+  # ===========================================================================
+  # Agent Manager
+  # ===========================================================================
+
+  # --- 認証 ---
+  - app: Agent Manager
+    category: 認証
+    subcategory: ログイン
+    name: 管理者ログイン
+    detail: メール+パスワード（Supabase Auth）・管理者ロール（profiles.role='admin'）のみアクセス可
+    role: admin
+    tables: profiles
+
+  - app: Agent Manager
+    category: 認証
+    subcategory: パスワード
+    name: パスワード管理
+    detail: パスワードリセットメール送信・新パスワード設定
+    role: admin
+    tables: "—"
+
+  # --- 候補者管理 ---
+  - app: Agent Manager
+    category: 候補者管理
+    subcategory: 一覧
+    name: 候補者一覧
+    detail: |-
+      名前・メール・電話・卒年・学校・業界/職種・アサイン状況での検索/フィルタ
+      一覧列: 名前・学校・卒年・電話・メール・担当Recruiter・応募数・最終活動日
+      アクション（詳細・編集・アサイン・削除）
+    role: admin
+    tables: candidates, candidate_management
+
+  - app: Agent Manager
+    category: 候補者管理
+    subcategory: 詳細
+    name: 候補者プロフィール
+    detail: |-
+      基本情報（氏名・カナ・メール・電話・生年月日）
+      学校/学部/学科・卒年・専攻・希望業界/職種・勤務地希望
+      閲覧/編集切替
+    role: admin
+    tables: candidates
+
+  - app: Agent Manager
+    category: 候補者管理
+    subcategory: 詳細
+    name: アサイン管理
+    detail: 現在の担当Recruiter表示（candidate_management.assigned_to）・再アサインドロップダウン・アサイン日/メモ
+    role: admin
+    tables: candidate_management
+
+  - app: Agent Manager
+    category: 候補者管理
+    subcategory: 詳細
+    name: 管理メモ
+    detail: candidate_management.notes の内部メモ編集（テキストエディタ・制限なし）
+    role: admin
+    tables: candidate_management
+
+  - app: Agent Manager
+    category: 候補者管理
+    subcategory: 詳細
+    name: 応募一覧タブ
+    detail: 候補者に紐づく応募リスト（求人タイトル・企業・ステータス・応募日）・応募詳細リンク
+    role: admin
+    tables: applications
+
+  # --- 企業管理 ---
+  - app: Agent Manager
+    category: 企業管理
+    subcategory: 一覧
+    name: 企業一覧
+    detail: 全企業リスト・検索/フィルタ（名前）・作成/編集ボタン・企業カード（名前・ロゴ・業界）
+    role: admin
+    tables: companies
+
+  - app: Agent Manager
+    category: 企業管理
+    subcategory: 詳細
+    name: 企業情報
+    detail: 企業名・ロゴ・業界・従業員数・Webサイト・本社・編集
+    role: admin
+    tables: companies
+
+  - app: Agent Manager
+    category: 企業管理
+    subcategory: 詳細
+    name: 求人タブ
+    detail: 企業別の求人一覧（タイトル・ステータス・応募数）・作成/編集/削除
+    role: admin
+    tables: job_postings
+
+  # --- 求人管理 ---
+  - app: Agent Manager
+    category: 求人管理
+    subcategory: 一覧
+    name: 求人一覧
+    detail: |-
+      全社横断の求人リスト・タイトル/企業/ステータスでの検索/フィルタ
+      ステータスバッジ（active/closed）
+    role: admin
+    tables: job_postings
+
+  - app: Agent Manager
+    category: 求人管理
+    subcategory: 詳細
+    name: 求人情報
+    detail: タイトル・説明・応募要件・企業・雇用形態・給与・勤務地・ステータス
+    role: admin
+    tables: job_postings
+
+  - app: Agent Manager
+    category: 求人管理
+    subcategory: 詳細
+    name: 応募者タブ
+    detail: 求人別の応募一覧（候補者名・応募日・ステータス）・応募詳細リンク
+    role: admin
+    tables: applications
+
+  # --- 応募管理 ---
+  - app: Agent Manager
+    category: 応募管理
+    subcategory: 一覧
+    name: 応募一覧
+    detail: |-
+      全候補者/全求人横断の応募リスト
+      候補者名・求人・企業・ステータス・日付での検索/フィルタ
+      ステータスバッジ（submitted/screening/interview/offer/rejected/closed）
+      一括操作（ステータス変更・Recruiterアサイン・メール送信）
+    role: admin
+    tables: applications
+
+  - app: Agent Manager
+    category: 応募管理
+    subcategory: 詳細
+    name: 応募詳細
+    detail: 候補者名・求人タイトル・企業・応募日・現在ステータス
+    role: admin
+    tables: applications
+
+  - app: Agent Manager
+    category: 応募管理
+    subcategory: 詳細
+    name: 進捗履歴
+    detail: |-
+      application_progressテーブルのタイムライン表示
+      ステータス・日付・メモ・変更者
+      ステータス変更ドロップダウン・メモ入力・履歴追加ボタン
+    role: admin
+    tables: application_progress
+
+  # --- Recruiter管理 ---
+  - app: Agent Manager
+    category: Recruiter管理
+    subcategory: 一覧
+    name: Recruiter一覧
+    detail: profiles(role='recruiter')のリスト・名前/メール検索・作成/編集/削除
+    role: admin
+    tables: profiles
+
+  - app: Agent Manager
+    category: Recruiter管理
+    subcategory: 作成
+    name: Recruiterアカウント作成
+    detail: メール・氏名・企業選択フォーム → アカウント作成・監査ログ
+    role: admin
+    tables: profiles
+
+  # --- ダッシュボード ---
+  - app: Agent Manager
+    category: ダッシュボード
+    subcategory: サマリ
+    name: 管理者ダッシュボード
+    detail: 総候補者数・総企業数・総求人数・アクティブ応募数・最近の追加/更新
+    role: admin
+    tables: "—"
+
+  # ===========================================================================
+  # 共通基盤
+  # ===========================================================================
+  - app: 共通基盤
+    category: 認証基盤
+    subcategory: 認証
+    name: Supabase Auth
+    detail: |-
+      3アプリ共通のユーザーベース（profilesテーブル共有）
+      ロール別ルーティング（admin→/admin, recruiter→/studio, candidate→公開サイト）
+    role: system
+    tables: profiles
+
+  - app: 共通基盤
+    category: データベース
+    subcategory: DB
+    name: 共有PostgreSQL
+    detail: |-
+      Supabase上の単一PostgreSQLデータベース
+      3アプリから同一テーブルにクエリ
+      RLSによるDB層でのアクセス制御
+    role: system
+    tables: 全テーブル
+
+  - app: 共通基盤
+    category: 共有パッケージ
+    subcategory: packages/ui
+    name: 共通UIコンポーネント
+    detail: shadcn/ui ベースの共通コンポーネントライブラリ
+    role: system
+    tables: "—"
+
+  - app: 共通基盤
+    category: 共有パッケージ
+    subcategory: packages/database
+    name: DB型定義
+    detail: Supabase型自動生成・共通クエリヘルパー
+    role: system
+    tables: "—"
+
+  - app: 共通基盤
+    category: 共有パッケージ
+    subcategory: packages/config
+    name: 共通設定
+    detail: 共通設定・定数・環境変数管理
+    role: system
+    tables: "—"
+
+  - app: 共通基盤
+    category: 共有パッケージ
+    subcategory: packages/shared
+    name: 共通ユーティリティ
+    detail: 共通型・ユーティリティ関数・認証ヘルパー・メール関数・ロギング・監査ログ
+    role: system
+    tables: "—"
+
+  - app: 共通基盤
+    category: ロギング
+    subcategory: ロガー
+    name: Pinoロガー
+    detail: 全アプリ共通の構造化ログ（Pino）
+    role: system
+    tables: "—"
+
+  - app: 共通基盤
+    category: ロギング
+    subcategory: エラー
+    name: エラーバウンダリ
+    detail: error.tsx によるReactエラーバウンダリ（全アプリ）
+    role: system
+    tables: "—"
+
+  - app: 共通基盤
+    category: デプロイ
+    subcategory: ホスティング
+    name: Vercelデプロイ
+    detail: |-
+      3アプリの自動デプロイ・Edge Functions・Cron Jobs
+      開発/ステージング/本番の3環境構成
+    role: system
+    tables: "—"
+
+  - app: 共通基盤
+    category: デプロイ
+    subcategory: モノレポ
+    name: pnpm Workspaces + Turborepo
+    detail: 依存管理・ビルド最適化・共有パッケージのリンク
+    role: system
+    tables: "—"
+
+  - app: 共通基盤
+    category: テスト
+    subcategory: E2E
+    name: Playwright E2Eテスト
+    detail: マルチアプリ対応・認証フィクスチャ（admin/recruiter/candidate）
+    role: system
+    tables: "—"

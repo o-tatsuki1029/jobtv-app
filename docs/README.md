@@ -33,3 +33,4 @@
 | [testing.md](testing.md) | E2E テスト（Playwright）・テスト戦略。 |
 | [mcp.md](mcp.md) | MCP サーバー設定・用途・セットアップ。 |
 | [test/](test/) | 機能別テスト観点・バグ候補（例: [company-page-flow.md](test/company-page-flow.md)）。 |
+| [feature-registry.yaml](feature-registry.yaml) | 機能台帳（全機能一覧の正本）。Excel は `scripts/generate_feature_list_xlsx.py` で生成。 |
