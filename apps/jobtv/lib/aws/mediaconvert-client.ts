@@ -234,6 +234,94 @@ export async function createHeroMediaConvertJob(
 }
 
 /**
+ * LPサンプル動画用MediaConvertジョブを作成（portrait固定）
+ */
+export async function createLpVideoMediaConvertJob(
+  lpVideoId: string,
+  sourceS3Key: string
+): Promise<{ jobId?: string; error?: string }> {
+  try {
+    logger.info({ action: "createLpVideoMediaConvertJob", lpVideoId, sourceS3Key }, "LP動画MediaConvertジョブ作成開始");
+    const client = getMediaConvertClient();
+    const bucket = process.env.AWS_S3_BUCKET || "jobtv-videos-stg";
+    const roleArn = process.env.AWS_MEDIACONVERT_ROLE_ARN;
+    const templateArn = process.env.AWS_MEDIACONVERT_TEMPLATE_PORTRAIT;
+
+    if (!roleArn) {
+      logger.error({ action: "createLpVideoMediaConvertJob", lpVideoId }, "AWS_MEDIACONVERT_ROLE_ARNが未設定");
+      return { error: "AWS_MEDIACONVERT_ROLE_ARNが設定されていません" };
+    }
+    if (!templateArn) {
+      logger.error({ action: "createLpVideoMediaConvertJob", lpVideoId }, "AWS_MEDIACONVERT_TEMPLATE_PORTRAITが未設定");
+      return { error: "AWS_MEDIACONVERT_TEMPLATE_PORTRAITが設定されていません" };
+    }
+
+    const snsTopicArn = process.env.AWS_SNS_TOPIC_ARN;
+    const destinationS3Key = `admin/lp-videos/${lpVideoId}/hls/portrait/`;
+
+    const jobSettings: any = {
+      Role: roleArn,
+      JobTemplate: templateArn,
+      Settings: {
+        Inputs: [
+          {
+            FileInput: `s3://${bucket}/${sourceS3Key}`
+          }
+        ],
+        OutputGroups: [
+          {
+            Name: "Apple HLS",
+            OutputGroupSettings: {
+              Type: "HLS_GROUP_SETTINGS" as const,
+              HlsGroupSettings: {
+                Destination: `s3://${bucket}/${destinationS3Key}`
+              }
+            }
+          },
+          {
+            Name: "File Group",
+            OutputGroupSettings: {
+              Type: "FILE_GROUP_SETTINGS" as const,
+              FileGroupSettings: {
+                Destination: `s3://${bucket}/${destinationS3Key}`
+              }
+            }
+          }
+        ]
+      },
+      UserMetadata: {
+        lpVideoId,
+        aspectRatio: "portrait",
+        sourceKey: sourceS3Key
+      },
+      StatusUpdateInterval: "SECONDS_60" as const
+    };
+
+    if (snsTopicArn) {
+      jobSettings.EventNotification = {
+        CompleteTopicArn: snsTopicArn,
+        ErrorTopicArn: snsTopicArn
+      };
+    }
+
+    const command = new CreateJobCommand(jobSettings);
+    const response = await client.send(command);
+
+    if (!response.Job?.Id) {
+      logger.error({ action: "createLpVideoMediaConvertJob", lpVideoId }, "LP動画MediaConvertジョブIDがレスポンスに含まれていない");
+      return { error: "ジョブの作成に失敗しました" };
+    }
+
+    logger.info({ action: "createLpVideoMediaConvertJob", lpVideoId, jobId: response.Job.Id }, "LP動画MediaConvertジョブ作成成功");
+    return { jobId: response.Job.Id };
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "ジョブの作成に失敗しました";
+    logger.error({ action: "createLpVideoMediaConvertJob", lpVideoId, err: error }, "LP動画MediaConvertジョブ作成失敗");
+    return { error: msg };
+  }
+}
+
+/**
  * MediaConvertジョブのステータスを取得
  */
 export async function getMediaConvertJobStatus(jobId: string): Promise<{

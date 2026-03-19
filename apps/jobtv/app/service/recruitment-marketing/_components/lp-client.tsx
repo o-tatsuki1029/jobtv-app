@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useState, useEffect, useCallback, useRef } from "react";
+import Hls from "hls.js";
 import Image from "next/image";
 import Script from "next/script";
 import Footer from "@/components/Footer";
@@ -120,6 +121,149 @@ function SampleVideoCard({
   );
 }
 
+// ヒーロー動画コンポーネント（HLS対応・ローディング状態付き）
+function HeroVideo({ src, hlsSrc, thumbnail, onReady }: { src: string; hlsSrc?: string | null; thumbnail?: string | null; onReady?: () => void }) {
+  const isFirst = !!onReady;
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [loaded, setLoaded] = useState(false);
+  const hlsRef = useRef<Hls | null>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const markReady = () => {
+      if (!loaded) {
+        setLoaded(true);
+        onReady?.();
+      }
+    };
+
+    // HLS URL がある場合はストリーミング再生
+    if (hlsSrc) {
+      if (Hls.isSupported()) {
+        const hls = new Hls({ startLevel: 0 });
+        hlsRef.current = hls;
+        hls.loadSource(hlsSrc);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          video.play().catch(() => {});
+          markReady();
+        });
+        hls.on(Hls.Events.ERROR, () => {
+          hls.destroy();
+          hlsRef.current = null;
+          video.src = src;
+          video.play().catch(() => {});
+        });
+      } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+        video.src = hlsSrc;
+        video.addEventListener("canplay", markReady, { once: true });
+        video.play().catch(() => {});
+      } else {
+        video.src = src;
+        video.addEventListener("canplay", markReady, { once: true });
+      }
+    } else {
+      video.src = src;
+      video.addEventListener("canplay", markReady, { once: true });
+    }
+
+    return () => {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [src, hlsSrc]);
+
+  return (
+    <div className="w-full h-full flex-shrink-0 relative bg-black">
+      {!loaded && isFirst && (
+        <div className="absolute inset-0">
+          {thumbnail ? (
+            <img src={thumbnail} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            </div>
+          )}
+        </div>
+      )}
+      <video
+        ref={videoRef}
+        className={`w-full h-full object-cover block ${isFirst && !loaded ? "opacity-0" : ""}`}
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload={isFirst ? "auto" : "metadata"}
+      />
+    </div>
+  );
+}
+
+// 汎用HLS動画コンポーネント（モーダル等用）
+function HlsVideo({
+  src,
+  hlsSrc,
+  className,
+  controls,
+  autoPlay
+}: {
+  src: string;
+  hlsSrc?: string | null;
+  className?: string;
+  controls?: boolean;
+  autoPlay?: boolean;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const hlsRef = useRef<Hls | null>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (hlsSrc && Hls.isSupported()) {
+      const hls = new Hls();
+      hlsRef.current = hls;
+      hls.loadSource(hlsSrc);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        if (autoPlay) video.play().catch(() => {});
+      });
+      hls.on(Hls.Events.ERROR, () => {
+        hls.destroy();
+        hlsRef.current = null;
+        video.src = src;
+        if (autoPlay) video.play().catch(() => {});
+      });
+    } else if (hlsSrc && video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = hlsSrc;
+    } else {
+      video.src = src;
+    }
+
+    return () => {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+    };
+  }, [src, hlsSrc, autoPlay]);
+
+  return (
+    <video
+      ref={videoRef}
+      className={className}
+      controls={controls}
+      autoPlay={autoPlay}
+      playsInline
+    />
+  );
+}
+
 // セクションタイトルコンポーネント
 interface SectionTitleProps {
   label: string;
@@ -159,7 +303,7 @@ function SectionCTA({
   onAnchorClick: (e: React.MouseEvent<HTMLAnchorElement>, href: string) => void;
 }) {
   const secondaryClass = dark
-    ? "inline-flex items-center justify-center gap-1.5 px-6 py-4 rounded-full text-base font-semibold tracking-wide border border-white/[0.2] bg-transparent text-white hover:border-white/[0.4] hover:bg-white/[0.05] transition-all duration-[180ms] ease-out whitespace-nowrap cursor-pointer"
+    ? "inline-flex items-center justify-center gap-1.5 px-6 py-4 rounded-full text-base font-semibold tracking-wide border border-white/[0.22] bg-transparent text-[#f7f7f7] hover:border-white/50 hover:bg-white/[0.05] transition-all duration-[180ms] ease-out whitespace-nowrap cursor-pointer"
     : "inline-flex items-center justify-center gap-1.5 px-6 py-4 rounded-full text-base font-semibold tracking-wide border border-black/[0.12] bg-transparent text-gray-800 hover:border-black/[0.24] hover:bg-black/[0.04] transition-all duration-[180ms] ease-out whitespace-nowrap cursor-pointer";
   return (
     <div className="flex flex-col md:flex-row gap-3 mt-10 items-center justify-center">
@@ -194,8 +338,9 @@ function SectionCTA({
           strokeLinecap="round"
           strokeLinejoin="round"
         >
-          <path d="M5 12h14" />
-          <path d="M13 6l6 6-6 6" />
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="7 10 12 15 17 10" />
+          <line x1="12" y1="15" x2="12" y2="3" />
         </svg>
       </button>
     </div>
@@ -206,6 +351,8 @@ type SampleVideo = {
   id: string;
   video_url: string;
   thumbnail_url: string | null;
+  hls_url: string | null;
+  conversion_status: string | null;
   tag: string;
   title: string;
   description: string;
@@ -248,6 +395,9 @@ export function LPClient({
   });
 
   const videoList = sampleVideos.map((v) => v.video_url);
+  const hlsList = sampleVideos.map((v) =>
+    v.conversion_status === "completed" ? v.hls_url : null
+  );
   const [selectedVideoIndex, setSelectedVideoIndex] = useState<number | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMenuVisible, setIsMenuVisible] = useState(false);
@@ -255,11 +405,15 @@ export function LPClient({
   const [isBannerVisible, setIsBannerVisible] = useState(false);
   const [heroVideoIndex, setHeroVideoIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(true);
+  const [heroVideosReady, setHeroVideosReady] = useState(false);
   const heroVideoContainerRef = useRef<HTMLDivElement>(null);
   const heroVideoIndexRef = useRef(0);
 
   // 最初の動画を最後にも追加（シームレスループ用）
   const heroVideoList = videoList.length > 0 ? [...videoList, videoList[0]] : [];
+  const heroHlsList = hlsList.length > 0 ? [...hlsList, hlsList[0]] : [];
+  const thumbnailList = sampleVideos.map((v) => v.auto_thumbnail_url ?? v.thumbnail_url ?? null);
+  const heroThumbnailList = thumbnailList.length > 0 ? [...thumbnailList, thumbnailList[0]] : [];
 
   // ナビゲーションメニューアイテム
   const navItems = [
@@ -478,22 +632,21 @@ export function LPClient({
     };
   }, [videoList.length]);
 
-  // ヒーロー動画の自動切り替え（2秒ごと）
+  // ヒーロー動画の自動切り替え（2秒ごと・全動画読み込み後のみ）
   useEffect(() => {
+    if (!heroVideosReady) return;
+
     const interval = setInterval(() => {
       setHeroVideoIndex((prev) => {
-        // 最後の動画（最初の動画の2セット目）に到達した場合は、transitionendイベントでリセットされる
-        // そのため、ここでは通常通りインデックスを進める
         if (prev < videoList.length) {
           return prev + 1;
         }
-        // 既に最後の動画に到達している場合は、そのまま（transitionendでリセットされるまで待つ）
         return prev;
       });
-    }, 2500); // 2.5秒ごとに切り替え
+    }, 2500);
 
     return () => clearInterval(interval);
-  }, [videoList.length]);
+  }, [videoList.length, heroVideosReady]);
 
   return (
     <>
@@ -546,7 +699,7 @@ export function LPClient({
             <a
               href="#contact"
               onClick={(e) => handleAnchorClick(e, "#contact")}
-              className={`hidden md:inline-flex ${styles.buttonOutline}`}
+              className="hidden md:inline-flex items-center justify-center gap-1.5 px-[18px] py-2.5 rounded-full text-[13px] font-semibold tracking-wide border border-white/[0.22] bg-transparent text-[#f7f7f7] hover:border-white/50 hover:bg-[rgba(16,16,20,0.9)] transition-all duration-[180ms] ease-out whitespace-nowrap"
             >
               資料ダウンロード
               <svg
@@ -560,8 +713,9 @@ export function LPClient({
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                <path d="M5 12h14" />
-                <path d="M13 6l6 6-6 6" />
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
               </svg>
             </a>
             {/* モバイルメニューボタン */}
@@ -622,9 +776,14 @@ export function LPClient({
                 <a
                   href="#contact"
                   onClick={(e) => handleAnchorClick(e, "#contact")}
-                  className="inline-flex items-center justify-center gap-1.5 px-[18px] py-3 rounded-full text-sm font-semibold tracking-wide uppercase border border-white/[0.22] text-[#f7f7f7] hover:border-white/50 hover:bg-[rgba(16,16,20,0.9)] transition-all duration-[180ms] ease-out"
+                  className="inline-flex items-center justify-center gap-1.5 px-[18px] py-3 rounded-full text-sm font-semibold tracking-wide border border-white/[0.22] bg-transparent text-[#f7f7f7] hover:border-white/50 hover:bg-[rgba(16,16,20,0.9)] transition-all duration-[180ms] ease-out"
                 >
                   資料ダウンロード
+                  <svg className="ml-1" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
                 </a>
               </div>
               <div className="flex flex-col gap-2 mt-6 pt-6 border-t border-white/8">
@@ -741,8 +900,9 @@ export function LPClient({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   >
-                    <path d="M5 12h14" />
-                    <path d="M13 6l6 6-6 6" />
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
                   </svg>
                 </button>
               </div>
@@ -781,17 +941,13 @@ export function LPClient({
                       }}
                     >
                       {heroVideoList.map((videoSrc, index) => (
-                        <div key={index} className="w-full h-full flex-shrink-0">
-                          <video
-                            className="w-full h-full object-cover block"
-                            src={videoSrc}
-                            autoPlay
-                            muted
-                            loop
-                            playsInline
-                            preload="none"
-                          />
-                        </div>
+                        <HeroVideo
+                          key={index}
+                          src={videoSrc}
+                          hlsSrc={heroHlsList[index]}
+                          thumbnail={heroThumbnailList[index]}
+                          onReady={index === 0 ? () => setHeroVideosReady(true) : undefined}
+                        />
                       ))}
                     </div>
                   </div>
@@ -1187,7 +1343,7 @@ export function LPClient({
 
                   {/* セクション1: 母集団形成の限界 */}
                   <div className="grid grid-cols-[1fr_64px_1fr] gap-0 items-stretch border-b border-gray-200">
-                    <div className="bg-gray-100 p-6">
+                    <div className="bg-white p-6">
                       <div className="flex items-center gap-3 mb-4">
                         <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
                           <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1238,7 +1394,7 @@ export function LPClient({
 
                   {/* セクション2: 魅力が伝わらない */}
                   <div className="grid grid-cols-[1fr_64px_1fr] gap-0 items-stretch border-b border-gray-200">
-                    <div className="bg-gray-100 p-6">
+                    <div className="bg-white p-6">
                       <div className="flex items-center gap-3 mb-4">
                         <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
                           <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1289,7 +1445,7 @@ export function LPClient({
 
                   {/* セクション3: 工数とリソースの限界 */}
                   <div className="grid grid-cols-[1fr_64px_1fr] gap-0 items-stretch">
-                    <div className="bg-gray-100 p-6">
+                    <div className="bg-white p-6">
                       <div className="flex items-center gap-3 mb-4">
                         <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
                           <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1739,13 +1895,13 @@ export function LPClient({
             </button>
 
             {/* 動画 */}
-            <video
+            <HlsVideo
               key={selectedVideoIndex}
               src={videoList[selectedVideoIndex]}
+              hlsSrc={hlsList[selectedVideoIndex]}
               className="w-full h-full object-contain rounded-[18px]"
               controls
               autoPlay
-              playsInline
             />
           </div>
         </div>

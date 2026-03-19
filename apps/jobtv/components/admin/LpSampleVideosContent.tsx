@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { Plus, X, GripVertical, Pencil, Check } from "lucide-react";
+import { Plus, X, GripVertical, Pencil, Check, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -27,13 +27,21 @@ import {
   createLpSampleVideo,
   updateLpSampleVideo,
   deleteLpSampleVideo,
-  reorderLpSampleVideos
+  reorderLpSampleVideos,
+  getLpVideoPresignedUrl,
+  confirmLpVideoUpload
 } from "@/lib/actions/lp-sample-video-actions";
+import { useS3Upload } from "@/hooks/useS3Upload";
 
 type SampleVideo = {
   id: string;
   video_url: string;
   thumbnail_url: string | null;
+  hls_url: string | null;
+  auto_thumbnail_url: string | null;
+  conversion_status: string | null;
+  conversion_job_id: string | null;
+  s3_key: string | null;
   tag: string;
   title: string;
   description: string;
@@ -64,44 +72,34 @@ function extractVideoDuration(file: File): Promise<string> {
   });
 }
 
-/** 動画ファイルの先頭フレームを JPEG Blob として返す */
-function captureVideoThumbnail(file: File): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const video = document.createElement("video");
-    video.preload = "auto";
-    video.muted = true;
-    video.playsInline = true;
-    const url = URL.createObjectURL(file);
-    video.src = url;
-    video.onloadeddata = () => {
-      video.currentTime = 0.1;
-    };
-    video.onseeked = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        URL.revokeObjectURL(url);
-        reject(new Error("Canvas の取得に失敗しました"));
-        return;
-      }
-      ctx.drawImage(video, 0, 0);
-      URL.revokeObjectURL(url);
-      canvas.toBlob(
-        (blob) => {
-          if (blob) resolve(blob);
-          else reject(new Error("サムネイルの生成に失敗しました"));
-        },
-        "image/jpeg",
-        0.85
+/** 変換ステータスバッジ */
+function ConversionStatusBadge({ status }: { status: string | null }) {
+  if (!status) return null;
+  switch (status) {
+    case "processing":
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          変換中
+        </span>
       );
-    };
-    video.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error("動画の読み込みに失敗しました"));
-    };
-  });
+    case "completed":
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+          <CheckCircle2 className="h-3 w-3" />
+          配信可能
+        </span>
+      );
+    case "failed":
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+          <AlertCircle className="h-3 w-3" />
+          変換失敗
+        </span>
+      );
+    default:
+      return null;
+  }
 }
 
 function SortableVideoItem({
@@ -145,13 +143,21 @@ function SortableVideoItem({
         </div>
       )}
       <div className="relative h-20 w-12 flex-shrink-0 overflow-hidden rounded bg-gray-100">
-        <video
-          src={video.video_url}
-          className="w-full h-full object-cover"
-          muted
-          playsInline
-          preload="metadata"
-        />
+        {video.auto_thumbnail_url && video.conversion_status === "completed" ? (
+          <img
+            src={video.auto_thumbnail_url}
+            alt=""
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <video
+            src={video.video_url}
+            className="w-full h-full object-cover"
+            muted
+            playsInline
+            preload="metadata"
+          />
+        )}
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
@@ -159,6 +165,7 @@ function SortableVideoItem({
             {video.tag}
           </span>
           <span className="text-xs text-gray-400">{video.duration}</span>
+          <ConversionStatusBadge status={video.conversion_status} />
         </div>
         <p className="truncate font-medium text-gray-900">{video.title}</p>
         <p className="truncate text-sm text-gray-500">{video.description}</p>
@@ -190,28 +197,24 @@ function VideoForm({
   submitLabel
 }: {
   initialValues?: { tag: string; title: string; description: string; duration?: string };
-  onSubmit: (formData: FormData) => Promise<void>;
+  onSubmit: (formData: FormData, file: File | null) => Promise<void>;
   onCancel?: () => void;
   submitLabel: string;
 }) {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [thumbnailBlob, setThumbnailBlob] = useState<Blob | null>(null);
-  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const durationRef = useRef<HTMLInputElement>(null);
+  const { upload, isUploading, progress } = useS3Upload();
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setSelectedFile(file);
     try {
-      const [dur, thumb] = await Promise.all([
-        extractVideoDuration(file),
-        captureVideoThumbnail(file)
-      ]);
+      const dur = await extractVideoDuration(file);
       if (durationRef.current) durationRef.current.value = dur;
-      setThumbnailBlob(thumb);
-      setThumbnailPreview(URL.createObjectURL(thumb));
     } catch {
       // 自動取得失敗時は既存値を維持
     }
@@ -223,14 +226,10 @@ function VideoForm({
     setSubmitting(true);
     try {
       const formData = new FormData(e.currentTarget);
-      if (thumbnailBlob) {
-        formData.set("thumbnail", new File([thumbnailBlob], "thumbnail.jpg", { type: "image/jpeg" }));
-      }
-      await onSubmit(formData);
+      await onSubmit(formData, selectedFile ?? null);
       if (!initialValues) {
         formRef.current?.reset();
-        setThumbnailBlob(null);
-        setThumbnailPreview(null);
+        setSelectedFile(null);
       }
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "エラーが発生しました");
@@ -238,6 +237,8 @@ function VideoForm({
       setSubmitting(false);
     }
   };
+
+  const isProcessing = submitting || isUploading;
 
   return (
     <form ref={formRef} onSubmit={handleSubmit} className="space-y-3">
@@ -283,39 +284,55 @@ function VideoForm({
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          動画ファイル（MP4）{!initialValues && <span className="text-red-500"> *</span>}
+          動画ファイル（MP4・最大500MB）{!initialValues && <span className="text-red-500"> *</span>}
           {initialValues && <span className="text-gray-400 text-xs ml-1">（変更する場合のみ選択）</span>}
         </label>
         <input
           type="file"
           name="file"
-          accept="video/mp4"
+          accept="video/mp4,video/quicktime"
           required={!initialValues}
           onChange={handleFileChange}
           className="w-full text-sm text-gray-600 file:mr-3 file:rounded file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 file:text-sm file:font-medium hover:file:bg-gray-200"
         />
+        <p className="mt-1 text-xs text-gray-400">S3にアップロード後、自動でHLSストリーミング変換されます</p>
       </div>
-      {thumbnailPreview && (
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">サムネイル（自動生成）</label>
-          <img src={thumbnailPreview} alt="サムネイルプレビュー" className="h-24 rounded border border-gray-200 object-cover" />
+      {isUploading && progress && (
+        <div className="space-y-1">
+          <div className="flex items-center justify-between text-xs text-gray-600">
+            <span>S3にアップロード中...</span>
+            <span>{progress.percent}%</span>
+          </div>
+          <div className="h-2 w-full rounded-full bg-gray-200 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-blue-500 transition-all duration-300"
+              style={{ width: `${progress.percent}%` }}
+            />
+          </div>
         </div>
       )}
       <input type="hidden" name="duration" ref={durationRef} defaultValue={initialValues?.duration ?? ""} />
       <div className="flex gap-2 pt-1">
         <button
           type="submit"
-          disabled={submitting}
+          disabled={isProcessing}
           className="inline-flex items-center gap-1.5 rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
         >
-          {initialValues ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-          {submitting ? "保存中..." : submitLabel}
+          {isProcessing ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : initialValues ? (
+            <Check className="h-4 w-4" />
+          ) : (
+            <Plus className="h-4 w-4" />
+          )}
+          {isProcessing ? "処理中..." : submitLabel}
         </button>
         {onCancel && (
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            disabled={isProcessing}
+            className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
           >
             キャンセル
           </button>
@@ -332,6 +349,7 @@ export default function LpSampleVideosContent() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [isReordering, setIsReordering] = useState(false);
   const [editingVideo, setEditingVideo] = useState<SampleVideo | null>(null);
+  const { upload } = useS3Upload();
 
   const fetchVideos = useCallback(async () => {
     setLoading(true);
@@ -350,6 +368,14 @@ export default function LpSampleVideosContent() {
   useEffect(() => {
     fetchVideos();
   }, [fetchVideos]);
+
+  // 変換中の動画がある場合、定期ポーリング
+  useEffect(() => {
+    const hasProcessing = videos.some((v) => v.conversion_status === "processing");
+    if (!hasProcessing) return;
+    const interval = setInterval(fetchVideos, 10000);
+    return () => clearInterval(interval);
+  }, [videos, fetchVideos]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -377,26 +403,109 @@ export default function LpSampleVideosContent() {
     }
   };
 
-  const handleCreate = async (formData: FormData) => {
-    setActionError(null);
-    const res = await createLpSampleVideo(formData);
-    if (res.error) {
-      setActionError(res.error);
-      return;
+  /** S3アップロード → MediaConvert変換開始 → DB保存 */
+  const uploadAndConvert = async (
+    videoId: string,
+    file: File
+  ): Promise<{
+    videoUrl: string;
+    hlsUrl: string;
+    s3Key: string;
+    jobId: string;
+    autoThumbnailUrl: string | null;
+  }> => {
+    // 1. Presigned URL を取得
+    const presignedRes = await getLpVideoPresignedUrl(videoId, file.name, file.type, file.size);
+    if (presignedRes.error || !presignedRes.data) {
+      throw new Error(presignedRes.error || "Presigned URLの取得に失敗しました");
     }
-    await fetchVideos();
+
+    // 2. S3 に直接アップロード
+    const uploadResult = await upload(presignedRes.data.presignedUrl, file);
+    if (!uploadResult.success) {
+      throw new Error(uploadResult.error || "S3アップロードに失敗しました");
+    }
+
+    // 3. MediaConvert 変換開始
+    const confirmRes = await confirmLpVideoUpload(videoId, presignedRes.data.s3Key);
+    if (confirmRes.error || !confirmRes.data) {
+      throw new Error(confirmRes.error || "変換開始に失敗しました");
+    }
+
+    // CloudFront URL をvideo_urlとして使用
+    const cloudFrontBase = confirmRes.data.hlsUrl.replace(/\/hls\/portrait\/original\.m3u8$/, "");
+    const ext = file.name.split(".").pop()?.toLowerCase() || "mp4";
+    const videoUrl = `${cloudFrontBase}/original.${ext}`;
+
+    return {
+      videoUrl,
+      hlsUrl: confirmRes.data.hlsUrl,
+      s3Key: presignedRes.data.s3Key,
+      jobId: confirmRes.data.jobId,
+      autoThumbnailUrl: confirmRes.data.autoThumbnailUrl
+    };
   };
 
-  const handleUpdate = async (formData: FormData) => {
-    if (!editingVideo) return;
+  const handleCreate = async (formData: FormData, file: File | null) => {
     setActionError(null);
-    const res = await updateLpSampleVideo(editingVideo.id, formData);
-    if (res.error) {
-      setActionError(res.error);
+    if (!file) {
+      setActionError("動画ファイルを選択してください");
       return;
     }
-    setEditingVideo(null);
-    await fetchVideos();
+
+    try {
+      const videoId = crypto.randomUUID();
+
+      const result = await uploadAndConvert(videoId, file);
+
+      formData.set("id", videoId);
+      formData.set("video_url", result.videoUrl);
+      formData.set("hls_url", result.hlsUrl);
+      formData.set("s3_key", result.s3Key);
+      formData.set("conversion_job_id", result.jobId);
+      if (result.autoThumbnailUrl) {
+        formData.set("auto_thumbnail_url", result.autoThumbnailUrl);
+      }
+      formData.delete("file");
+
+      const res = await createLpSampleVideo(formData);
+      if (res.error) {
+        setActionError(res.error);
+        return;
+      }
+      await fetchVideos();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "エラーが発生しました");
+    }
+  };
+
+  const handleUpdate = async (formData: FormData, file: File | null) => {
+    if (!editingVideo) return;
+    setActionError(null);
+
+    try {
+      if (file) {
+        const result = await uploadAndConvert(editingVideo.id, file);
+        formData.set("video_url", result.videoUrl);
+        formData.set("hls_url", result.hlsUrl);
+        formData.set("s3_key", result.s3Key);
+        formData.set("conversion_job_id", result.jobId);
+        if (result.autoThumbnailUrl) {
+          formData.set("auto_thumbnail_url", result.autoThumbnailUrl);
+        }
+      }
+      formData.delete("file");
+
+      const res = await updateLpSampleVideo(editingVideo.id, formData);
+      if (res.error) {
+        setActionError(res.error);
+        return;
+      }
+      setEditingVideo(null);
+      await fetchVideos();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "エラーが発生しました");
+    }
   };
 
   const handleDelete = async (id: string) => {

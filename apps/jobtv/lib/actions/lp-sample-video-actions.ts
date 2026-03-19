@@ -7,17 +7,19 @@ import { checkAdminPermission } from "@/lib/actions/admin-actions";
 import { logAudit } from "@jobtv-app/shared/utils/audit";
 import { logger } from "@/lib/logger";
 import { enqueueStorageDeletion } from "@/lib/storage/deletion-queue";
-import { extractSupabaseStoragePath } from "@/lib/storage/storage-cleanup";
-
-const ALLOWED_VIDEO_MIME = ["video/mp4"];
-const ALLOWED_THUMBNAIL_MIME = ["image/jpeg", "image/png", "image/webp"];
-const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
-const MAX_THUMBNAIL_SIZE = 5 * 1024 * 1024; // 5MB
+import { createVideoPresignedUrl } from "@/lib/aws/s3-presigned";
+import { createLpVideoMediaConvertJob, getMediaConvertJobStatus } from "@/lib/aws/mediaconvert-client";
+import { getLpVideoHlsManifestUrl, getLpVideoMediaConvertThumbnailUrl } from "@/lib/aws/cloudfront-client";
 
 type LpSampleVideoRow = {
   id: string;
   video_url: string;
   thumbnail_url: string | null;
+  hls_url: string | null;
+  auto_thumbnail_url: string | null;
+  conversion_status: string | null;
+  conversion_job_id: string | null;
+  s3_key: string | null;
   tag: string;
   title: string;
   description: string;
@@ -47,7 +49,7 @@ export async function getLpSampleVideos(): Promise<{
   }
 }
 
-/** Admin用: display_order 昇順で全件取得 */
+/** Admin用: display_order 昇順で全件取得（変換中のステータスも更新） */
 export async function getAdminLpSampleVideos(): Promise<{
   data: LpSampleVideoRow[] | null;
   error: string | null;
@@ -63,6 +65,24 @@ export async function getAdminLpSampleVideos(): Promise<{
       .order("display_order", { ascending: true });
 
     if (error) return { data: null, error: error.message };
+
+    // 変換中のアイテムのステータスを更新
+    const pendingItems = (data ?? []).filter(
+      (v) => v.conversion_status === "processing" && v.conversion_job_id
+    );
+    for (const item of pendingItems) {
+      await checkAndUpdateLpVideoConversion(item.id, item.conversion_job_id!);
+    }
+
+    // ステータス更新後に再取得
+    if (pendingItems.length > 0) {
+      const { data: refreshed, error: refreshErr } = await supabase
+        .from("lp_sample_videos")
+        .select("*")
+        .order("display_order", { ascending: true });
+      if (!refreshErr) return { data: refreshed ?? [], error: null };
+    }
+
     return { data: data ?? [], error: null };
   } catch (e) {
     logger.error({ action: "getAdminLpSampleVideos", err: e }, "管理画面LPサンプル動画の取得に失敗しました");
@@ -70,7 +90,79 @@ export async function getAdminLpSampleVideos(): Promise<{
   }
 }
 
-/** 新規作成 */
+/** Presigned URL を取得（S3 直接アップロード用） */
+export async function getLpVideoPresignedUrl(
+  lpVideoId: string,
+  fileName: string,
+  fileType: string,
+  fileSize: number
+): Promise<{
+  data: { presignedUrl: string; s3Key: string } | null;
+  error: string | null;
+}> {
+  const { isAdmin } = await checkAdminPermission();
+  if (!isAdmin) return { data: null, error: "管理者権限が必要です" };
+
+  try {
+    const ext = fileName.split(".").pop()?.toLowerCase() || "mp4";
+    const s3Key = `admin/lp-videos/${lpVideoId}/original.${ext}`;
+
+    const result = await createVideoPresignedUrl({
+      s3Key,
+      contentType: fileType,
+      fileSize,
+      metadata: {
+        lpVideoId,
+        uploadedAt: new Date().toISOString()
+      }
+    });
+
+    if (result.error || !result.presignedUrl) {
+      return { data: null, error: result.error || "Presigned URLの取得に失敗しました" };
+    }
+
+    return { data: { presignedUrl: result.presignedUrl, s3Key }, error: null };
+  } catch (e) {
+    logger.error({ action: "getLpVideoPresignedUrl", lpVideoId, err: e }, "LP動画Presigned URL取得に失敗");
+    return { data: null, error: e instanceof Error ? e.message : "Presigned URLの取得に失敗しました" };
+  }
+}
+
+/** S3アップロード完了後にMediaConvert変換を開始 */
+export async function confirmLpVideoUpload(
+  lpVideoId: string,
+  s3Key: string
+): Promise<{
+  data: { jobId: string; hlsUrl: string; autoThumbnailUrl: string | null } | null;
+  error: string | null;
+}> {
+  const { isAdmin } = await checkAdminPermission();
+  if (!isAdmin) return { data: null, error: "管理者権限が必要です" };
+
+  try {
+    const jobResult = await createLpVideoMediaConvertJob(lpVideoId, s3Key);
+    if (jobResult.error || !jobResult.jobId) {
+      return { data: null, error: jobResult.error || "MediaConvertジョブの作成に失敗しました" };
+    }
+
+    const hlsUrl = await getLpVideoHlsManifestUrl(lpVideoId);
+    const autoThumbnailUrl = await getLpVideoMediaConvertThumbnailUrl(lpVideoId);
+
+    return {
+      data: {
+        jobId: jobResult.jobId,
+        hlsUrl,
+        autoThumbnailUrl
+      },
+      error: null
+    };
+  } catch (e) {
+    logger.error({ action: "confirmLpVideoUpload", lpVideoId, err: e }, "LP動画変換開始に失敗");
+    return { data: null, error: e instanceof Error ? e.message : "変換開始に失敗しました" };
+  }
+}
+
+/** 新規作成（メタデータのみ。動画はクライアントからS3に直接アップロード） */
 export async function createLpSampleVideo(formData: FormData): Promise<{
   data: { id: string } | null;
   error: string | null;
@@ -85,8 +177,11 @@ export async function createLpSampleVideo(formData: FormData): Promise<{
   const title = formData.get("title");
   const description = formData.get("description");
   const duration = formData.get("duration");
-  const file = formData.get("file");
-  const thumbnailFile = formData.get("thumbnail");
+  const videoUrl = formData.get("video_url");
+  const hlsUrl = formData.get("hls_url");
+  const s3Key = formData.get("s3_key");
+  const conversionJobId = formData.get("conversion_job_id");
+  const autoThumbnailUrl = formData.get("auto_thumbnail_url");
 
   if (!tag || typeof tag !== "string" || tag.trim() === "") {
     return { data: null, error: "タグを入力してください" };
@@ -98,55 +193,11 @@ export async function createLpSampleVideo(formData: FormData): Promise<{
     return { data: null, error: "説明を入力してください" };
   }
   const durationValue = (typeof duration === "string" && duration.trim() !== "") ? duration.trim() : "00:00";
-  if (!file || !(file instanceof File)) {
-    return { data: null, error: "動画ファイルを選択してください" };
-  }
-  if (file.size > MAX_VIDEO_SIZE) {
-    return { data: null, error: "ファイルサイズは50MB以下にしてください" };
-  }
-  if (!ALLOWED_VIDEO_MIME.includes(file.type)) {
-    return { data: null, error: "MP4 形式のみアップロードできます" };
-  }
-  if (thumbnailFile instanceof File && thumbnailFile.size > 0) {
-    if (thumbnailFile.size > MAX_THUMBNAIL_SIZE) {
-      return { data: null, error: "サムネイルは5MB以下にしてください" };
-    }
-    if (!ALLOWED_THUMBNAIL_MIME.includes(thumbnailFile.type)) {
-      return { data: null, error: "サムネイルは JPEG, PNG, WebP 形式のみです" };
-    }
-  }
 
   try {
     const supabase = createAdminClient();
     const { randomUUID } = await import("crypto");
-    const id = randomUUID();
-    const timestamp = Date.now();
-    const fileName = `admin/lp-videos/${id}/${timestamp}.mp4`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("company-assets")
-      .upload(fileName, file, { cacheControl: "3600", upsert: false });
-
-    if (uploadError) {
-      logger.error({ action: "createLpSampleVideo", err: uploadError }, "LP動画のアップロードに失敗しました");
-      return { data: null, error: uploadError.message };
-    }
-
-    const {
-      data: { publicUrl }
-    } = supabase.storage.from("company-assets").getPublicUrl(fileName);
-
-    let thumbnailUrl: string | null = null;
-    if (thumbnailFile instanceof File && thumbnailFile.size > 0) {
-      const thumbExt = thumbnailFile.name.split(".").pop() || "jpg";
-      const thumbFileName = `admin/lp-videos/${id}/${timestamp}_thumb.${thumbExt}`;
-      const { error: thumbError } = await supabase.storage
-        .from("company-assets")
-        .upload(thumbFileName, thumbnailFile, { cacheControl: "3600", upsert: false });
-      if (!thumbError) {
-        thumbnailUrl = supabase.storage.from("company-assets").getPublicUrl(thumbFileName).data.publicUrl;
-      }
-    }
+    const id = formData.get("id") as string || randomUUID();
 
     const { data: maxOrder } = await supabase
       .from("lp_sample_videos")
@@ -159,8 +210,13 @@ export async function createLpSampleVideo(formData: FormData): Promise<{
 
     const { error: insertError } = await supabase.from("lp_sample_videos").insert({
       id,
-      video_url: publicUrl,
-      thumbnail_url: thumbnailUrl,
+      video_url: typeof videoUrl === "string" ? videoUrl : "",
+      thumbnail_url: null,
+      hls_url: typeof hlsUrl === "string" ? hlsUrl : null,
+      auto_thumbnail_url: typeof autoThumbnailUrl === "string" ? autoThumbnailUrl : null,
+      conversion_status: conversionJobId ? "processing" : null,
+      conversion_job_id: typeof conversionJobId === "string" ? conversionJobId : null,
+      s3_key: typeof s3Key === "string" ? s3Key : null,
       tag: tag.trim(),
       title: title.trim(),
       description: description.trim(),
@@ -209,8 +265,6 @@ export async function updateLpSampleVideo(
   const title = formData.get("title");
   const description = formData.get("description");
   const duration = formData.get("duration");
-  const file = formData.get("file");
-  const thumbnailFile = formData.get("thumbnail");
 
   if (!tag || typeof tag !== "string" || tag.trim() === "") {
     return { data: null, error: "タグを入力してください" };
@@ -226,13 +280,6 @@ export async function updateLpSampleVideo(
   try {
     const supabase = createAdminClient();
 
-    // 旧ファイルURL取得（差し替え時の旧ファイル削除用）
-    const { data: currentRecord } = await supabase
-      .from("lp_sample_videos")
-      .select("video_url, thumbnail_url")
-      .eq("id", id)
-      .maybeSingle();
-
     const updates: Record<string, unknown> = {
       tag: tag.trim(),
       title: title.trim(),
@@ -241,49 +288,38 @@ export async function updateLpSampleVideo(
       updated_at: new Date().toISOString()
     };
 
-    if (file instanceof File && file.size > 0) {
-      if (file.size > MAX_VIDEO_SIZE) {
-        return { data: null, error: "ファイルサイズは50MB以下にしてください" };
-      }
-      if (!ALLOWED_VIDEO_MIME.includes(file.type)) {
-        return { data: null, error: "MP4 形式のみアップロードできます" };
+    // 動画を再アップロードした場合
+    const newVideoUrl = formData.get("video_url");
+    const newHlsUrl = formData.get("hls_url");
+    const newS3Key = formData.get("s3_key");
+    const newJobId = formData.get("conversion_job_id");
+    const newAutoThumbnail = formData.get("auto_thumbnail_url");
+
+    if (typeof newVideoUrl === "string" && newVideoUrl) {
+      // 旧S3データの削除をキュー
+      const { data: currentRecord } = await supabase
+        .from("lp_sample_videos")
+        .select("s3_key")
+        .eq("id", id)
+        .maybeSingle();
+
+      if (currentRecord?.s3_key) {
+        void enqueueStorageDeletion({
+          storageType: "s3",
+          bucket: process.env.AWS_S3_BUCKET || "jobtv-videos-stg",
+          path: `admin/lp-videos/${id}/`,
+          isPrefix: true,
+          source: "update_lp_sample_video",
+          sourceDetail: `lpSampleVideoId=${id}`,
+        });
       }
 
-      const timestamp = Date.now();
-      const fileName = `admin/lp-videos/${id}/${timestamp}.mp4`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("company-assets")
-        .upload(fileName, file, { cacheControl: "3600", upsert: false });
-
-      if (uploadError) {
-        logger.error({ action: "updateLpSampleVideo", err: uploadError }, "LP動画のアップロードに失敗しました");
-        return { data: null, error: uploadError.message };
-      }
-
-      const {
-        data: { publicUrl }
-      } = supabase.storage.from("company-assets").getPublicUrl(fileName);
-
-      updates.video_url = publicUrl;
-    }
-
-    if (thumbnailFile instanceof File && thumbnailFile.size > 0) {
-      if (thumbnailFile.size > MAX_THUMBNAIL_SIZE) {
-        return { data: null, error: "サムネイルは5MB以下にしてください" };
-      }
-      if (!ALLOWED_THUMBNAIL_MIME.includes(thumbnailFile.type)) {
-        return { data: null, error: "サムネイルは JPEG, PNG, WebP 形式のみです" };
-      }
-      const timestamp = Date.now();
-      const thumbExt = thumbnailFile.name.split(".").pop() || "jpg";
-      const thumbFileName = `admin/lp-videos/${id}/${timestamp}_thumb.${thumbExt}`;
-      const { error: thumbError } = await supabase.storage
-        .from("company-assets")
-        .upload(thumbFileName, thumbnailFile, { cacheControl: "3600", upsert: false });
-      if (!thumbError) {
-        updates.thumbnail_url = supabase.storage.from("company-assets").getPublicUrl(thumbFileName).data.publicUrl;
-      }
+      updates.video_url = newVideoUrl;
+      updates.hls_url = typeof newHlsUrl === "string" ? newHlsUrl : null;
+      updates.s3_key = typeof newS3Key === "string" ? newS3Key : null;
+      updates.conversion_job_id = typeof newJobId === "string" ? newJobId : null;
+      updates.conversion_status = newJobId ? "processing" : null;
+      updates.auto_thumbnail_url = typeof newAutoThumbnail === "string" ? newAutoThumbnail : null;
     }
 
     const { error: updateError } = await supabase
@@ -308,34 +344,6 @@ export async function updateLpSampleVideo(
       });
     }
 
-    // 旧ファイル削除をキューに登録
-    if (updates.video_url && currentRecord?.video_url) {
-      const oldPath = extractSupabaseStoragePath(currentRecord.video_url, "company-assets");
-      if (oldPath) {
-        void enqueueStorageDeletion({
-          storageType: "supabase",
-          bucket: "company-assets",
-          path: oldPath,
-          isPrefix: false,
-          source: "update_lp_sample_video",
-          sourceDetail: `lpSampleVideoId=${id}`,
-        });
-      }
-    }
-    if (updates.thumbnail_url && currentRecord?.thumbnail_url) {
-      const oldPath = extractSupabaseStoragePath(currentRecord.thumbnail_url, "company-assets");
-      if (oldPath) {
-        void enqueueStorageDeletion({
-          storageType: "supabase",
-          bucket: "company-assets",
-          path: oldPath,
-          isPrefix: false,
-          source: "update_lp_sample_video_thumbnail",
-          sourceDetail: `lpSampleVideoId=${id}`,
-        });
-      }
-    }
-
     revalidatePath("/service/recruitment-marketing");
     revalidatePath("/admin/lp-content");
     return { data: true, error: null };
@@ -357,6 +365,14 @@ export async function deleteLpSampleVideo(
 
   try {
     const supabase = createAdminClient();
+
+    // S3削除をキュー
+    const { data: record } = await supabase
+      .from("lp_sample_videos")
+      .select("s3_key")
+      .eq("id", id)
+      .maybeSingle();
+
     const { error } = await supabase.from("lp_sample_videos").delete().eq("id", id);
 
     if (error) {
@@ -376,15 +392,17 @@ export async function deleteLpSampleVideo(
       });
     }
 
-    // Supabase Storage 削除をキューに登録
-    void enqueueStorageDeletion({
-      storageType: "supabase",
-      bucket: "company-assets",
-      path: `admin/lp-videos/${id}/`,
-      isPrefix: true,
-      source: "delete_lp_sample_video",
-      sourceDetail: `lpSampleVideoId=${id}`,
-    });
+    // S3削除キュー登録
+    if (record?.s3_key) {
+      void enqueueStorageDeletion({
+        storageType: "s3",
+        bucket: process.env.AWS_S3_BUCKET || "jobtv-videos-stg",
+        path: `admin/lp-videos/${id}/`,
+        isPrefix: true,
+        source: "delete_lp_sample_video",
+        sourceDetail: `lpSampleVideoId=${id}`,
+      });
+    }
 
     revalidatePath("/service/recruitment-marketing");
     revalidatePath("/admin/lp-content");
@@ -438,5 +456,32 @@ export async function reorderLpSampleVideos(
   } catch (e) {
     logger.error({ action: "reorderLpSampleVideos", err: e }, "LP動画の並び替えに失敗しました");
     return { data: null, error: e instanceof Error ? e.message : "並び替えに失敗しました" };
+  }
+}
+
+/** MediaConvert変換ステータスを確認・更新 */
+async function checkAndUpdateLpVideoConversion(
+  id: string,
+  jobId: string
+): Promise<void> {
+  try {
+    const status = await getMediaConvertJobStatus(jobId);
+    if (!status.status) return;
+
+    const supabase = createAdminClient();
+
+    if (status.status === "COMPLETE") {
+      await supabase
+        .from("lp_sample_videos")
+        .update({ conversion_status: "completed" })
+        .eq("id", id);
+    } else if (status.status === "ERROR" || status.status === "CANCELED") {
+      await supabase
+        .from("lp_sample_videos")
+        .update({ conversion_status: "failed" })
+        .eq("id", id);
+    }
+  } catch (e) {
+    logger.error({ action: "checkAndUpdateLpVideoConversion", id, err: e }, "LP動画変換ステータス確認失敗");
   }
 }

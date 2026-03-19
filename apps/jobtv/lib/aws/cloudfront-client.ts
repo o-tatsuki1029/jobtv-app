@@ -103,6 +103,25 @@ export async function getHeroMediaConvertThumbnailUrl(heroItemId: string): Promi
 }
 
 /**
+ * LPサンプル動画のHLSマニフェストファイルのCloudFront URLを生成
+ */
+export async function getLpVideoHlsManifestUrl(lpVideoId: string): Promise<string> {
+  const s3Key = `admin/lp-videos/${lpVideoId}/hls/portrait/original.m3u8`;
+  return getCloudFrontUrl(s3Key);
+}
+
+/**
+ * LPサンプル動画のMediaConvert Frame Captureで生成されたサムネイルのCloudFront URLを生成
+ */
+export async function getLpVideoMediaConvertThumbnailUrl(lpVideoId: string): Promise<string | null> {
+  const baseUrl = getCloudFrontBaseUrl();
+  if (!baseUrl) return null;
+  const filename = formatThumbnailFilename(0);
+  const s3Key = `admin/lp-videos/${lpVideoId}/hls/portrait/${filename}`;
+  return getCloudFrontUrl(s3Key);
+}
+
+/**
  * MediaConvert Frame Capture で生成されたサムネイルのCloudFront URLを生成
  * @param companyId 企業ID
  * @param videoId 動画ID
