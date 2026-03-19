@@ -351,6 +351,7 @@ type SampleVideo = {
   id: string;
   video_url: string;
   thumbnail_url: string | null;
+  auto_thumbnail_url: string | null;
   hls_url: string | null;
   conversion_status: string | null;
   tag: string;
