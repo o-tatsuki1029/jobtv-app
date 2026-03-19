@@ -1282,7 +1282,7 @@ export function LPClient({
                 <SampleVideoCard
                   key={video.id}
                   videoSrc={video.video_url}
-                  thumbnailUrl={video.thumbnail_url}
+                  thumbnailUrl={video.auto_thumbnail_url ?? video.thumbnail_url}
                   tag={video.tag}
                   duration={video.duration}
                   title={video.title}
