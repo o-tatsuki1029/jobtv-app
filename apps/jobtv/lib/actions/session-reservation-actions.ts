@@ -43,7 +43,7 @@ export interface ReservationWithCandidate extends SessionReservation {
     date_of_birth: string | null;
     graduation_year: number | null;
     major_field: string | null;
-    desired_work_location: string | null;
+    desired_work_location: string[] | null;
     desired_industry: string[] | null;
     desired_job_type: string[] | null;
     assigned_to: string | null;
@@ -394,7 +394,7 @@ export async function getAllReservations({
       date_of_birth: string | null;
       graduation_year: number | null;
       major_field: string | null;
-      desired_work_location: string | null;
+      desired_work_location: string[] | null;
       desired_industry: string[] | null;
       desired_job_type: string[] | null;
       assigned_to: string | null;
@@ -420,7 +420,7 @@ export async function getAllReservations({
       date_of_birth: (c.date_of_birth as string | null) ?? null,
       graduation_year: (c.graduation_year as number | null) ?? null,
       major_field: (c.major_field as string | null) ?? null,
-      desired_work_location: (c.desired_work_location as string | null) ?? null,
+      desired_work_location: (c.desired_work_location as string[] | null) ?? null,
       desired_industry: (c.desired_industry as string[] | null) ?? null,
       desired_job_type: (c.desired_job_type as string[] | null) ?? null,
       assigned_to: mgmt?.assigned_to ?? null,

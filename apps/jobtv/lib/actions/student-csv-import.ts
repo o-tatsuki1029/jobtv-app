@@ -191,7 +191,7 @@ export async function createStudentsFromCsv(formData: FormData): Promise<{
       department_name: getCell(row, headerMap, "学科名") || null,
       major_field: getCell(row, headerMap, "文理区分") || null,
       graduation_year: graduationYearStr ? Number(graduationYearStr) : null,
-      desired_work_location: getCell(row, headerMap, "希望勤務地") || null,
+      desired_work_location: (() => { const v = getCell(row, headerMap, "希望勤務地"); return v ? v.split(/[、,]/).map((s: string) => s.trim()).filter(Boolean) : null; })(),
       desired_industry: desiredIndustry.length > 0 ? desiredIndustry : null,
       desired_job_type: desiredJobType.length > 0 ? desiredJobType : null,
       referrer: getCell(row, headerMap, "流入元") || null,

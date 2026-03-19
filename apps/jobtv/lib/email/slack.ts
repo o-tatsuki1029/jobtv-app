@@ -77,7 +77,7 @@ export async function sendSignupSlackNotification(
   const now = new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" });
   const fullName = `${payload.last_name} ${payload.first_name}`;
   const fullNameKana = `${payload.last_name_kana} ${payload.first_name_kana}`;
-  const school = [payload.school_name, payload.faculty_name, payload.department_name ? `- ${payload.department_name}` : ""].filter(Boolean).join(" ");
+  const school = payload.school_name || "";
 
   const studentInfo = [
     `${fullName} (${fullNameKana})`,
@@ -85,6 +85,7 @@ export async function sendSignupSlackNotification(
     `Mail：${payload.email}`,
     `学生情報：${payload.graduation_year}卒 ${payload.major_field || ""} ${payload.gender || ""}`,
     `学校：${school}${payload.school_type ? `  (${payload.school_type})` : ""}`,
+    `希望勤務地：${payload.desired_work_location?.join("、") || ""}`,
     `志望業界：${payload.desired_industry?.join("、") || ""}`,
     `志望職種：${payload.desired_job_type?.join("、") || ""}`,
     `アカウントID：${payload.user_id ?? ""}`,

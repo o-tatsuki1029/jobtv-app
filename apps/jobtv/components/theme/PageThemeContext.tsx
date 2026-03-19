@@ -89,10 +89,17 @@ export function MainThemeProvider({ children, hasHeader = true }: MainThemeProvi
   );
 }
 
+/** SSR の Suspense streaming 時に Provider より先にレンダリングされるケースがあるため、
+ *  Context が null の場合はデフォルト値（light テーマ）を返す。 */
+const DEFAULT_THEME_VALUE: MainThemeContextValue = {
+  theme: "light",
+  setTheme: () => {},
+  classes: MAIN_THEME_CLASSES.light,
+  hasHeader: true,
+  isTransitioning: false,
+};
+
 export function useMainTheme(): MainThemeContextValue {
   const ctx = useContext(MainThemeContext);
-  if (!ctx) {
-    throw new Error("useMainTheme must be used within MainThemeProvider");
-  }
-  return ctx;
+  return ctx ?? DEFAULT_THEME_VALUE;
 }

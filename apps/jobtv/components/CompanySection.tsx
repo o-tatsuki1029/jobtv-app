@@ -1,6 +1,7 @@
 "use client";
 
-import { Building2 } from "lucide-react";
+import { useRef, useEffect, useCallback } from "react";
+import { Building2, Loader2 } from "lucide-react";
 import CompanyCard from "./CompanyCard";
 import HorizontalScrollContainer from "./HorizontalScrollContainer";
 import SectionHeader from "./SectionHeader";
@@ -18,10 +19,39 @@ interface Company {
 interface CompanySectionProps {
   title: string;
   companies: Company[];
+  /** 追加読み込み可能な残りがあるか */
+  hasMore?: boolean;
+  /** 追加読み込み中か */
+  isLoadingMore?: boolean;
+  /** 右端に到達したときに呼ばれるコールバック */
+  onReachEnd?: () => void;
 }
 
-export default function CompanySection({ title, companies }: CompanySectionProps) {
+export default function CompanySection({ title, companies, hasMore, isLoadingMore, onReachEnd }: CompanySectionProps) {
   const { classes } = useMainTheme();
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  // 右端のセンチネル要素が見えたら onReachEnd を発火
+  const onReachEndRef = useRef(onReachEnd);
+  onReachEndRef.current = onReachEnd;
+
+  const handleIntersect = useCallback((entries: IntersectionObserverEntry[]) => {
+    if (entries[0]?.isIntersecting) {
+      onReachEndRef.current?.();
+    }
+  }, []);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !hasMore) return;
+
+    const observer = new IntersectionObserver(handleIntersect, {
+      root: el.closest(".overflow-x-auto"),
+      rootMargin: "0px 200px 0px 0px",
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasMore, handleIntersect, companies.length]);
 
   if (companies.length === 0) {
     return null;
@@ -46,6 +76,16 @@ export default function CompanySection({ title, companies }: CompanySectionProps
                   />
                 </div>
               ))}
+              {hasMore && (
+                <div
+                  ref={sentinelRef}
+                  className="flex-shrink-0 flex items-center justify-center w-16"
+                >
+                  {isLoadingMore && (
+                    <Loader2 className={cn("w-6 h-6 animate-spin", classes.textSecondary)} />
+                  )}
+                </div>
+              )}
             </div>
           </HorizontalScrollContainer>
         </div>

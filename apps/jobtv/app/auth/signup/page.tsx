@@ -3,11 +3,12 @@
 import { Suspense, useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { signUp, checkEmailForSignup } from "@/lib/actions/auth-actions";
-import { searchSchoolNames, searchFacultyNames, searchDepartmentNames } from "@/lib/actions/school-actions";
+import { searchSchoolNames } from "@/lib/actions/school-actions";
 import SuggestInput from "@/components/common/SuggestInput";
+import MultiSelectDropdown from "@/components/common/MultiSelectDropdown";
 import { primaryButtonClass } from "@/constants/navigation";
 import { Loader2 } from "lucide-react";
-import { PREFECTURES } from "@/constants/prefectures";
+import { PREFECTURE_REGIONS } from "@/constants/prefectures";
 import {
   GENDERS,
   SCHOOL_TYPES,
@@ -16,14 +17,8 @@ import {
   getGraduationYears,
   getGraduationYearDefault,
   getGraduationYearLabel,
-  getBirthYears,
-  getBirthYearDefault,
-  BIRTH_MONTHS,
-  getBirthDays,
-  getDaysInMonth,
   DESIRED_INDUSTRIES,
   DESIRED_JOB_TYPES,
-  formatDateOfBirth,
 } from "@/constants/signup-options";
 import { validateEmail, validatePhone, validatePassword, validateKana } from "@/lib/utils/signup-validation";
 import Link from "next/link";
@@ -50,10 +45,8 @@ function SignUpPageContent() {
     content: "",
     term: ""
   });
-  const [birthYear, setBirthYear] = useState(getBirthYearDefault());
-  const [birthMonth, setBirthMonth] = useState<number | "">("");
-  const [birthDay, setBirthDay] = useState<number | "">("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
   const [selectedIndustries, setSelectedIndustries] = useState<string[]>([]);
   const [selectedJobTypes, setSelectedJobTypes] = useState<string[]>([]);
   const [step, setStep] = useState<"email" | "form" | "candidate_exists" | "recruiter_or_admin_exists">("email");
@@ -64,16 +57,7 @@ function SignUpPageContent() {
   const [schoolType, setSchoolType] = useState(SCHOOL_TYPE_DEFAULT);
   const [schoolName, setSchoolName] = useState("");
   const [schoolKcode, setSchoolKcode] = useState<string | null>(null);
-  const [facultyName, setFacultyName] = useState("");
-  const [departmentName, setDepartmentName] = useState("");
-
-  const birthDays = getBirthDays(birthYear, birthMonth || 1);
-  const maxDay = getDaysInMonth(birthYear, birthMonth || 1);
-  const clampedBirthDay = birthDay && birthDay > maxDay ? maxDay : birthDay;
-
-  useEffect(() => {
-    if (birthMonth && birthDay && birthDay > maxDay) setBirthDay(maxDay);
-  }, [birthYear, birthMonth, maxDay, birthDay]);
+  const [webConsultation, setWebConsultation] = useState(true);
 
   useEffect(() => {
     if (typeof document !== "undefined") setReferrer(document.referrer ?? "");
@@ -87,17 +71,11 @@ function SignUpPageContent() {
   }, [searchParams]);
 
   async function handleSubmit(formData: FormData) {
-    const year = formData.get("birth_year");
-    const month = formData.get("birth_month");
-    const day = formData.get("birth_day");
-    if (year && month && day) {
-      formData.set("date_of_birth", formatDateOfBirth(Number(year), Number(month), Number(day)));
-    }
     setLoading(true);
     setError(null);
     const result = await signUp(formData);
-    setLoading(false);
     if (result.error) {
+      setLoading(false);
       setError(result.error);
     } else if (result.success) {
       router.push('/auth/signup/thanks');
@@ -356,67 +334,16 @@ function SignUpPageContent() {
                   </div>
 
                   <div>
-                    <label htmlFor="desired_work_location" className={labelClass}>
-                      希望勤務地
-                    </label>
-                    <select id="desired_work_location" name="desired_work_location" required className={inputClass}>
-                      <option value="">選択してください</option>
-                      {PREFECTURES.map((pref: string) => (
-                        <option key={pref} value={pref}>
-                          {pref}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <span className={labelClass}>生年月日</span>
-                    <div className="flex gap-2 mt-0.5">
-                      <select
-                        id="birth_year"
-                        name="birth_year"
-                        required
-                        className={cn(inputClass, "flex-1")}
-                        value={birthYear}
-                        onChange={(e) => setBirthYear(Number(e.target.value))}
-                      >
-                        {getBirthYears().map((y) => (
-                          <option key={y} value={y}>
-                            {y}年
-                          </option>
-                        ))}
-                      </select>
-                      <select
-                        id="birth_month"
-                        name="birth_month"
-                        required
-                        className={cn(inputClass, "flex-1")}
-                        value={birthMonth}
-                        onChange={(e) => { setBirthMonth(e.target.value ? Number(e.target.value) : ""); setBirthDay(""); }}
-                      >
-                        <option value="">月</option>
-                        {BIRTH_MONTHS.map((m) => (
-                          <option key={m} value={m}>
-                            {m}月
-                          </option>
-                        ))}
-                      </select>
-                      <select
-                        id="birth_day"
-                        name="birth_day"
-                        required
-                        className={cn(inputClass, "flex-1")}
-                        value={clampedBirthDay}
-                        onChange={(e) => setBirthDay(e.target.value ? Number(e.target.value) : "")}
-                      >
-                        <option value="">日</option>
-                        {birthDays.map((d) => (
-                          <option key={d} value={d}>
-                            {d}日
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                    <span className={labelClass}>希望勤務地<span className="text-xs font-normal text-gray-500 ml-1">複数選択可</span></span>
+                    <MultiSelectDropdown
+                      groups={PREFECTURE_REGIONS.map((r) => ({ label: r.region, options: r.prefectures }))}
+                      selected={selectedLocations}
+                      onChange={setSelectedLocations}
+                      placeholder="選択してください"
+                    />
+                    {selectedLocations.map((loc) => (
+                      <input key={loc} type="hidden" name="desired_work_location" value={loc} />
+                    ))}
                   </div>
 
                   <div>
@@ -454,8 +381,6 @@ function SignUpPageContent() {
                         setSchoolType(e.target.value as typeof schoolType);
                         setSchoolName("");
                         setSchoolKcode(null);
-                        setFacultyName("");
-                        setDepartmentName("");
                       }}
                     >
                       {SCHOOL_TYPES.map((s) => (
@@ -473,12 +398,10 @@ function SignUpPageContent() {
                     <SuggestInput
                       name="school_name"
                       value={schoolName}
-                      onChange={(v) => { setSchoolName(v); setSchoolKcode(null); setFacultyName(""); setDepartmentName(""); }}
+                      onChange={(v) => { setSchoolName(v); setSchoolKcode(null); }}
                       onSelect={(item) => {
                         setSchoolName(item.value);
                         setSchoolKcode(item.meta?.school_kcode ?? null);
-                        setFacultyName("");
-                        setDepartmentName("");
                       }}
                       fetchSuggestions={async (q) => {
                         const r = await searchSchoolNames(q, schoolType);
@@ -492,45 +415,6 @@ function SignUpPageContent() {
                       placeholder="例：〇〇大学"
                     />
                     <input type="hidden" name="school_kcode" value={schoolKcode ?? ""} />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="faculty_name" className={labelClass}>
-                        学部
-                      </label>
-                      <SuggestInput
-                        name="faculty_name"
-                        value={facultyName}
-                        onChange={(v) => { setFacultyName(v); setDepartmentName(""); }}
-                        onSelect={(item) => { setFacultyName(item.value); setDepartmentName(""); }}
-                        fetchSuggestions={async (q) => {
-                          const r = await searchFacultyNames(schoolKcode ?? "", q);
-                          return (r.data ?? []).map((d) => ({ label: d.faculty_name, value: d.faculty_name }));
-                        }}
-                        cacheScope={schoolKcode ?? ""}
-                        showOnFocus
-                        placeholder="例：〇〇学部"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="department_name" className={labelClass}>
-                        学科
-                      </label>
-                      <SuggestInput
-                        name="department_name"
-                        value={departmentName}
-                        onChange={setDepartmentName}
-                        onSelect={(item) => setDepartmentName(item.value)}
-                        fetchSuggestions={async (q) => {
-                          const r = await searchDepartmentNames(schoolKcode ?? "", facultyName, q);
-                          return (r.data ?? []).map((d) => ({ label: d.department_name, value: d.department_name }));
-                        }}
-                        cacheScope={`${schoolKcode ?? ""}:${facultyName}`}
-                        showOnFocus
-                        placeholder="例：〇〇学科"
-                      />
-                    </div>
                   </div>
 
                   <div>
@@ -573,7 +457,7 @@ function SignUpPageContent() {
                   </div>
 
                   <div>
-                    <span className={labelClass}>興味のある業界</span>
+                    <span className={labelClass}>興味のある業界<span className="text-xs font-normal text-gray-500 ml-1">複数選択可</span></span>
                     <div className="flex flex-wrap gap-2 pt-0.5">
                       {DESIRED_INDUSTRIES.map((ind) => {
                         const selected = selectedIndustries.includes(ind);
@@ -604,7 +488,7 @@ function SignUpPageContent() {
                   </div>
 
                   <div>
-                    <span className={labelClass}>興味のある職種</span>
+                    <span className={labelClass}>興味のある職種<span className="text-xs font-normal text-gray-500 ml-1">複数選択可</span></span>
                     <div className="flex flex-wrap gap-2 pt-0.5">
                       {DESIRED_JOB_TYPES.map((job) => {
                         const selected = selectedJobTypes.includes(job);
@@ -654,6 +538,31 @@ function SignUpPageContent() {
                       }
                     />
                     {fieldErrors.password && <p className={fieldErrorClass}>{fieldErrors.password}</p>}
+                  </div>
+
+                  <div>
+                    <span className={labelClass}>就活お悩みWEB相談（無料）</span>
+                    <p className="text-xs text-gray-500 mb-2">無料で弊社専属のキャリアアドバイザーに、就活のお悩みをWEB面談にてご相談いただけます。<br />※別途日程調整フォームが送信されます。</p>
+                    <div className="flex gap-2">
+                      {[
+                        { value: true, label: "希望する" },
+                        { value: false, label: "希望しない" },
+                      ].map((opt) => (
+                        <label key={String(opt.value)} className="flex flex-1 min-w-0 cursor-pointer">
+                          <span className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-sm text-gray-900 transition-colors has-[:checked]:border-red-500 has-[:checked]:bg-red-50">
+                            <input
+                              type="radio"
+                              name="web_consultation_radio"
+                              checked={webConsultation === opt.value}
+                              onChange={() => setWebConsultation(opt.value)}
+                              className="h-3.5 w-3.5 shrink-0 rounded-full border-2 border-gray-300 text-red-500 accent-red-500"
+                            />
+                            {opt.label}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                    <input type="hidden" name="web_consultation" value={String(webConsultation)} />
                   </div>
 
                   <p className="text-gray-700 text-xs text-center">

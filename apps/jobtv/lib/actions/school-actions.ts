@@ -3,6 +3,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
 
+/** モジュールレベルのキャッシュ（TTL 5分） school_master は静的データのため有効 */
+const schoolSearchCache = new Map<string, { data: SchoolSuggestItem[]; ts: number }>();
+const SCHOOL_CACHE_TTL = 5 * 60 * 1000; // 5分
+
 export interface SchoolSuggestItem {
   school_name: string;
   school_kcode: string;
@@ -59,8 +63,14 @@ export async function searchSchoolNames(
 ): Promise<{ data: SchoolSuggestItem[]; error: string | null }> {
   if (!query || query.trim().length === 0) return { data: [], error: null };
 
-  const supabase = await createClient();
   const q = query.trim();
+  const cacheKey = `${q}|${schoolType ?? ""}`;
+  const cached = schoolSearchCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < SCHOOL_CACHE_TTL) {
+    return { data: cached.data, error: null };
+  }
+
+  const supabase = await createClient();
 
   let req = supabase
     .from("school_master")
@@ -97,6 +107,7 @@ export async function searchSchoolNames(
     if (unique.length >= 20) break;
   }
 
+  schoolSearchCache.set(cacheKey, { data: unique, ts: Date.now() });
   return { data: unique, error: null };
 }
 
