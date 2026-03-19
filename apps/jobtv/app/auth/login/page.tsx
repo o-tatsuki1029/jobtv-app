@@ -13,6 +13,7 @@ function LoginPageContent() {
   const emailFromQuery = searchParams.get("email") ?? "";
   const errorFromQuery = searchParams.get("error") ?? null;
   const [loading, setLoading] = useState(false);
+  const [displayError, setDisplayError] = useState(errorFromQuery);
 
   const signupHref = next ? `/auth/signup?next=${encodeURIComponent(next)}` : "/auth/signup";
 
@@ -38,6 +39,7 @@ function LoginPageContent() {
                 required
                 defaultValue={emailFromQuery}
                 autoComplete="username"
+                onChange={() => setDisplayError(null)}
                 className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500 transition-all"
                 placeholder="example@jobtv.jp"
               />
@@ -61,14 +63,15 @@ function LoginPageContent() {
                 name="password"
                 required
                 autoComplete="current-password"
+                onChange={() => setDisplayError(null)}
                 className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500 transition-all"
                 placeholder="パスワードを入力"
               />
             </div>
 
-            {errorFromQuery && (
+            {displayError && (
               <div className="p-3 bg-red-50 border border-red-100 rounded-md text-red-600 text-sm">
-                {errorFromQuery}
+                {displayError}
               </div>
             )}
 

@@ -1,6 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { after } from "next/server";
+import { revalidatePath, revalidateTag, unstable_cache } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getFullSiteUrl } from "@jobtv-app/shared/utils/dev-config";
@@ -10,11 +11,29 @@ import {
   sendEventReservationSlackNotification,
   appendEventReservationToSheet,
   sendEventReservationLinePush,
+  type EventReservationSheetPayload,
 } from "@/lib/email/send-event-reservation-notification";
 import { buildCandidatePayloadFromFormData } from "@/lib/utils/candidate-payload";
 import { resolveSchoolKcode } from "@/lib/actions/school-actions";
 import { verifyTurnstileToken } from "@/lib/captcha/verify-turnstile";
 import { logger } from "@/lib/logger";
+
+/** DB の text[] カラムをフラットな string[] に正規化する（JSON 文字列混入対策） */
+function normalizeStringArray(value: unknown): string[] {
+  if (!value) return [];
+  const arr = Array.isArray(value) ? value : [value];
+  return arr.flatMap((v) => {
+    if (typeof v !== "string") return [];
+    const trimmed = v.trim();
+    if (trimmed.startsWith("[")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return parsed.map(String);
+      } catch { /* not JSON */ }
+    }
+    return [v];
+  });
+}
 
 export interface EventForReservation {
   id: string;
@@ -36,13 +55,13 @@ export interface EventForReservation {
 }
 
 /**
- * URL パラメータでフィルタしたイベント一覧を取得する（認証不要）
+ * イベント一覧の内部取得関数（unstable_cache でラップして使う）
  */
-export async function getPublicEventsForReservation(params: {
-  eventTypeIds?: string[];
-  fromDays?: number;
-  toDays?: number;
-}): Promise<{ data: EventForReservation[] | null; error: string | null }> {
+async function fetchPublicEvents(
+  eventTypeIdsJson: string,
+  fromDays: string,
+  toDays: string,
+): Promise<{ data: EventForReservation[] | null; error: string | null }> {
   try {
     const supabase = createAdminClient();
 
@@ -60,17 +79,21 @@ export async function getPublicEventsForReservation(params: {
       .gte("event_date", todayStr)
       .order("event_date", { ascending: true });
 
-    if (params.eventTypeIds?.length) {
-      query = query.in("event_type_id", params.eventTypeIds);
+    const eventTypeIds: string[] = eventTypeIdsJson ? JSON.parse(eventTypeIdsJson) : [];
+    if (eventTypeIds.length) {
+      query = query.in("event_type_id", eventTypeIds);
     }
 
-    if (params.fromDays != null) {
-      const from = new Date(jstNow.getTime() + params.fromDays * 86400000);
+    const fromDaysNum = fromDays ? Number(fromDays) : null;
+    const toDaysNum = toDays ? Number(toDays) : null;
+
+    if (fromDaysNum != null) {
+      const from = new Date(jstNow.getTime() + fromDaysNum * 86400000);
       query = query.gte("event_date", from.toISOString().split("T")[0]);
     }
 
-    if (params.toDays != null) {
-      const to = new Date(jstNow.getTime() + params.toDays * 86400000);
+    if (toDaysNum != null) {
+      const to = new Date(jstNow.getTime() + toDaysNum * 86400000);
       query = query.lte("event_date", to.toISOString().split("T")[0]);
     }
 
@@ -101,6 +124,29 @@ export async function getPublicEventsForReservation(params: {
     logger.error({ action: "getPublicEventsForReservation", err: e }, "イベント一覧取得で予期しないエラー");
     return { data: null, error: "イベント情報の取得に失敗しました" };
   }
+}
+
+/**
+ * URL パラメータでフィルタしたイベント一覧を取得する（認証不要）
+ * unstable_cache でキャッシュ（TTL 60秒、tag: "public-events"）
+ */
+export async function getPublicEventsForReservation(params: {
+  eventTypeIds?: string[];
+  fromDays?: number;
+  toDays?: number;
+}): Promise<{ data: EventForReservation[] | null; error: string | null }> {
+  // unstable_cache はプリミティブ引数のみ受け付けるため JSON 文字列化
+  const eventTypeIdsJson = params.eventTypeIds?.length ? JSON.stringify(params.eventTypeIds) : "";
+  const fromDaysStr = params.fromDays != null ? String(params.fromDays) : "";
+  const toDaysStr = params.toDays != null ? String(params.toDays) : "";
+
+  const cached = unstable_cache(
+    fetchPublicEvents,
+    ["public-events", eventTypeIdsJson, fromDaysStr, toDaysStr],
+    { revalidate: 60, tags: ["public-events"] },
+  );
+
+  return cached(eventTypeIdsJson, fromDaysStr, toDaysStr);
 }
 
 /**
@@ -184,10 +230,11 @@ export async function createPublicEventReservation(formData: FormData): Promise<
     }
 
     // 通知（fire-and-forget）
-    fireReservationNotifications(eventId, profile.candidate_id, profile, webConsultation, {
+    fireReservationNotifications(eventId, profile.candidate_id, reservation.id, profile, webConsultation, {
       referrer, utmSource, utmMedium, utmCampaign, utmContent, utmTerm,
     });
 
+    revalidateTag("public-events", { expire: 0 });
     revalidatePath("/event/entry");
     return { data: { reservationId: reservation.id, eventId }, error: null };
   } catch (e) {
@@ -254,7 +301,7 @@ export async function createReservationForExistingCandidate(formData: FormData):
     }
 
     // 予約作成
-    const { error: insertError } = await admin
+    const { data: reservation, error: insertError } = await admin
       .from("event_reservations")
       .insert({
         event_id: eventId,
@@ -267,18 +314,21 @@ export async function createReservationForExistingCandidate(formData: FormData):
         utm_campaign: utmCampaign,
         utm_content: utmContent,
         utm_term: utmTerm,
-      });
+      })
+      .select("id")
+      .single();
 
-    if (insertError) {
+    if (insertError || !reservation) {
       logger.error({ action: "createReservationForExistingCandidate", err: insertError }, "予約の作成に失敗");
       return { data: null, error: "予約の作成に失敗しました" };
     }
 
     // 通知（fire-and-forget）
-    fireReservationNotifications(eventId, profile.candidate_id, profile, webConsultation, {
+    fireReservationNotifications(eventId, profile.candidate_id, reservation.id, profile, webConsultation, {
       referrer, utmSource, utmMedium, utmCampaign, utmContent, utmTerm,
     });
 
+    revalidateTag("public-events", { expire: 0 });
     revalidatePath("/event/entry");
     return { data: { eventId }, error: null };
   } catch (e) {
@@ -362,7 +412,7 @@ export async function signUpAndReserveEvent(formData: FormData): Promise<{
     const utmContent = formData.get("utm_content") ? String(formData.get("utm_content")) : null;
     const utmTerm = formData.get("utm_term") ? String(formData.get("utm_term")) : null;
 
-    const { error: insertError } = await admin
+    const { data: reservation, error: insertError } = await admin
       .from("event_reservations")
       .insert({
         event_id: eventId,
@@ -375,38 +425,44 @@ export async function signUpAndReserveEvent(formData: FormData): Promise<{
         utm_campaign: utmCampaign,
         utm_content: utmContent,
         utm_term: utmTerm,
-      });
+      })
+      .select("id")
+      .single();
 
-    if (insertError) {
+    if (insertError || !reservation) {
       logger.error({ action: "signUpAndReserveEvent", err: insertError }, "予約の作成に失敗");
       return { data: null, error: "登録は完了しましたが、予約に失敗しました。ログイン後に再度お試しください。" };
     }
 
-    // 5. 通知（fire-and-forget）
-    // ウェルカムメール
-    sendTemplatedEmail({
-      templateName: "candidate_welcome",
-      recipientEmail: email,
-      variables: {
-        first_name: payload.first_name,
-        last_name: payload.last_name,
-        site_url: getFullSiteUrl(3000),
-      },
-      recipientRole: "candidate",
-    }).catch((e) => logger.error({ action: "signUpAndReserveEvent", err: e }, "ウェルカムメール送信に失敗"));
+    // 5. 通知（after() でレスポンス後に実行）
+    after(async () => {
+      try {
+        await sendTemplatedEmail({
+          templateName: "candidate_welcome",
+          recipientEmail: email,
+          variables: {
+            first_name: payload.first_name,
+            last_name: payload.last_name,
+            site_url: getFullSiteUrl(3000),
+          },
+          recipientRole: "candidate",
+        });
+      } catch (e) {
+        logger.error({ action: "signUpAndReserveEvent", err: e }, "ウェルカムメール送信に失敗");
+      }
 
-    // Slack・Sheets（会員登録分）
-    const { sendSignupSlackNotification } = await import("@/lib/email/slack");
-    const { appendCandidateToSheet } = await import("@/lib/google/sheets");
-    sendSignupSlackNotification(payload).catch((e) =>
-      logger.error({ action: "signUpAndReserveEvent", err: e }, "Slack会員登録通知に失敗")
-    );
-    appendCandidateToSheet(payload).catch((e) =>
-      logger.error({ action: "signUpAndReserveEvent", err: e }, "Sheets会員登録転記に失敗")
-    );
+      const { sendSignupSlackNotification } = await import("@/lib/email/slack");
+      const { appendCandidateToSheet } = await import("@/lib/google/sheets");
+      sendSignupSlackNotification(payload).catch((e) =>
+        logger.error({ action: "signUpAndReserveEvent", err: e }, "Slack会員登録通知に失敗")
+      );
+      appendCandidateToSheet(payload).catch((e) =>
+        logger.error({ action: "signUpAndReserveEvent", err: e }, "Sheets会員登録転記に失敗")
+      );
+    });
 
-    // 予約通知
-    fireReservationNotifications(eventId, profile.candidate_id, profile, webConsultation, {
+    // 予約通知（fireReservationNotifications 内部でも after() を使用）
+    fireReservationNotifications(eventId, profile.candidate_id, reservation.id, profile, webConsultation, {
       referrer, utmSource, utmMedium, utmCampaign, utmContent, utmTerm,
     });
 
@@ -419,11 +475,12 @@ export async function signUpAndReserveEvent(formData: FormData): Promise<{
 }
 
 /**
- * 予約関連の通知を fire-and-forget で送信する
+ * 予約関連の通知を after() で送信する（レスポンス後もランタイムが処理を継続する）
  */
 function fireReservationNotifications(
   eventId: string,
   candidateId: string,
+  reservationId: string,
   profile: { last_name: string | null; first_name: string | null; email: string | null },
   webConsultation: boolean,
   utm: {
@@ -437,18 +494,44 @@ function fireReservationNotifications(
 ): void {
   const siteUrl = getFullSiteUrl(3000);
 
-  (async () => {
+  after(async () => {
     try {
       const admin = createAdminClient();
 
-      // イベント詳細を取得
-      const { data: event } = await admin
-        .from("events")
-        .select("event_date, start_time, end_time, venue_name, display_name, gathering_time, venue_address, google_maps_url, event_types(name)")
-        .eq("id", eventId)
-        .single();
+      // イベント・候補者・プロフィールを並列取得
+      const [eventResult, candidateResult, fullProfileResult] = await Promise.all([
+        admin
+          .from("events")
+          .select("event_date, start_time, end_time, venue_name, display_name, gathering_time, venue_address, google_maps_url, event_type_id, event_types(id, name, area, target_graduation_year)")
+          .eq("id", eventId)
+          .single(),
+        admin
+          .from("candidates")
+          .select("phone, graduation_year, school_name, school_type, major_field, gender, desired_work_location, desired_industry, desired_job_type, line_user_id, created_at, utm_source, utm_medium, utm_campaign, utm_content, utm_term, referrer")
+          .eq("id", candidateId)
+          .single(),
+        admin
+          .from("profiles")
+          .select("id, last_name_kana, first_name_kana")
+          .eq("candidate_id", candidateId)
+          .single(),
+      ]);
 
+      const { data: event, error: eventError } = eventResult;
+      const { data: candidate, error: candidateError } = candidateResult;
+      const { data: fullProfile, error: profileError } = fullProfileResult;
+
+      if (eventError) {
+        logger.error({ action: "fireReservationNotifications", err: eventError, eventId }, "イベント詳細の取得に失敗");
+      }
       if (!event) return;
+
+      if (candidateError) {
+        logger.error({ action: "fireReservationNotifications", err: candidateError, candidateId }, "候補者詳細の取得に失敗");
+      }
+      if (profileError) {
+        logger.error({ action: "fireReservationNotifications", err: profileError, candidateId }, "プロフィール詳細の取得に失敗");
+      }
 
       const eventType = Array.isArray(event.event_types) ? event.event_types[0] : event.event_types;
       const eventTypeName = event.display_name || eventType?.name || "";
@@ -476,60 +559,71 @@ function fireReservationNotifications(
         recipientRole: "candidate",
       }).catch((e) => logger.error({ action: "fireReservationNotifications", err: e }, "予約確認メール送信に失敗"));
 
-      // candidate の詳細情報を取得（Slack/Sheets 用）
-      const { data: candidate } = await admin
-        .from("candidates")
-        .select("phone, graduation_year, school_name, line_user_id")
-        .eq("id", candidateId)
-        .single();
+      const lastNameKana = fullProfile?.last_name_kana ?? "";
+      const firstNameKana = fullProfile?.first_name_kana ?? "";
+      const candidateNameKana = (lastNameKana || firstNameKana)
+        ? `${lastNameKana} ${firstNameKana}`.trim()
+        : "";
+
+      const slackPayload = {
+        candidateName: `${lastName} ${firstName}`,
+        candidateNameKana,
+        email,
+        phone: candidate?.phone ?? "",
+        graduationYear: candidate?.graduation_year ?? 0,
+        schoolName: candidate?.school_name ?? "",
+        eventTypeName,
+        eventDate: event.event_date,
+        startTime: event.start_time,
+        endTime: event.end_time,
+        venueName: event.venue_name ?? "",
+        gatheringTime: event.gathering_time ? event.gathering_time.slice(0, 5) : "",
+        venueAddress: event.venue_address ?? "",
+        googleMapsUrl: event.google_maps_url ?? "",
+        webConsultation,
+        utmSource: utm.utmSource ?? "",
+        utmMedium: utm.utmMedium ?? "",
+        utmCampaign: utm.utmCampaign ?? "",
+        utmContent: utm.utmContent ?? "",
+        utmTerm: utm.utmTerm ?? "",
+        referrer: utm.referrer ?? "",
+      };
 
       // Slack 通知
-      sendEventReservationSlackNotification({
-        candidateName: `${lastName} ${firstName}`,
-        email,
-        phone: candidate?.phone ?? "",
-        graduationYear: candidate?.graduation_year ?? 0,
-        schoolName: candidate?.school_name ?? "",
-        eventTypeName,
-        eventDate: event.event_date,
-        startTime: event.start_time,
-        endTime: event.end_time,
-        venueName: event.venue_name ?? "",
-        gatheringTime: event.gathering_time ? event.gathering_time.slice(0, 5) : "",
-        venueAddress: event.venue_address ?? "",
-        googleMapsUrl: event.google_maps_url ?? "",
-        webConsultation,
-        utmSource: utm.utmSource ?? "",
-        utmMedium: utm.utmMedium ?? "",
-        utmCampaign: utm.utmCampaign ?? "",
-        utmContent: utm.utmContent ?? "",
-        utmTerm: utm.utmTerm ?? "",
-        referrer: utm.referrer ?? "",
-      }).catch((e) => logger.error({ action: "fireReservationNotifications", err: e }, "Slack予約通知に失敗"));
+      sendEventReservationSlackNotification(slackPayload).catch((e) =>
+        logger.error({ action: "fireReservationNotifications", err: e }, "Slack予約通知に失敗")
+      );
 
-      // Google Sheets 追記
-      appendEventReservationToSheet({
-        candidateName: `${lastName} ${firstName}`,
-        email,
-        phone: candidate?.phone ?? "",
-        graduationYear: candidate?.graduation_year ?? 0,
-        schoolName: candidate?.school_name ?? "",
-        eventTypeName,
-        eventDate: event.event_date,
-        startTime: event.start_time,
-        endTime: event.end_time,
-        venueName: event.venue_name ?? "",
-        gatheringTime: event.gathering_time ? event.gathering_time.slice(0, 5) : "",
-        venueAddress: event.venue_address ?? "",
-        googleMapsUrl: event.google_maps_url ?? "",
-        webConsultation,
-        utmSource: utm.utmSource ?? "",
-        utmMedium: utm.utmMedium ?? "",
-        utmCampaign: utm.utmCampaign ?? "",
-        utmContent: utm.utmContent ?? "",
-        utmTerm: utm.utmTerm ?? "",
-        referrer: utm.referrer ?? "",
-      }).catch((e) => logger.error({ action: "fireReservationNotifications", err: e }, "Sheets予約転記に失敗"));
+      // Google Sheets 追記（拡張ペイロード）
+      const sheetPayload: EventReservationSheetPayload = {
+        ...slackPayload,
+        reservationId,
+        eventId,
+        eventTypeId: event.event_type_id ?? eventType?.id ?? "",
+        targetGraduationYear: eventType?.target_graduation_year ?? null,
+        area: eventType?.area ?? null,
+        userId: fullProfile?.id ?? "",
+        lastName,
+        firstName,
+        lastNameKana,
+        firstNameKana,
+        gender: candidate?.gender ?? "",
+        desiredWorkLocation: normalizeStringArray(candidate?.desired_work_location),
+        schoolType: candidate?.school_type ?? "",
+        majorField: candidate?.major_field ?? "",
+        desiredIndustry: normalizeStringArray(candidate?.desired_industry),
+        desiredJobType: normalizeStringArray(candidate?.desired_job_type),
+        candidateCreatedAt: candidate?.created_at ?? "",
+        signupUtmSource: candidate?.utm_source ?? "",
+        signupUtmMedium: candidate?.utm_medium ?? "",
+        signupUtmCampaign: candidate?.utm_campaign ?? "",
+        signupUtmContent: candidate?.utm_content ?? "",
+        signupUtmTerm: candidate?.utm_term ?? "",
+        signupReferrer: candidate?.referrer ?? "",
+      };
+
+      appendEventReservationToSheet(sheetPayload)
+        .catch((e) => logger.error({ action: "fireReservationNotifications", err: e }, "Sheets予約転記に失敗"));
 
       // LINE push（連携済みの場合）
       if (candidate?.line_user_id) {
@@ -548,5 +642,5 @@ function fireReservationNotifications(
     } catch (e) {
       logger.error({ action: "fireReservationNotifications", err: e }, "予約通知処理で予期しないエラー");
     }
-  })();
+  });
 }

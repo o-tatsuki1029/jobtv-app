@@ -4,9 +4,29 @@
 
 import { google } from "googleapis";
 import { logger } from "@/lib/logger";
+import { ensureHeaders } from "@/lib/google/sheets";
+
+const EVENT_RESERVATION_HEADERS = [
+  // イベント予約情報
+  "イベント予約ID", "予約日", "予約時刻",
+  "イベントタイプID", "イベントタイプ名", "イベント日ID",
+  "対象卒業年度", "エリア", "イベント日付",
+  "集合時刻", "開始時刻", "終了時刻",
+  // イベント予約UTM
+  "予約utm_source", "予約utm_medium", "予約utm_campaign",
+  "予約utm_content", "予約utm_term", "予約referrer",
+  // 予約者情報（会員登録シートと同等）
+  "会員登録日", "会員登録時刻", "アカウントID", "卒年度", "文理", "性別",
+  "姓", "名", "セイ", "メイ", "携帯電話番号", "メールアドレス",
+  "希望勤務地", "学校種別", "学校名", "志望業界", "志望職種",
+  // 会員登録時UTM
+  "登録utm_source", "登録utm_medium", "登録utm_campaign",
+  "登録utm_content", "登録utm_term", "登録referrer",
+];
 
 export interface EventReservationNotificationPayload {
   candidateName: string;
+  candidateNameKana: string;
   email: string;
   phone: string;
   graduationYear: number;
@@ -28,6 +48,34 @@ export interface EventReservationNotificationPayload {
   referrer: string;
 }
 
+/** Sheets 転記専用の拡張ペイロード */
+export interface EventReservationSheetPayload extends EventReservationNotificationPayload {
+  reservationId: string;
+  eventId: string;           // events.id（イベント日ID）
+  eventTypeId: string;
+  targetGraduationYear: number | null;
+  area: string | null;
+  // 予約者の詳細情報（会員登録シートと同等）
+  userId: string;
+  lastName: string;
+  firstName: string;
+  lastNameKana: string;
+  firstNameKana: string;
+  gender: string;
+  desiredWorkLocation: string[];
+  schoolType: string;
+  majorField: string;
+  desiredIndustry: string[];
+  desiredJobType: string[];
+  candidateCreatedAt: string;
+  signupUtmSource: string;
+  signupUtmMedium: string;
+  signupUtmCampaign: string;
+  signupUtmContent: string;
+  signupUtmTerm: string;
+  signupReferrer: string;
+}
+
 /**
  * イベント予約を Slack に通知する
  */
@@ -40,7 +88,7 @@ export async function sendEventReservationSlackNotification(
   const now = new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" });
 
   const studentInfo = [
-    `${payload.candidateName}`,
+    `${payload.candidateName}${payload.candidateNameKana ? ` (${payload.candidateNameKana})` : ""}`,
     `Mail：${payload.email}`,
     `Tel：${payload.phone}`,
     `${payload.graduationYear}卒`,
@@ -102,7 +150,7 @@ export async function sendEventReservationSlackNotification(
  * イベント予約を Google Sheets に追記する
  */
 export async function appendEventReservationToSheet(
-  payload: EventReservationNotificationPayload
+  payload: EventReservationSheetPayload
 ): Promise<void> {
   const clientEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
   const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
@@ -111,29 +159,72 @@ export async function appendEventReservationToSheet(
   if (!clientEmail || !privateKey || !spreadsheetId) return;
 
   const sheetName = process.env.GOOGLE_SHEETS_EVENT_RESERVATION_SHEET_NAME ?? "Sheet1";
-  const now = new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" });
+
+  // 予約日時を日付・時刻に分割
+  const jstNow = new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", hour12: false });
+  const [reservationDate, reservationTimePart] = jstNow.split(" ");
+  const reservationTime = (reservationTimePart ?? "")
+    .split(":")
+    .map((s) => s.padStart(2, "0"))
+    .join(":");
+
+  // 会員登録日時を日付・時刻に分割
+  let candidateDate = "";
+  let candidateTime = "";
+  if (payload.candidateCreatedAt) {
+    const d = new Date(payload.candidateCreatedAt);
+    const jst = d.toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", hour12: false });
+    const [dp, tp] = jst.split(" ");
+    candidateDate = dp ?? "";
+    candidateTime = (tp ?? "").split(":").map((s) => s.padStart(2, "0")).join(":");
+  }
 
   const row = [
-    now,                                              // A: 予約日時
-    payload.candidateName,                            // B: 氏名
-    payload.email,                                    // C: メール
-    payload.phone ? `'${payload.phone}` : "",         // D: 電話
-    payload.schoolName,                               // E: 学校名
-    String(payload.graduationYear),                   // F: 卒業年
-    payload.eventTypeName,                            // G: イベントタイプ
-    payload.eventDate,                                // H: イベント日
-    `${payload.startTime}〜${payload.endTime}`,       // I: 時間
-    payload.gatheringTime,                            // J: 集合時間
-    payload.venueName,                                // K: 会場
-    payload.venueAddress,                             // L: 住所
-    payload.googleMapsUrl,                            // M: 地図URL
-    payload.webConsultation ? "希望する" : "希望しない", // N: WEB相談
-    payload.utmSource,                                // O: utm_source
-    payload.utmMedium,                                // P: utm_medium
-    payload.utmCampaign,                              // Q: utm_campaign
-    payload.utmContent,                               // R: utm_content
-    payload.utmTerm,                                  // S: utm_term
-    payload.referrer,                                 // T: referrer
+    // ── イベント予約情報 ──
+    payload.reservationId,                            // A: イベント予約ID
+    reservationDate ?? "",                            // B: 予約日
+    reservationTime,                                  // C: 予約時刻
+    payload.eventTypeId,                              // D: イベントタイプID
+    payload.eventTypeName,                            // E: イベントタイプ名
+    payload.eventId,                                  // F: イベント日ID
+    payload.targetGraduationYear != null ? String(payload.targetGraduationYear) : "", // G: 対象卒業年度
+    payload.area ?? "",                               // H: エリア
+    payload.eventDate,                                // I: イベント日付
+    payload.gatheringTime,                            // J: 集合時刻
+    payload.startTime,                                // K: 開始時刻
+    payload.endTime,                                  // L: 終了時刻
+    // ── イベント予約UTM ──
+    payload.utmSource,                                // M: 予約utm_source
+    payload.utmMedium,                                // N: 予約utm_medium
+    payload.utmCampaign,                              // O: 予約utm_campaign
+    payload.utmContent,                               // P: 予約utm_content
+    payload.utmTerm,                                  // Q: 予約utm_term
+    payload.referrer,                                 // R: 予約referrer
+    // ── 予約者情報（会員登録シートと同等） ──
+    candidateDate,                                    // S: 会員登録日
+    candidateTime,                                    // T: 会員登録時刻
+    payload.userId,                                   // U: アカウントID
+    String(payload.graduationYear),                   // V: 卒年度
+    payload.majorField,                               // W: 文理
+    payload.gender,                                   // X: 性別
+    payload.lastName,                                 // Y: 姓
+    payload.firstName,                                // Z: 名
+    payload.lastNameKana,                             // AA: セイ
+    payload.firstNameKana,                            // AB: メイ
+    payload.phone ? `'${payload.phone}` : "",         // AC: 携帯電話番号
+    payload.email,                                    // AD: メールアドレス
+    payload.desiredWorkLocation?.join("、") ?? "",      // AE: 希望勤務地
+    payload.schoolType,                               // AF: 学校種別
+    payload.schoolName,                               // AG: 学校名
+    payload.desiredIndustry?.join("、") ?? "",         // AH: 志望業界
+    payload.desiredJobType?.join("、") ?? "",          // AI: 志望職種
+    // ── 会員登録時UTM ──
+    payload.signupUtmSource,                           // AJ: 登録utm_source
+    payload.signupUtmMedium,                           // AK: 登録utm_medium
+    payload.signupUtmCampaign,                         // AL: 登録utm_campaign
+    payload.signupUtmContent,                          // AM: 登録utm_content
+    payload.signupUtmTerm,                             // AN: 登録utm_term
+    payload.signupReferrer,                            // AO: 登録referrer
   ];
 
   const auth = new google.auth.GoogleAuth({
@@ -145,10 +236,11 @@ export async function appendEventReservationToSheet(
   });
 
   try {
-    const sheets = google.sheets({ version: "v4", auth });
-    await sheets.spreadsheets.values.append({
+    const sheetsApi = google.sheets({ version: "v4", auth });
+    await ensureHeaders(sheetsApi, spreadsheetId, sheetName, EVENT_RESERVATION_HEADERS);
+    await sheetsApi.spreadsheets.values.append({
       spreadsheetId,
-      range: `${sheetName}!A:T`,
+      range: `${sheetName}!A:AO`,  // 41列
       valueInputOption: "USER_ENTERED",
       requestBody: { values: [row] },
     });

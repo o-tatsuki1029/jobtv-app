@@ -12,6 +12,7 @@ function StudioLoginPageContent() {
   const emailFromQuery = searchParams.get("email") ?? "";
   const errorFromQuery = searchParams.get("error") ?? null;
   const [loading, setLoading] = useState(false);
+  const [displayError, setDisplayError] = useState(errorFromQuery);
 
   return (
     <div className="h-screen flex items-center justify-center px-4 overflow-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-black">
@@ -37,6 +38,7 @@ function StudioLoginPageContent() {
                 required
                 defaultValue={emailFromQuery}
                 autoComplete="username"
+                onChange={() => setDisplayError(null)}
                 className="w-full px-4 py-3 bg-gray-900/50 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
                 placeholder="recruiter@example.co.jp"
               />
@@ -60,14 +62,15 @@ function StudioLoginPageContent() {
                 name="password"
                 required
                 autoComplete="current-password"
+                onChange={() => setDisplayError(null)}
                 className="w-full px-4 py-3 bg-gray-900/50 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
                 placeholder="パスワードを入力"
               />
             </div>
 
-            {errorFromQuery && (
+            {displayError && (
               <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm">
-                {errorFromQuery}
+                {displayError}
               </div>
             )}
 

@@ -79,6 +79,20 @@ export async function createCompany(
     employees?: string | null;
     company_info?: string | null;
     status?: "active" | "closed" | null;
+    logo_url?: string | null;
+    thumbnail_url?: string | null;
+    phone_number?: string | null;
+    revenue?: string | null;
+    average_age?: number | null;
+    listing_status?: string | null;
+    legacy_service_id?: string | null;
+    sns_facebook_url?: string | null;
+    postal_code?: string | null;
+    capital?: string | null;
+    business_details?: string | null;
+    headquarters?: string | null;
+    group_companies?: string | null;
+    training_program?: string | null;
   },
   options?: { withDraft?: boolean }
 ): Promise<{ data: { companyId: string } | null; error: string | null }> {
@@ -102,6 +116,20 @@ export async function createCompany(
         employees: companyData.employees || null,
         company_info: companyData.company_info || null,
         status: companyData.status || "active",
+        logo_url: companyData.logo_url || null,
+        thumbnail_url: companyData.thumbnail_url || null,
+        phone_number: companyData.phone_number || null,
+        revenue: companyData.revenue || null,
+        average_age: companyData.average_age ?? null,
+        listing_status: companyData.listing_status || null,
+        legacy_service_id: companyData.legacy_service_id || null,
+        sns_facebook_url: companyData.sns_facebook_url || null,
+        postal_code: companyData.postal_code || null,
+        capital: companyData.capital || null,
+        business_details: companyData.business_details || null,
+        headquarters: companyData.headquarters || null,
+        group_companies: companyData.group_companies || null,
+        training_program: companyData.training_program || null,
       })
       .select()
       .single();
@@ -126,6 +154,20 @@ export async function createCompany(
           established: newCompany.established,
           employees: newCompany.employees,
           company_info: newCompany.company_info,
+          logo_url: newCompany.logo_url,
+          thumbnail_url: newCompany.thumbnail_url,
+          phone_number: newCompany.phone_number,
+          revenue: newCompany.revenue,
+          average_age: newCompany.average_age,
+          listing_status: newCompany.listing_status,
+          legacy_service_id: newCompany.legacy_service_id,
+          sns_facebook_url: newCompany.sns_facebook_url,
+          postal_code: newCompany.postal_code,
+          capital: newCompany.capital,
+          business_details: newCompany.business_details,
+          headquarters: newCompany.headquarters,
+          group_companies: newCompany.group_companies,
+          training_program: newCompany.training_program,
           draft_status: "approved",
           approved_at: now,
         });

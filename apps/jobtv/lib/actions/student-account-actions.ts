@@ -112,7 +112,7 @@ export async function createStudent(studentData: {
   department_name?: string | null;
   major_field?: string | null;
   graduation_year?: number | null;
-  desired_work_location?: string | null;
+  desired_work_location?: string[] | null;
   desired_industry?: string[] | null;
   desired_job_type?: string[] | null;
   referrer?: string | null;

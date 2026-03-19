@@ -267,7 +267,7 @@ export default function AdminStudentAccountsPage() {
       department_name: form.department_name || null,
       major_field: form.major_field || null,
       graduation_year: form.graduation_year ? Number(form.graduation_year) : null,
-      desired_work_location: form.desired_work_location || null,
+      desired_work_location: form.desired_work_location ? [form.desired_work_location] : null,
       desired_industry: selectedIndustries.length > 0 ? selectedIndustries : null,
       desired_job_type: selectedJobTypes.length > 0 ? selectedJobTypes : null,
       referrer: form.referrer || null,

@@ -31,7 +31,7 @@ interface ReservationRow {
     date_of_birth: string | null;
     graduation_year: number | null;
     major_field: string | null;
-    desired_work_location: string | null;
+    desired_work_location: string[] | null;
     desired_industry: string[] | null;
     desired_job_type: string[] | null;
     assigned_to: string | null;
@@ -66,7 +66,7 @@ interface ApplicationRow {
     date_of_birth: string | null;
     graduation_year: number | null;
     major_field: string | null;
-    desired_work_location: string | null;
+    desired_work_location: string[] | null;
     desired_industry: string[] | null;
     desired_job_type: string[] | null;
     assigned_to: string | null;
@@ -327,7 +327,7 @@ function CandidatesContent() {
         c?.school_name ?? "", c?.school_type ?? "", c?.faculty_name ?? "", c?.department_name ?? "",
         c?.major_field ?? "",
         c?.graduation_year != null ? String(c.graduation_year) : "",
-        c?.desired_work_location ?? "",
+        (c?.desired_work_location ?? []).join("、"),
         (c?.desired_industry ?? []).join("、"),
         (c?.desired_job_type ?? []).join("、"),
       ];
@@ -347,7 +347,7 @@ function CandidatesContent() {
         c?.school_name ?? "", c?.school_type ?? "", c?.faculty_name ?? "", c?.department_name ?? "",
         c?.major_field ?? "",
         c?.graduation_year != null ? String(c.graduation_year) : "",
-        c?.desired_work_location ?? "",
+        (c?.desired_work_location ?? []).join("、"),
         (c?.desired_industry ?? []).join("、"),
         (c?.desired_job_type ?? []).join("、"),
       ];
@@ -446,7 +446,7 @@ function CandidatesContent() {
                     </Section>
 
                     <Section title="希望条件">
-                      <Cell label="希望勤務地" value={c?.desired_work_location ?? "-"} />
+                      <Cell label="希望勤務地" value={(c?.desired_work_location ?? []).join("、") || "-"} />
                       <div className="col-span-2"><Cell label="希望業界" value={(c?.desired_industry ?? []).join("、") || "-"} /></div>
                       <div className="col-span-2"><Cell label="希望職種" value={(c?.desired_job_type ?? []).join("、") || "-"} /></div>
                     </Section>

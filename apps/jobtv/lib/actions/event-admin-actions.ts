@@ -1,7 +1,7 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import type { Tables } from "@jobtv-app/shared/types";
 import { checkAdminPermission } from "@/lib/actions/admin-actions";
 import { logger } from "@/lib/logger";
@@ -225,6 +225,7 @@ export async function createEvent(data: {
       return { data: null, error: error?.message ?? "イベントの作成に失敗しました" };
     }
 
+    revalidateTag("public-events", { expire: 0 });
     revalidatePath("/admin/events");
 
     if (user) {
@@ -280,6 +281,7 @@ export async function updateEvent(
       return { data: null, error: error.message };
     }
 
+    revalidateTag("public-events", { expire: 0 });
     revalidatePath("/admin/events");
     revalidatePath(`/admin/events/${eventId}`);
 
@@ -324,6 +326,7 @@ export async function deleteEvent(eventId: string): Promise<{ error: string | nu
       return { error: error.message };
     }
 
+    revalidateTag("public-events", { expire: 0 });
     revalidatePath("/admin/events");
 
     const supabase = await createClient();
@@ -642,6 +645,7 @@ export async function createEventArea(params: {
       .single();
     if (error || !data) return { data: null, error: error?.message ?? "エリアの作成に失敗しました" };
 
+    revalidateTag("public-events", { expire: 0 });
     revalidatePath("/admin/events");
 
     const supabase = await createClient();
@@ -698,6 +702,7 @@ export async function updateEventArea(
     const { error } = await supabaseAdmin.from("event_areas").update(updateData).eq("id", id);
     if (error) return { error: error.message };
 
+    revalidateTag("public-events", { expire: 0 });
     revalidatePath("/admin/events");
 
     const supabase = await createClient();
@@ -736,6 +741,7 @@ export async function deleteEventArea(id: string): Promise<{ error: string | nul
     const { error } = await supabaseAdmin.from("event_areas").delete().eq("id", id);
     if (error) return { error: error.message };
 
+    revalidateTag("public-events", { expire: 0 });
     revalidatePath("/admin/events");
 
     const supabase = await createClient();
@@ -792,6 +798,7 @@ export async function createEventGraduationYear(params: {
       .single();
     if (error || !data) return { data: null, error: error?.message ?? "卒業年度の作成に失敗しました" };
 
+    revalidateTag("public-events", { expire: 0 });
     revalidatePath("/admin/events");
 
     const supabase = await createClient();
@@ -846,6 +853,7 @@ export async function updateEventGraduationYear(
     const { error } = await supabaseAdmin.from("event_graduation_years").update(updateData).eq("id", id);
     if (error) return { error: error.message };
 
+    revalidateTag("public-events", { expire: 0 });
     revalidatePath("/admin/events");
 
     const supabase = await createClient();
@@ -883,6 +891,7 @@ export async function deleteEventGraduationYear(id: string): Promise<{ error: st
     const { error } = await supabaseAdmin.from("event_graduation_years").delete().eq("id", id);
     if (error) return { error: error.message };
 
+    revalidateTag("public-events", { expire: 0 });
     revalidatePath("/admin/events");
 
     const supabase = await createClient();
@@ -937,6 +946,7 @@ export async function createEventType(params: {
       .single();
     if (error || !data) return { data: null, error: error?.message ?? "イベントタイプの作成に失敗しました" };
 
+    revalidateTag("public-events", { expire: 0 });
     revalidatePath("/admin/events");
 
     const supabase = await createClient();
@@ -968,6 +978,7 @@ export async function updateEventType(
     const { error } = await supabaseAdmin.from("event_types").update(updateData).eq("id", id);
     if (error) return { error: error.message };
 
+    revalidateTag("public-events", { expire: 0 });
     revalidatePath("/admin/events");
 
     const supabase = await createClient();
@@ -998,6 +1009,7 @@ export async function deleteEventType(id: string): Promise<{ error: string | nul
     const { error } = await supabaseAdmin.from("event_types").delete().eq("id", id);
     if (error) return { error: error.message };
 
+    revalidateTag("public-events", { expire: 0 });
     revalidatePath("/admin/events");
 
     const supabase = await createClient();

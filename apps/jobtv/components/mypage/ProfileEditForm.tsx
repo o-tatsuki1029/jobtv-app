@@ -7,7 +7,7 @@ import { searchSchoolNames, searchFacultyNames, searchDepartmentNames } from "@/
 import SuggestInput, { type SuggestItem } from "@/components/common/SuggestInput";
 import { useMainTheme } from "@/components/theme/PageThemeContext";
 import { cn } from "@jobtv-app/shared/utils/cn";
-import { PREFECTURES } from "@/constants/prefectures";
+import { PREFECTURE_REGIONS } from "@/constants/prefectures";
 import {
   GENDERS,
   SCHOOL_TYPES,
@@ -46,7 +46,7 @@ interface CandidateProfileData {
   department_name: string | null;
   major_field: string | null;
   graduation_year: number | null;
-  desired_work_location: string | null;
+  desired_work_location: string[] | null;
   desired_industry: string[] | null;
   desired_job_type: string[] | null;
   email: string | null;
@@ -76,7 +76,7 @@ export default function ProfileEditForm({ initialData, error: loadError }: Profi
     department_name: initialData?.department_name ?? "",
     major_field: initialData?.major_field ?? null,
     graduation_year: initialData?.graduation_year ?? getGraduationYearDefault(),
-    desired_work_location: initialData?.desired_work_location ?? "",
+    desired_work_location: initialData?.desired_work_location ?? [],
     desired_industry: initialData?.desired_industry ?? [],
     desired_job_type: initialData?.desired_job_type ?? []
   });
@@ -113,7 +113,7 @@ export default function ProfileEditForm({ initialData, error: loadError }: Profi
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleMultiToggle = (field: "desired_industry" | "desired_job_type", value: string) => {
+  const handleMultiToggle = (field: "desired_industry" | "desired_job_type" | "desired_work_location", value: string) => {
     setForm((prev) => {
       const current = prev[field] as string[];
       return {
@@ -145,7 +145,7 @@ export default function ProfileEditForm({ initialData, error: loadError }: Profi
       if (e) errors.first_name_kana = e;
     }
     if (!form.gender) errors.gender = "性別を選択してください";
-    if (!form.desired_work_location) errors.desired_work_location = "希望勤務地を選択してください";
+    if (!form.desired_work_location?.length) errors.desired_work_location = "希望勤務地を選択してください";
     if (!form.school_type) errors.school_type = "学校種別を選択してください";
     if (!form.school_name?.trim()) errors.school_name = "学校名を入力してください";
     if (!form.faculty_name?.trim()) errors.faculty_name = "学部名を入力してください";
@@ -453,15 +453,49 @@ export default function ProfileEditForm({ initialData, error: loadError }: Profi
 
             {/* 希望勤務地 */}
             <div className="mb-4">
-              <label className={labelClass}>希望勤務地<span className="text-red-500 ml-0.5">*</span></label>
-              <select
-                value={form.desired_work_location ?? ""}
-                onChange={(e) => { handleChange("desired_work_location", e.target.value || null); setFieldError("desired_work_location", null); }}
-                className={cn(inputBase, fieldErrors.desired_work_location && inputErrorStyle)}
-              >
-                <option value="">選択してください</option>
-                {PREFECTURES.map((pref: string) => <option key={pref} value={pref}>{pref}</option>)}
-              </select>
+              <label className={cn("block text-sm font-medium mb-2", isDark ? "text-gray-300" : "text-gray-700")}>希望勤務地<span className="text-red-500 ml-0.5">*</span><span className="text-xs font-normal text-gray-500 ml-1">複数選択可</span></label>
+              <div className="space-y-3">
+                {PREFECTURE_REGIONS.map((region) => {
+                  const allSelected = region.prefectures.every((p) => form.desired_work_location.includes(p));
+                  return (
+                    <div key={region.region}>
+                      <label className={cn("flex items-center gap-2 mb-1 cursor-pointer text-sm font-medium", isDark ? "text-gray-200" : "text-gray-800")}>
+                        <input
+                          type="checkbox"
+                          checked={allSelected}
+                          onChange={() => {
+                            const current = form.desired_work_location;
+                            const next = allSelected
+                              ? current.filter((v) => !region.prefectures.includes(v))
+                              : [...current, ...region.prefectures.filter((p) => !current.includes(p))];
+                            handleChange("desired_work_location", next);
+                            setFieldError("desired_work_location", null);
+                          }}
+                          className="h-4 w-4 rounded border-gray-300 text-red-500 accent-red-500"
+                        />
+                        {region.region}
+                      </label>
+                      <div className="flex flex-wrap gap-1.5 pl-6">
+                        {region.prefectures.map((pref) => (
+                          <button
+                            type="button"
+                            key={pref}
+                            onClick={() => { handleMultiToggle("desired_work_location", pref); setFieldError("desired_work_location", null); }}
+                            className={cn(
+                              "px-2.5 py-1 rounded-full text-xs border transition-colors",
+                              form.desired_work_location.includes(pref)
+                                ? isDark ? "border-red-400 bg-red-900/30 text-red-300" : "border-red-500 bg-red-50 text-gray-900"
+                                : isDark ? "border-gray-600 bg-gray-700 text-gray-300 hover:border-gray-500" : "border-gray-300 bg-gray-50 text-gray-700 hover:border-gray-400"
+                            )}
+                          >
+                            {pref}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
               {fieldErrors.desired_work_location && <p className={fieldErrorClass} data-field-error>{fieldErrors.desired_work_location}</p>}
             </div>
 
