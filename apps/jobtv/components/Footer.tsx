@@ -10,7 +10,7 @@ export default function Footer() {
       { label: "就活Shorts", href: "/#short" },
       { label: "就活ドキュメンタリー", href: "/#documentary" },
       { label: "企業説明", href: "/#company" },
-      { label: "採用イベント", href: "/" }
+      { label: "採用イベント", href: "/event" }
     ],
     about: [
       { label: "運営会社", href: "https://vectorinc.co.jp/company/about" },

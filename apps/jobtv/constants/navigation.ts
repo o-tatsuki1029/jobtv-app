@@ -14,15 +14,15 @@ export const navItems = [
   { label: "就活Shorts", href: "/#short" },
   { label: "就活ドキュメンタリー", href: "/#documentary" },
   { label: "企業説明", href: "/#company" },
-  { label: "採用イベント", href: "/" },
-  { label: "初めての方へ", href: "/" }
+  { label: "採用イベント", href: "/event" },
+  // { label: "初めての方へ", href: "/" }
 ] as const;
 
 export const mobileNavItems = [
   { label: "就活縦型Shorts", href: "/#short" },
   { label: "就活ドキュメンタリー", href: "/#documentary" },
   { label: "企業説明", href: "/#company" },
-  { label: "採用イベント", href: "/" },
-  { label: "初めての方へ", href: "/" },
+  { label: "採用イベント", href: "/event" },
+  // { label: "初めての方へ", href: "/" },
   { label: "新卒採用を検討中の法人様", href: "/service" }
 ] as const;
