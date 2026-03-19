@@ -150,10 +150,12 @@ function HeroVideo({ src, hlsSrc, thumbnail, onReady }: { src: string; hlsSrc?: 
           video.play().catch(() => {});
           markReady();
         });
-        hls.on(Hls.Events.ERROR, () => {
+        hls.on(Hls.Events.ERROR, (_event, data) => {
+          if (!data.fatal) return;
           hls.destroy();
           hlsRef.current = null;
           video.src = src;
+          video.addEventListener("canplay", markReady, { once: true });
           video.play().catch(() => {});
         });
       } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
@@ -182,13 +184,12 @@ function HeroVideo({ src, hlsSrc, thumbnail, onReady }: { src: string; hlsSrc?: 
     <div className="w-full h-full flex-shrink-0 relative bg-black">
       {!loaded && isFirst && (
         <div className="absolute inset-0">
-          {thumbnail ? (
+          {thumbnail && (
             <img src={thumbnail} alt="" className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            </div>
           )}
+          <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+            <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          </div>
         </div>
       )}
       <video
@@ -233,7 +234,8 @@ function HlsVideo({
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         if (autoPlay) video.play().catch(() => {});
       });
-      hls.on(Hls.Events.ERROR, () => {
+      hls.on(Hls.Events.ERROR, (_event, data) => {
+        if (!data.fatal) return;
         hls.destroy();
         hlsRef.current = null;
         video.src = src;
