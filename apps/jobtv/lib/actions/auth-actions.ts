@@ -1,5 +1,6 @@
 "use server";
 
+import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
@@ -59,25 +60,30 @@ export async function signUp(formData: FormData) {
     return { error: "登録情報の保存に失敗しました。しばらく経ってから再度お試しください。" };
   }
 
-  // サンクスメールを送信（失敗してもサインアップは成功とする）
-  sendTemplatedEmail({
-    templateName:   "candidate_welcome",
-    recipientEmail: email,
-    variables: {
-      first_name: payload.first_name,
-      last_name:  payload.last_name,
-      site_url:   getFullSiteUrl(3000),
-    },
-    recipientRole: "candidate",
-  }).catch((e) => logger.error({ action: "signUp", err: e }, "候補者ウェルカムメールの送信に失敗しました"));
+  // 通知処理はレスポンス返却後に after() で実行（ランタイムが完了を保証）
+  after(async () => {
+    try {
+      await sendTemplatedEmail({
+        templateName:   "candidate_welcome",
+        recipientEmail: email,
+        variables: {
+          first_name: payload.first_name,
+          last_name:  payload.last_name,
+          site_url:   getFullSiteUrl(3000),
+        },
+        recipientRole: "candidate",
+      });
+    } catch (e) {
+      logger.error({ action: "signUp", err: e }, "候補者ウェルカムメールの送信に失敗しました");
+    }
 
-  // Slack 通知・Google Sheets 転記（失敗してもサインアップは成功とする）
-  sendSignupSlackNotification(payload).catch((e) =>
-    logger.error({ action: "signUp", err: e }, "Slack会員登録通知の送信に失敗しました")
-  );
-  appendCandidateToSheet(payload).catch((e) =>
-    logger.error({ action: "signUp", err: e }, "Google Sheets転記に失敗しました")
-  );
+    sendSignupSlackNotification(payload).catch((e) =>
+      logger.error({ action: "signUp", err: e }, "Slack会員登録通知の送信に失敗しました")
+    );
+    appendCandidateToSheet(payload).catch((e) =>
+      logger.error({ action: "signUp", err: e }, "Google Sheets転記に失敗しました")
+    );
+  });
 
   revalidatePath("/", "layout");
   return { success: true };

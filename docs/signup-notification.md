@@ -65,31 +65,29 @@ utm_referrer：https://jobtv.jp/event/campaign/all/
 
 | 列 | ヘッダー | 内容 |
 |----|---------|------|
-| A | 登録日時 | JST |
-| B | アカウントID | Supabase Auth の user ID |
-| C | 卒年度 | 数値 |
-| D | 文理 | 文系 / 理系 / その他 |
-| E | 性別 | |
-| F | 姓 | |
-| G | 名 | |
-| H | セイ | |
-| I | メイ | |
-| J | 携帯電話番号 | テキスト強制（先頭0保持） |
-| K | メールアドレス | |
-| L | 都道府県 | 希望勤務地 |
-| M | 生年月日 | |
+| A | 会員登録日 | JST（日付部分） |
+| B | 会員登録時刻 | JST（時刻部分） |
+| C | アカウントID | Supabase Auth の user ID |
+| D | 卒年度 | 数値 |
+| E | 文理 | 文系 / 理系 / その他 |
+| F | 性別 | |
+| G | 姓 | |
+| H | 名 | |
+| I | セイ | |
+| J | メイ | |
+| K | 携帯電話番号 | テキスト強制（先頭0保持） |
+| L | メールアドレス | |
+| M | 希望勤務地 | |
 | N | 学校種別 | |
 | O | 学校名 | |
-| P | 学部名 | |
-| Q | 学科名 | |
-| R | 志望業界 | 全角読点（、）区切り |
-| S | 志望職種 | 全角読点（、）区切り |
-| T | utm_source | |
-| U | utm_medium | |
-| V | utm_campaign | |
-| W | utm_content | |
-| X | utm_term | |
-| Y | referrer | |
+| P | 志望業界 | 全角読点（、）区切り |
+| Q | 志望職種 | 全角読点（、）区切り |
+| R | utm_source | |
+| S | utm_medium | |
+| T | utm_campaign | |
+| U | utm_content | |
+| V | utm_term | |
+| W | referrer | |
 
 ## Google Service Account の準備手順
 

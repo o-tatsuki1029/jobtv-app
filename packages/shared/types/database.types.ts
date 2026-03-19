@@ -256,7 +256,7 @@ export type Database = {
           department_name: string | null
           desired_industry: string[] | null
           desired_job_type: string[] | null
-          desired_work_location: string | null
+          desired_work_location: string[] | null
           entry_channel: string | null
           faculty_name: string | null
           gender: string | null
@@ -276,6 +276,7 @@ export type Database = {
           utm_medium: string | null
           utm_source: string | null
           utm_term: string | null
+          web_consultation: boolean
         }
         Insert: {
           created_at?: string
@@ -283,7 +284,7 @@ export type Database = {
           department_name?: string | null
           desired_industry?: string[] | null
           desired_job_type?: string[] | null
-          desired_work_location?: string | null
+          desired_work_location?: string[] | null
           entry_channel?: string | null
           faculty_name?: string | null
           gender?: string | null
@@ -303,6 +304,7 @@ export type Database = {
           utm_medium?: string | null
           utm_source?: string | null
           utm_term?: string | null
+          web_consultation?: boolean
         }
         Update: {
           created_at?: string
@@ -310,7 +312,7 @@ export type Database = {
           department_name?: string | null
           desired_industry?: string[] | null
           desired_job_type?: string[] | null
-          desired_work_location?: string | null
+          desired_work_location?: string[] | null
           entry_channel?: string | null
           faculty_name?: string | null
           gender?: string | null
@@ -330,6 +332,7 @@ export type Database = {
           utm_medium?: string | null
           utm_source?: string | null
           utm_term?: string | null
+          web_consultation?: boolean
         }
         Relationships: []
       }
@@ -369,57 +372,90 @@ export type Database = {
         Row: {
           address_line1: string | null
           address_line2: string | null
+          average_age: number | null
+          business_details: string | null
+          capital: string | null
           company_info: string | null
           created_at: string
           employees: string | null
           established: string | null
+          group_companies: string | null
+          headquarters: string | null
           id: string
           industry: string | null
+          legacy_service_id: string | null
+          listing_status: string | null
           logo_url: string | null
           name: string
-          notes: string | null
+          phone_number: string | null
+          postal_code: string | null
           prefecture: string | null
           representative: string | null
+          revenue: string | null
+          sns_facebook_url: string | null
           status: Database["public"]["Enums"]["company_status"] | null
           thumbnail_url: string | null
+          training_program: string | null
           updated_at: string
           website: string | null
         }
         Insert: {
           address_line1?: string | null
           address_line2?: string | null
+          average_age?: number | null
+          business_details?: string | null
+          capital?: string | null
           company_info?: string | null
           created_at?: string
           employees?: string | null
           established?: string | null
+          group_companies?: string | null
+          headquarters?: string | null
           id?: string
           industry?: string | null
+          legacy_service_id?: string | null
+          listing_status?: string | null
           logo_url?: string | null
           name: string
-          notes?: string | null
+          phone_number?: string | null
+          postal_code?: string | null
           prefecture?: string | null
           representative?: string | null
+          revenue?: string | null
+          sns_facebook_url?: string | null
           status?: Database["public"]["Enums"]["company_status"] | null
           thumbnail_url?: string | null
+          training_program?: string | null
           updated_at?: string
           website?: string | null
         }
         Update: {
           address_line1?: string | null
           address_line2?: string | null
+          average_age?: number | null
+          business_details?: string | null
+          capital?: string | null
           company_info?: string | null
           created_at?: string
           employees?: string | null
           established?: string | null
+          group_companies?: string | null
+          headquarters?: string | null
           id?: string
           industry?: string | null
+          legacy_service_id?: string | null
+          listing_status?: string | null
           logo_url?: string | null
           name?: string
-          notes?: string | null
+          phone_number?: string | null
+          postal_code?: string | null
           prefecture?: string | null
           representative?: string | null
+          revenue?: string | null
+          sns_facebook_url?: string | null
           status?: Database["public"]["Enums"]["company_status"] | null
           thumbnail_url?: string | null
+          training_program?: string | null
           updated_at?: string
           website?: string | null
         }
@@ -430,23 +466,34 @@ export type Database = {
           address_line1: string | null
           address_line2: string | null
           approved_at: string | null
+          average_age: number | null
+          business_details: string | null
+          capital: string | null
           company_id: string
           company_info: string | null
           created_at: string
           draft_status: string
           employees: string | null
           established: string | null
+          group_companies: string | null
+          headquarters: string | null
           id: string
           industry: string | null
+          legacy_service_id: string | null
+          listing_status: string | null
           logo_url: string | null
           name: string
-          notes: string | null
+          phone_number: string | null
+          postal_code: string | null
           prefecture: string | null
           production_company_id: string | null
           rejected_at: string | null
           representative: string | null
+          revenue: string | null
+          sns_facebook_url: string | null
           submitted_at: string | null
           thumbnail_url: string | null
+          training_program: string | null
           updated_at: string
           website: string | null
         }
@@ -454,23 +501,34 @@ export type Database = {
           address_line1?: string | null
           address_line2?: string | null
           approved_at?: string | null
+          average_age?: number | null
+          business_details?: string | null
+          capital?: string | null
           company_id: string
           company_info?: string | null
           created_at?: string
           draft_status?: string
           employees?: string | null
           established?: string | null
+          group_companies?: string | null
+          headquarters?: string | null
           id?: string
           industry?: string | null
+          legacy_service_id?: string | null
+          listing_status?: string | null
           logo_url?: string | null
           name: string
-          notes?: string | null
+          phone_number?: string | null
+          postal_code?: string | null
           prefecture?: string | null
           production_company_id?: string | null
           rejected_at?: string | null
           representative?: string | null
+          revenue?: string | null
+          sns_facebook_url?: string | null
           submitted_at?: string | null
           thumbnail_url?: string | null
+          training_program?: string | null
           updated_at?: string
           website?: string | null
         }
@@ -478,23 +536,34 @@ export type Database = {
           address_line1?: string | null
           address_line2?: string | null
           approved_at?: string | null
+          average_age?: number | null
+          business_details?: string | null
+          capital?: string | null
           company_id?: string
           company_info?: string | null
           created_at?: string
           draft_status?: string
           employees?: string | null
           established?: string | null
+          group_companies?: string | null
+          headquarters?: string | null
           id?: string
           industry?: string | null
+          legacy_service_id?: string | null
+          listing_status?: string | null
           logo_url?: string | null
           name?: string
-          notes?: string | null
+          phone_number?: string | null
+          postal_code?: string | null
           prefecture?: string | null
           production_company_id?: string | null
           rejected_at?: string | null
           representative?: string | null
+          revenue?: string | null
+          sns_facebook_url?: string | null
           submitted_at?: string | null
           thumbnail_url?: string | null
+          training_program?: string | null
           updated_at?: string
           website?: string | null
         }

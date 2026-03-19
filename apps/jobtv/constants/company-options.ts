@@ -5,14 +5,21 @@ import { PREFECTURES } from "./prefectures";
  */
 export const INDUSTRIES = [
   { value: "", label: "選択してください" },
-  { value: "商社", label: "商社" },
-  { value: "小売・流通", label: "小売・流通" },
-  { value: "金融", label: "金融" },
-  { value: "サービス・インフラ", label: "サービス・インフラ" },
-  { value: "IT・ソフトウエア", label: "IT・ソフトウエア" },
-  { value: "広告・出版・マスコミ", label: "広告・出版・マスコミ" },
-  { value: "官公庁・公社・団体", label: "官公庁・公社・団体" },
-  { value: "その他", label: "その他" }
+  { value: "IT・情報通信", label: "IT・情報通信" },
+  { value: "人材・教育・その他", label: "人材・教育・その他" },
+  { value: "広告・マスコミ", label: "広告・マスコミ" },
+  { value: "流通・小売・チェーン", label: "流通・小売・チェーン" },
+  { value: "建設・不動産", label: "建設・不動産" },
+  { value: "メーカー（食品・医療・生活・他）", label: "メーカー（食品・医療・生活・他）" },
+  { value: "メーカー（自動車・機械・電気・素材）", label: "メーカー（自動車・機械・電気・素材）" },
+  { value: "コンサル・シンクタンク", label: "コンサル・シンクタンク" },
+  { value: "金融・保険", label: "金融・保険" },
+  { value: "エンタメ・レジャー・ブライダル", label: "エンタメ・レジャー・ブライダル" },
+  { value: "公務員・団体職員", label: "公務員・団体職員" },
+  { value: "運輸・物流", label: "運輸・物流" },
+  { value: "エネルギー", label: "エネルギー" },
+  { value: "サービス", label: "サービス" },
+  { value: "商社（総合・専門）", label: "商社（総合・専門）" },
 ] as const;
 
 /**

@@ -7,14 +7,14 @@ export interface SignUpCandidatePayload {
   last_name_kana: string;
   first_name_kana: string;
   gender: string;
-  desired_work_location: string;
-  date_of_birth: string;
+  desired_work_location: string[];
+  date_of_birth?: string | null;
   phone: string;
   school_type: string;
   school_name: string;
   school_kcode?: string | null;
-  faculty_name: string;
-  department_name: string;
+  faculty_name?: string | null;
+  department_name?: string | null;
   major_field: string;
   graduation_year: number;
   desired_industry: string[];
@@ -25,4 +25,5 @@ export interface SignUpCandidatePayload {
   utm_campaign?: string | null;
   utm_content?: string | null;
   utm_term?: string | null;
+  web_consultation?: boolean;
 }

@@ -141,7 +141,7 @@ export interface UpdateCandidateProfileData {
   department_name: string | null;
   major_field: string | null;
   graduation_year: number | null;
-  desired_work_location: string | null;
+  desired_work_location: string[];
   desired_industry: string[];
   desired_job_type: string[];
 }
@@ -201,7 +201,7 @@ export async function updateMyCandidateProfile(data: UpdateCandidateProfileData)
       department_name: data.department_name || null,
       major_field: data.major_field || null,
       graduation_year: data.graduation_year || null,
-      desired_work_location: data.desired_work_location || null,
+      desired_work_location: data.desired_work_location.length > 0 ? data.desired_work_location : null,
       desired_industry: data.desired_industry,
       desired_job_type: data.desired_job_type,
       updated_at: new Date().toISOString()

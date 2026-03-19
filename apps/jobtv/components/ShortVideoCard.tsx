@@ -17,7 +17,7 @@ export default function ShortVideoCard({ title, thumbnail, channel, duration, on
   const { classes } = useMainTheme();
   return (
     <div className="group cursor-pointer" onClick={onClick}>
-      <div className={cn("relative overflow-hidden rounded-lg bg-gray-900 mb-3 shadow-sm group-hover:shadow-lg transition-shadow duration-300", HORIZONTAL_CARD_ASPECT_RATIO_CLASS)}>
+      <div className={cn("relative overflow-hidden rounded-lg bg-gray-200 mb-3 shadow-sm group-hover:shadow-lg transition-shadow duration-300", HORIZONTAL_CARD_ASPECT_RATIO_CLASS)}>
         {thumbnail ? (
           <Image
             src={thumbnail}
@@ -28,9 +28,9 @@ export default function ShortVideoCard({ title, thumbnail, channel, duration, on
             loading="lazy"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gray-800">
+          <div className="w-full h-full flex items-center justify-center bg-gray-100">
             <svg
-              className="w-12 h-12 text-gray-600"
+              className="w-12 h-12 text-gray-400"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"

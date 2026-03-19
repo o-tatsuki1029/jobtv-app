@@ -66,35 +66,119 @@ aws s3 mb s3://jobtv-videos-stg --region ap-northeast-1
 
 **アプリケーション用 IAM ユーザー**（S3 アップロード・MediaConvert ジョブ作成用）:
 
+各権限の用途:
+
+| 権限 | 用途 |
+|------|------|
+| `s3:PutObject` | 動画・サムネイルのアップロード（Presigned URL 経由） |
+| `s3:GetObject` | 動画・サムネイルの取得（CloudFront 配信、MediaConvert 変換元読み取り） |
+| `s3:DeleteObject` | ストレージ管理の削除キュー実行時のファイル削除 |
+| `s3:ListBucket` | 孤立ファイルスキャン・プレフィックス配下の全ファイル削除（バケット自体への操作のため `/*` なしの ARN が必要） |
+| `mediaconvert:CreateJob` | HLS 変換ジョブの作成（動画アップロード後に自動起動） |
+| `mediaconvert:GetJob` | 変換ジョブの状態確認（進捗・完了・エラー） |
+| `mediaconvert:ListJobs` | 管理画面での変換状況一覧表示 |
+| `mediaconvert:DescribeEndpoints` | MediaConvert API エンドポイント URL の取得（リージョンごとに固有） |
+| `iam:PassRole` | MediaConvert ジョブ作成時にサービスロールを渡すために必要。Condition で `mediaconvert.amazonaws.com` にのみ渡せるよう制限 |
+
+**STG 用ポリシー**（IAM ユーザー: `jobtv-stg` 等に適用）:
+
 ```json
 {
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": ["s3:PutObject", "s3:GetObject", "s3:DeleteObject", "s3:ListBucket"],
-      "Resource": [
-        "arn:aws:s3:::jobtv-videos-stg",
-        "arn:aws:s3:::jobtv-videos-stg/*"
-      ]
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
-        "mediaconvert:CreateJob",
-        "mediaconvert:GetJob",
-        "mediaconvert:ListJobs",
-        "mediaconvert:DescribeEndpoints"
-      ],
-      "Resource": "*"
-    }
-  ]
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "JobTvStgS3Objects",
+            "Effect": "Allow",
+            "Action": [
+                "s3:PutObject",
+                "s3:GetObject",
+                "s3:DeleteObject"
+            ],
+            "Resource": "arn:aws:s3:::jobtv-videos-stg/*"
+        },
+        {
+            "Sid": "JobTvStgS3List",
+            "Effect": "Allow",
+            "Action": "s3:ListBucket",
+            "Resource": "arn:aws:s3:::jobtv-videos-stg"
+        },
+        {
+            "Sid": "JobTvStgMediaConvert",
+            "Effect": "Allow",
+            "Action": [
+                "mediaconvert:CreateJob",
+                "mediaconvert:GetJob",
+                "mediaconvert:ListJobs",
+                "mediaconvert:DescribeEndpoints"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "JobTvStgPassRole",
+            "Effect": "Allow",
+            "Action": "iam:PassRole",
+            "Resource": "arn:aws:iam::381249715032:role/JobTvMediaConvertRole",
+            "Condition": {
+                "StringEquals": {
+                    "iam:PassedToService": "mediaconvert.amazonaws.com"
+                }
+            }
+        }
+    ]
 }
 ```
 
-> **注意**: `s3:ListBucket` と `s3:DeleteObject` はストレージ管理機能（削除キュー、孤立ファイルスキャン）で必要です。`ListBucket` はバケット自体に対する権限のため、`Resource` にバケット ARN（`/*` なし）も含めてください。
+**PROD 用ポリシー**（IAM ユーザー: `jobtv-prod` 等に適用）:
 
-**MediaConvert サービスロール**（MediaConvert ジョブが S3 にアクセスする用）:
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "JobTvProdS3Objects",
+            "Effect": "Allow",
+            "Action": [
+                "s3:PutObject",
+                "s3:GetObject",
+                "s3:DeleteObject"
+            ],
+            "Resource": "arn:aws:s3:::jobtv-videos-prod/*"
+        },
+        {
+            "Sid": "JobTvProdS3List",
+            "Effect": "Allow",
+            "Action": "s3:ListBucket",
+            "Resource": "arn:aws:s3:::jobtv-videos-prod"
+        },
+        {
+            "Sid": "JobTvProdMediaConvert",
+            "Effect": "Allow",
+            "Action": [
+                "mediaconvert:CreateJob",
+                "mediaconvert:GetJob",
+                "mediaconvert:ListJobs",
+                "mediaconvert:DescribeEndpoints"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "JobTvProdPassRole",
+            "Effect": "Allow",
+            "Action": "iam:PassRole",
+            "Resource": "arn:aws:iam::381249715032:role/JobTvMediaConvertRole",
+            "Condition": {
+                "StringEquals": {
+                    "iam:PassedToService": "mediaconvert.amazonaws.com"
+                }
+            }
+        }
+    ]
+}
+```
+
+> STG と PROD の差分は **S3 バケット名のみ**。MediaConvert のロール・権限は同一アカウント内で共用。
+
+**MediaConvert サービスロール**（`JobTvMediaConvertRole` — MediaConvert ジョブが S3 にアクセスする用）:
 
 ```json
 {
@@ -103,7 +187,14 @@ aws s3 mb s3://jobtv-videos-stg --region ap-northeast-1
     {
       "Effect": "Allow",
       "Action": ["s3:GetObject", "s3:PutObject"],
-      "Resource": ["arn:aws:s3:::jobtv-videos-stg/source/*", "arn:aws:s3:::jobtv-videos-stg/transcoded/*"]
+      "Resource": [
+        "arn:aws:s3:::jobtv-videos-stg/companies/*",
+        "arn:aws:s3:::jobtv-videos-stg/admin/*",
+        "arn:aws:s3:::jobtv-videos-stg/transcoded/*",
+        "arn:aws:s3:::jobtv-videos-prod/companies/*",
+        "arn:aws:s3:::jobtv-videos-prod/admin/*",
+        "arn:aws:s3:::jobtv-videos-prod/transcoded/*"
+      ]
     }
   ]
 }
